@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "synadb"
-version = "0.5.0"
+version = "0.5.1"
 description = "AI-native embedded database for ML/AI applications - vectors, tensors, experiments, and model registry"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Syna Team", email = "hello@eyelid.ai"}
+    {name = "gtava5813", email = "hello@eyelid.ai"}
 ]
 keywords = [
     "database", "embedded", "ai", "ml", "machine-learning",

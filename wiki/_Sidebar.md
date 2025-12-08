@@ -3,12 +3,12 @@
 **Getting Started**
 - [Home](Home)
 - [Getting Started](Getting-Started)
-- [Installation](Getting-Started#installation)
 
-**Guides**
-- [Python Guide](Python-Guide)
-- [Rust Guide](Rust-Guide)
-- [C/C++ Guide](API-Reference#cffi-api)
+**Features**
+- [Vector Store](API-Reference#vectorstore-python)
+- [Tensor Engine](API-Reference#tensorengine-python)
+- [Model Registry](API-Reference#modelregistry-python)
+- [Experiment Tracking](API-Reference#experimenttracker-python)
 
 **Reference**
 - [API Reference](API-Reference)
@@ -18,7 +18,6 @@
 **Project**
 - [Roadmap](Roadmap)
 - [Contributing](Contributing)
-- [Changelog](https://github.com/gtava5813/SynaDB/releases)
 
 **Links**
 - [GitHub](https://github.com/gtava5813/SynaDB)

@@ -1,6 +1,8 @@
 # SynaDB
 
+[![CI](https://github.com/gtava5813/SynaDB/actions/workflows/ci.yml/badge.svg)](https://github.com/gtava5813/SynaDB/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/synadb.svg)](https://pypi.org/project/synadb/)
+[![Crates.io](https://img.shields.io/crates/v/synadb.svg)](https://crates.io/crates/synadb)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > AI-native embedded database for Python

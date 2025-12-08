@@ -262,3 +262,154 @@ int32_t syna_compact(const char* path);
 | -5 | `SYNA_ERR_KEY_NOT_FOUND` | Key not found |
 | -6 | `SYNA_ERR_TYPE_MISMATCH` | Type mismatch on read |
 | -100 | `SYNA_ERR_INTERNAL_PANIC` | Internal panic |
+
+
+---
+
+## VectorStore (Python)
+
+```python
+from synadb import VectorStore
+
+# Create store
+store = VectorStore(path: str, dimensions: int, metric: str = "cosine")
+
+# Insert vector
+store.insert(key: str, vector: np.ndarray) -> None
+
+# Search for similar vectors
+store.search(query: np.ndarray, k: int = 10) -> List[SearchResult]
+
+# Get vector by key
+store.get(key: str) -> Optional[np.ndarray]
+
+# Delete vector
+store.delete(key: str) -> None
+
+# Build HNSW index (for large datasets)
+store.build_index() -> None
+
+# Properties
+len(store) -> int
+store.dimensions -> int
+```
+
+### SearchResult
+
+```python
+@dataclass
+class SearchResult:
+    key: str      # Vector key
+    score: float  # Distance score (lower = more similar)
+```
+
+### Distance Metrics
+
+| Metric | Description |
+|--------|-------------|
+| `cosine` | Cosine distance (1 - cosine_similarity) |
+| `euclidean` | Euclidean (L2) distance |
+| `dot_product` | Negative dot product |
+
+---
+
+## TensorEngine (Python)
+
+```python
+from synadb import TensorEngine
+
+# Create engine
+engine = TensorEngine(path: str)
+
+# Store tensor with chunked storage
+engine.put_tensor_chunked(name: str, data: np.ndarray) -> int
+
+# Load tensor
+data, shape = engine.get_tensor_chunked(name: str) -> Tuple[np.ndarray, Tuple]
+
+# Pattern-based loading
+data, shape = engine.get_tensor(pattern: str, dtype) -> Tuple[np.ndarray, Tuple]
+```
+
+---
+
+## ModelRegistry (Python)
+
+```python
+from synadb import ModelRegistry
+
+# Create registry
+registry = ModelRegistry(path: str)
+
+# Save model with metadata
+version = registry.save_model(
+    name: str, 
+    data: bytes, 
+    metadata: Dict[str, str] = {}
+) -> ModelVersion
+
+# Load model (with checksum verification)
+data, info = registry.load_model(name: str, version: int = None) -> Tuple[bytes, ModelVersion]
+
+# List versions
+versions = registry.list_versions(name: str) -> List[ModelVersion]
+
+# Set deployment stage
+registry.set_stage(name: str, version: int, stage: str) -> None
+
+# Get production model
+prod = registry.get_production(name: str) -> Optional[ModelVersion]
+```
+
+### ModelVersion
+
+```python
+@dataclass
+class ModelVersion:
+    version: int
+    checksum: str      # SHA-256 hash
+    size_bytes: int
+    stage: str         # Development, Staging, Production, Archived
+    metadata: Dict[str, str]
+    created_at: int    # Unix timestamp
+```
+
+---
+
+## ExperimentTracker (Python)
+
+```python
+from synadb import ExperimentTracker
+
+# Create tracker
+tracker = ExperimentTracker(path: str)
+
+# Start a run
+run_id = tracker.start_run(experiment: str, tags: List[str] = []) -> str
+
+# Log parameters
+tracker.log_param(run_id: str, key: str, value: str) -> None
+
+# Log metrics
+tracker.log_metric(run_id: str, key: str, value: float, step: int = None) -> None
+
+# Log artifacts
+tracker.log_artifact(run_id: str, name: str, data: bytes) -> None
+
+# End run
+tracker.end_run(run_id: str, status: str) -> None
+
+# Query runs
+run = tracker.get_run(run_id: str) -> Run
+runs = tracker.list_runs(experiment: str) -> List[Run]
+metrics = tracker.get_metric(run_id: str, metric_name: str) -> List[Tuple[int, float]]
+```
+
+### Run Status
+
+| Status | Description |
+|--------|-------------|
+| `Running` | Run in progress |
+| `Completed` | Run finished successfully |
+| `Failed` | Run encountered error |
+| `Killed` | Run manually terminated |

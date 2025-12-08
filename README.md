@@ -22,25 +22,20 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 
 ## Installation
 
-### Python (Recommended)
+### Rust
+
+```toml
+[dependencies]
+synadb = "0.5.1"
+```
+
+### Python
 
 ```bash
 pip install synadb
 ```
 
-With optional ML dependencies:
-```bash
-pip install synadb[ml]      # PyTorch, transformers
-pip install synadb[pandas]  # Pandas integration
-pip install synadb[all]     # Everything
-```
-
-### Rust
-
-```toml
-[dependencies]
-synadb = "0.5.0"
-```
+See [Python Package](https://pypi.org/project/synadb/) for full Python documentation.
 
 ### Building from Source
 

@@ -133,8 +133,8 @@ jobs:
         working-directory: demos/python
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          # Copy root README to demos/python for PyPI description
-          cp ../../README.md README.md || echo "README not found, creating minimal one"
+          # Use the Python-specific README.md already in demos/python/
+          # Do NOT copy root README - it's Rust-focused for crates.io
           
           # Create a complete setup.py with all metadata
           cat > setup.py << 'EOF'

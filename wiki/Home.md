@@ -22,13 +22,14 @@ SynaDB is an embedded, log-structured, columnar-mapped database engine written i
 
 ## Current Version
 
-**v0.1.0** - Core Database
-- Append-only log storage
-- Schema-free data types (Float, Int, Text, Bytes)
-- History/tensor extraction for ML
+**v0.5.0** - AI Platform
+- Append-only log storage with schema-free data types
+- Vector Store with HNSW index for similarity search
+- Tensor Engine for batch ML data operations
+- Model Registry with checksum verification
+- Experiment Tracking for ML workflows
 - LZ4 and delta compression
 - C-ABI for Python/C++ integration
-- Thread-safe concurrent access
 
 ## Installation
 
