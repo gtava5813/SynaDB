@@ -19,18 +19,29 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Checkout wiki repo
+        id: checkout-wiki
+        continue-on-error: true
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}.wiki
           path: wiki-repo
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check if wiki exists
+        if: steps.checkout-wiki.outcome == 'failure'
+        run: |
+          echo "::warning::Wiki repository does not exist yet."
+          echo "Please create the wiki first by going to the Wiki tab on GitHub and creating the first page."
+          exit 0
+
       - name: Sync wiki content
+        if: steps.checkout-wiki.outcome == 'success'
         run: |
           # Copy all markdown files from wiki/ to wiki-repo/
           cp -r wiki/*.md wiki-repo/
 
       - name: Commit and push
+        if: steps.checkout-wiki.outcome == 'success'
         working-directory: wiki-repo
         run: |
           git config user.name "github-actions[bot]"
