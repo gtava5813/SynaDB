@@ -1,0 +1,22 @@
+# Core dependencies
+numpy>=1.21.0
+pandas>=1.3.0
+
+# ML dependencies
+torch>=2.0.0
+datasets>=2.14.0
+transformers>=4.30.0
+sentence-transformers>=2.2.0
+
+# Audio processing (for Common Voice demo)
+librosa>=0.10.0
+
+# Visualization
+matplotlib>=3.5.0
+
+# Testing
+pytest>=7.0.0
+hypothesis>=6.0.0
+
+# Async support
+aiofiles>=23.0.0

@@ -1,0 +1,36 @@
+[package]
+name = "synadb"
+version = "0.5.0"
+edition = "2021"
+authors = ["gtava5813"]
+description = "An AI-native embedded database"
+license = "MIT"
+repository = "https://github.com/gtava5813/SynaDB"
+homepage = "https://github.com/gtava5813/SynaDB"
+documentation = "https://docs.rs/synadb"
+readme = "README.md"
+keywords = ["database", "embedded", "ai", "ml", "tensor"]
+categories = ["database", "data-structures", "science"]
+rust-version = "1.81.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+bincode = "1.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+memmap2 = "0.9"
+once_cell = "1.18"
+parking_lot = "0.12"
+libc = "0.2"
+lz4_flex = "0.11"
+thiserror = "1.0"
+sha2 = "0.10"
+
+uuid = { version = "1.8", features = ["v4"] }
+
+[dev-dependencies]
+proptest = "1.4"
+tempfile = "3.10"
+

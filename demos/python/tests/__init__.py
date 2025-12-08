@@ -1,0 +1,2 @@
+"""Syna Python wrapper tests."""
+

@@ -1,0 +1,212 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (e.g., v0.1.0)'
+        required: true
+        type: string
+      publish_pypi:
+        description: 'Publish to PyPI'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: libsynadb.so
+            artifact_name: libsynadb-linux-x86_64.so
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: libsynadb.dylib
+            artifact_name: libsynadb-macos-x86_64.dylib
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: libsynadb.dylib
+            artifact_name: libsynadb-macos-aarch64.dylib
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: synadb.dll
+            artifact_name: synadb-windows-x86_64.dll
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Rename artifact
+        shell: bash
+        run: |
+          cp target/${{ matrix.target }}/release/${{ matrix.artifact }} ${{ matrix.artifact_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ matrix.artifact_name }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || inputs.publish_pypi }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            VERSION="${{ inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update version and package name in package files
+        working-directory: demos/python
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          # Fix package name (old tags have "Syna" instead of "synadb")
+          sed -i 's/name="Syna"/name="synadb"/' setup.py
+          sed -i 's/name = "Syna"/name = "synadb"/' pyproject.toml || true
+          # Update version
+          sed -i "s/__version__ = \".*\"/__version__ = \"$VERSION\"/" synadb/__init__.py
+          sed -i "s/version=\".*\"/version=\"$VERSION\"/" setup.py
+          sed -i "s/version = \".*\"/version = \"$VERSION\"/" pyproject.toml || true
+
+      - name: Create proper setup.py with README and metadata
+        working-directory: demos/python
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          # Copy root README to demos/python for PyPI description
+          cp ../../README.md README.md || echo "README not found, creating minimal one"
+          
+          # Create a complete setup.py with all metadata
+          cat > setup.py << 'EOF'
+          """Setup script for SynaDB Python wrapper."""
+          from setuptools import setup, find_packages
+          from pathlib import Path
+          
+          # Read README for long description
+          readme_path = Path(__file__).parent / "README.md"
+          long_description = ""
+          if readme_path.exists():
+              long_description = readme_path.read_text(encoding="utf-8")
+          
+          setup(
+              name="synadb",
+              version="VERSION_PLACEHOLDER",
+              description="AI-native embedded database for ML/AI applications",
+              long_description=long_description,
+              long_description_content_type="text/markdown",
+              author="Golvis Tavarez",
+              author_email="golvis@eyelid.ai",
+              url="https://github.com/gtava5813/SynaDB",
+              project_urls={
+                  "Homepage": "https://github.com/gtava5813/SynaDB",
+                  "Documentation": "https://github.com/gtava5813/SynaDB/wiki",
+                  "Repository": "https://github.com/gtava5813/SynaDB",
+                  "Issues": "https://github.com/gtava5813/SynaDB/issues",
+              },
+              packages=find_packages(),
+              package_data={"synadb": ["*.so", "*.dylib", "*.dll"]},
+              python_requires=">=3.8",
+              install_requires=["numpy>=1.21.0"],
+              extras_require={
+                  "ml": ["torch>=2.0.0", "datasets>=2.14.0", "transformers>=4.30.0"],
+                  "pandas": ["pandas>=1.3.0"],
+                  "dev": ["pytest>=7.0.0", "hypothesis>=6.0.0"],
+              },
+              classifiers=[
+                  "Development Status :: 4 - Beta",
+                  "Intended Audience :: Developers",
+                  "Intended Audience :: Science/Research",
+                  "License :: OSI Approved :: MIT License",
+                  "Operating System :: OS Independent",
+                  "Programming Language :: Python :: 3",
+                  "Programming Language :: Python :: 3.8",
+                  "Programming Language :: Python :: 3.9",
+                  "Programming Language :: Python :: 3.10",
+                  "Programming Language :: Python :: 3.11",
+                  "Programming Language :: Python :: 3.12",
+                  "Topic :: Database",
+                  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+              ],
+              keywords="database embedded ai ml machine-learning vector-database embeddings rag llm",
+          )
+          EOF
+          # Replace version placeholder
+          sed -i "s/VERSION_PLACEHOLDER/$VERSION/" setup.py
+
+      - name: Copy native libraries to package
+        run: |
+          cp artifacts/x86_64-unknown-linux-gnu/libsynadb-linux-x86_64.so demos/python/synadb/libsynadb.so
+
+      - name: Install build dependencies
+        run: pip install build twine
+
+      - name: Build package
+        working-directory: demos/python
+        run: python -m build
+
+      - name: Publish to PyPI
+        working-directory: demos/python
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload dist/*

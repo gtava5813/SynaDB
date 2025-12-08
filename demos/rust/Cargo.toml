@@ -1,0 +1,37 @@
+[package]
+name = "syna_demos"
+version = "0.1.0"
+edition = "2021"
+description = "Demo examples for syna database"
+
+[[bin]]
+name = "syna_demos"
+path = "main.rs"
+
+[dependencies]
+synadb = { path = "../.." }
+
+[[example]]
+name = "basic_crud"
+path = "basic_crud.rs"
+
+[[example]]
+name = "time_series"
+path = "time_series.rs"
+
+[[example]]
+name = "compression"
+path = "compression.rs"
+
+[[example]]
+name = "concurrent"
+path = "concurrent.rs"
+
+[[example]]
+name = "recovery"
+path = "recovery.rs"
+
+[[example]]
+name = "tensor_extraction"
+path = "tensor_extraction.rs"
+

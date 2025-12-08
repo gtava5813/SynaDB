@@ -1,0 +1,83 @@
+# Docker Compose configuration for Entangle benchmarks
+#
+# Usage (from project root):
+#   docker-compose -f benchmarks/docker-compose.yml up benchmark-all
+#   docker-compose -f benchmarks/docker-compose.yml up benchmark-write
+#   docker-compose -f benchmarks/docker-compose.yml up benchmark-read
+#
+# Or from benchmarks directory:
+#   docker-compose up benchmark-all
+#
+# Results will be saved to ./results/
+#
+# _Requirements: 12.6_
+
+version: '3.8'
+
+services:
+  # Run all benchmarks and generate report
+  benchmark-all:
+    build:
+      context: ..
+      dockerfile: benchmarks/Dockerfile
+    volumes:
+      - ./results:/app/results
+    command: all --output /app/results
+    environment:
+      - RUST_BACKTRACE=1
+      - ENTANGLE_BENCH_SEED=0xDEADBEEFCAFEBABE
+
+  # Run write benchmarks only
+  benchmark-write:
+    build:
+      context: ..
+      dockerfile: benchmarks/Dockerfile
+    volumes:
+      - ./results:/app/results
+    command: write --warmup 1000 --iterations 10000 --sizes 64,1024,65536
+    environment:
+      - RUST_BACKTRACE=1
+
+  # Run read benchmarks only
+  benchmark-read:
+    build:
+      context: ..
+      dockerfile: benchmarks/Dockerfile
+    volumes:
+      - ./results:/app/results
+    command: read --warmup 1000 --iterations 10000 --threads 1,4,8
+    environment:
+      - RUST_BACKTRACE=1
+
+  # Run mixed workload benchmarks
+  benchmark-mixed:
+    build:
+      context: ..
+      dockerfile: benchmarks/Dockerfile
+    volumes:
+      - ./results:/app/results
+    command: mixed --workload A --operations 100000
+    environment:
+      - RUST_BACKTRACE=1
+
+  # Run storage efficiency benchmarks
+  benchmark-storage:
+    build:
+      context: ..
+      dockerfile: benchmarks/Dockerfile
+    volumes:
+      - ./results:/app/results
+    command: storage --entries 100000
+    environment:
+      - RUST_BACKTRACE=1
+
+  # Interactive shell for debugging
+  shell:
+    build:
+      context: ..
+      dockerfile: benchmarks/Dockerfile
+    volumes:
+      - ./results:/app/results
+    entrypoint: /bin/bash
+    stdin_open: true
+    tty: true

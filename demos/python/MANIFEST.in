@@ -1,0 +1,13 @@
+# Include the native library
+include synadb/*.so
+include synadb/*.dylib
+include synadb/*.dll
+
+# Include documentation
+include README.md
+include LICENSE
+
+# Exclude test files from distribution
+exclude tests/*
+exclude *.py[cod]
+exclude __pycache__

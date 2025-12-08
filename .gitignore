@@ -1,0 +1,52 @@
+# Build artifacts
+/target/
+**/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+starter_context.txt
+# Kiro config (local development)
+.kiro/
+
+# Internal docs
+aifactory_needs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+ENV/
+
+# Coverage
+*.gcno
+*.gcda
+*.gcov
+coverage/
+*.profraw
+*.profdata
+
+# Benchmark results (keep structure, ignore data)
+benchmarks/results/*.json
+benchmarks/results/*.csv
+
+# Local config
+.env
+.env.local

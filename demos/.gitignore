@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+
+# Rust
+target/
+Cargo.lock
+
+# C/C++
+*.o
+*.obj
+*.exe
+*.out
+*.app
+*.dll
+*.dylib
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+*.db
+*.db-journal
+
+# Benchmark outputs
+benchmarks/results/*.json
+benchmarks/results/*.md
+benchmarks/results/*.png
+benchmarks/results/*.svg
+
+# HuggingFace cache
+.cache/
+datasets_cache/
+
+# OS
+.DS_Store
+Thumbs.db
