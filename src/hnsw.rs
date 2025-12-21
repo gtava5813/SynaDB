@@ -455,6 +455,30 @@ pub struct HnswStats {
 // Search Implementation
 // =============================================================================
 
+/// A fast hasher for usize keys that just uses the value itself.
+/// Safe because HNSW node IDs are dense and we don't worry about DoS.
+#[derive(Default)]
+struct NoOpHasher(u64);
+
+impl std::hash::Hasher for NoOpHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+    fn write(&mut self, bytes: &[u8]) {
+        // Fallback for non-usize, though we only expect usize
+        let mut hash = self.0;
+        for &b in bytes {
+            hash = (hash << 5).wrapping_add(hash).wrapping_add(b as u64);
+        }
+        self.0 = hash;
+    }
+    fn write_usize(&mut self, i: usize) {
+        self.0 = i as u64;
+    }
+}
+
+type BuildNoOpHasher = std::hash::BuildHasherDefault<NoOpHasher>;
+
 /// Helper struct for min-heap ordering (closest first).
 /// Used in search_layer to process candidates from closest to farthest.
 struct MinHeapEntry(f32, usize);
@@ -532,30 +556,10 @@ impl HnswIndex {
     ///
     /// **Requirements:** 1.4, 1.5
     pub fn search(&self, query: &[f32], k: usize) -> Vec<(String, f32)> {
-        // Return empty if no entry point
         if self.entry_point.is_none() {
             return Vec::new();
         }
-
-        let mut ep = self.entry_point.unwrap();
-
-        // Traverse from top level to level 1, finding the closest node at each level
-        for lc in (1..=self.max_level).rev() {
-            let results = self.search_layer(query, ep, 1, lc);
-            if !results.is_empty() {
-                ep = results[0].0;
-            }
-        }
-
-        // Search at level 0 with ef_search candidates for better recall
-        let candidates = self.search_layer(query, ep, self.config.ef_search, 0);
-
-        // Return top k results with keys
-        candidates
-            .into_iter()
-            .take(k)
-            .map(|(id, dist)| (self.nodes[id].key.clone(), dist))
-            .collect()
+        self.search_with_ef(query, k, self.config.ef_search)
     }
 
     /// Search within a single layer of the HNSW graph.
@@ -569,22 +573,27 @@ impl HnswIndex {
     /// * `entry_point` - Starting node ID for the search
     /// * `ef` - Size of the dynamic candidate list (controls recall vs speed)
     /// * `level` - The layer to search in
+    /// * `visited` - Reusable HashSet for visited nodes
+    /// * `candidates` - Reusable BinaryHeap for min-heap
+    /// * `results` - Reusable BinaryHeap for max-heap
     ///
     /// # Returns
     ///
     /// A vector of (node_id, distance) pairs, sorted by distance (closest first).
+    #[allow(clippy::too_many_arguments)]
     fn search_layer(
         &self,
         query: &[f32],
         entry_point: usize,
         ef: usize,
         level: usize,
+        visited: &mut std::collections::HashSet<usize, BuildNoOpHasher>,
+        candidates: &mut std::collections::BinaryHeap<MinHeapEntry>,
+        results: &mut std::collections::BinaryHeap<MaxHeapEntry>,
     ) -> Vec<(usize, f32)> {
-        use std::collections::{BinaryHeap, HashSet};
-
-        let mut visited = HashSet::new();
-        let mut candidates = BinaryHeap::new(); // min-heap by distance (closest first)
-        let mut results = BinaryHeap::new(); // max-heap for tracking worst result
+        visited.clear();
+        candidates.clear();
+        results.clear();
 
         // Initialize with entry point
         let ep_dist = self.metric.distance(query, &self.nodes[entry_point].vector);
@@ -628,11 +637,13 @@ impl HnswIndex {
         }
 
         // Convert to sorted vec (closest first)
-        let mut result_vec: Vec<_> = results
-            .into_iter()
-            .map(|MaxHeapEntry(d, id)| (id, d))
-            .collect();
-        result_vec.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+        // We pop from max-heap (results), which gives us Farthest -> Closest.
+        // So we collect and then reverse to get Closest -> Farthest.
+        let mut result_vec = Vec::with_capacity(results.len());
+        while let Some(MaxHeapEntry(d, id)) = results.pop() {
+            result_vec.push((id, d));
+        }
+        result_vec.reverse();
         result_vec
     }
 
@@ -658,19 +669,25 @@ impl HnswIndex {
 
         let mut ep = self.entry_point.unwrap();
 
+        use std::collections::{BinaryHeap, HashSet};
+        // Reuse collections across levels
+        let mut visited = HashSet::with_hasher(BuildNoOpHasher::default());
+        let mut candidates = BinaryHeap::new();
+        let mut results = BinaryHeap::new();
+
         // Traverse from top level to level 1
         for lc in (1..=self.max_level).rev() {
-            let results = self.search_layer(query, ep, 1, lc);
-            if !results.is_empty() {
-                ep = results[0].0;
+            let res = self.search_layer(query, ep, 1, lc, &mut visited, &mut candidates, &mut results);
+            if !res.is_empty() {
+                ep = res[0].0;
             }
         }
 
         // Search at level 0 with custom ef_search
-        let candidates = self.search_layer(query, ep, ef_search, 0);
+        let final_candidates = self.search_layer(query, ep, ef_search, 0, &mut visited, &mut candidates, &mut results);
 
         // Return top k results with keys
-        candidates
+        final_candidates
             .into_iter()
             .take(k)
             .map(|(id, dist)| (self.nodes[id].key.clone(), dist))
