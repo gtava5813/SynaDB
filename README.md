@@ -7,7 +7,7 @@
 [![CI](https://github.com/gtava5813/SynaDB/actions/workflows/ci.yml/badge.svg)](https://github.com/gtava5813/SynaDB/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/synadb.svg)](https://pypi.org/project/synadb/)
 [![Crates.io](https://img.shields.io/crates/v/synadb.svg)](https://crates.io/crates/synadb)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-SynaDB-blue.svg)](https://github.com/gtava5813/SynaDB/blob/main/LICENSE)
 
 > An AI-native embedded database.
 
@@ -40,7 +40,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 
 ```toml
 [dependencies]
-synadb = "1.0.1"
+synadb = "1.0.2"
 ```
 
 ### Python
@@ -847,6 +847,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+SynaDB License - Free for personal use and companies under $10M ARR / 1M MAUs. See [LICENSE](LICENSE) for details.
 
 

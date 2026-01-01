@@ -522,7 +522,7 @@ pip install synadb
 
 ```toml
 [dependencies]
-synadb = "1.0.1"
+synadb = "1.0.2"
 ```
 
 ### Building from Source
