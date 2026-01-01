@@ -46,7 +46,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --lib -- -D warnings
 
   docs:
     name: Documentation

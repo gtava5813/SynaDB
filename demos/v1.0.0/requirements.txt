@@ -1,8 +1,8 @@
 # SynaDB v1.0.0 Showcase - Core Dependencies
 # Install with: pip install -r requirements.txt
 
-# SynaDB - The AI-native embedded database
-synadb>=1.0.0
+# Note: synadb package should be installed separately from the built wheel
+# or from PyPI once published
 
 # Numerical computing
 numpy>=1.24.0,<2.0.0
