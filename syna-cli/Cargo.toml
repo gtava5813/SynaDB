@@ -1,0 +1,21 @@
+[package]
+name = "syna-cli"
+version = "0.7.0"
+edition = "2021"
+description = "Command-line interface for SynaDB database"
+authors = ["gtava5813"]
+license = "MIT"
+repository = "https://github.com/gtava5813/SynaDB"
+readme = "README.md"
+keywords = ["database", "cli", "ai", "ml", "synadb"]
+categories = ["command-line-utilities", "database"]
+
+[dependencies]
+synadb = { path = ".." }
+clap = { version = "4", features = ["derive"] }
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+tabled = "0.14"  # For table output
+indicatif = "0.17"  # Progress bars
+rmp-serde = "1"  # MessagePack serialization
+ciborium = "0.2"  # CBOR serialization

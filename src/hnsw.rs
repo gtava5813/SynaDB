@@ -1,3 +1,6 @@
+// Copyright (c) 2025 SynaDB Contributors
+// Licensed under the SynaDB License. See LICENSE file for details.
+
 //! Hierarchical Navigable Small World (HNSW) index for approximate nearest neighbor search
 //!
 //! HNSW provides O(log N) search time vs O(N) for brute force, enabling

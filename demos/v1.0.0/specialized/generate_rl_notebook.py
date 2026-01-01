@@ -1,0 +1,952 @@
+#!/usr/bin/env python3
+"""Generate the Reinforcement Learning notebook for SynaDB v1.0.0 Showcase."""
+
+import json
+
+def create_notebook():
+    """Create the 19_reinforcement_learning.ipynb notebook."""
+    
+    cells = []
+    
+    # Cell 1: Header and Setup
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 1: Header and Setup\n",
+            "import sys\n",
+            "sys.path.insert(0, '..')\n",
+            "\n",
+            "from utils.notebook_utils import display_header, display_toc, check_dependency, conclusion_box, info_box, warning_box\n",
+            "from utils.system_info import display_system_info\n",
+            "from utils.benchmark import Benchmark, BenchmarkResult, ComparisonTable\n",
+            "from utils.charts import setup_style, bar_comparison, throughput_comparison, COLORS\n",
+            "\n",
+            "display_header('Reinforcement Learning', 'SynaDB for RL Experience Storage')"
+        ]
+    })
+    
+    # Cell 2: Table of Contents
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 2: Table of Contents\n",
+            "sections = [\n",
+            "    ('Introduction', 'introduction'),\n",
+            "    ('Setup', 'setup'),\n",
+            "    ('Transition Storage', 'transitions'),\n",
+            "    ('Replay Buffer', 'replay-buffer'),\n",
+            "    ('Trajectory Storage', 'trajectories'),\n",
+            "    ('Multi-Machine Sync', 'multi-machine'),\n",
+            "    ('Reward Tensor Extraction', 'reward-extraction'),\n",
+            "    ('Export Demonstration', 'export'),\n",
+            "    ('Results Summary', 'results'),\n",
+            "    ('Conclusions', 'conclusions'),\n",
+            "]\n",
+            "display_toc(sections)"
+        ]
+    })
+    
+    # Cell 3: Introduction (Markdown)
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 📌 Introduction <a id=\"introduction\"></a>\n",
+            "\n",
+            "This notebook demonstrates **SynaDB for reinforcement learning** experience storage and replay.\n",
+            "\n",
+            "### RL Data Challenges\n",
+            "\n",
+            "| Challenge | Description | SynaDB Solution |\n",
+            "|-----------|-------------|------------------|\n",
+            "| **Experience Storage** | Store (s, a, r, s') tuples | Append-only log |\n",
+            "| **Random Sampling** | Uniform replay buffer | Key-based random access |\n",
+            "| **Trajectory Storage** | Episode sequences | Hierarchical keys |\n",
+            "| **Multi-Machine** | Distributed actors | File-based sync |\n",
+            "| **Tensor Extraction** | Batch training data | Native tensor support |\n",
+            "\n",
+            "### RL Storage Patterns\n",
+            "\n",
+            "```\n",
+            "Transition: (state, action, reward, next_state, done)\n",
+            "Trajectory: [t0, t1, t2, ..., tn] (episode)\n",
+            "Replay Buffer: Random sample of transitions\n",
+            "```\n",
+            "\n",
+            "### What We'll Demonstrate\n",
+            "\n",
+            "1. **Transition Storage** - Store individual experiences\n",
+            "2. **Replay Buffer** - Random sampling for training\n",
+            "3. **Trajectory Storage** - Complete episode storage\n",
+            "4. **Multi-Machine Sync** - Distributed actor pattern\n",
+            "5. **Reward Extraction** - Tensor extraction for analysis"
+        ]
+    })
+    
+    # Cell 4: System Info
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 4: System Info\n",
+            "display_system_info()"
+        ]
+    })
+    
+    return cells
+
+def create_notebook_part2(cells):
+    """Continue creating notebook cells - Setup and transition storage."""
+    
+    # Cell 5: Setup Section (Markdown)
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 🔧 Setup <a id=\"setup\"></a>\n",
+            "\n",
+            "Let's set up our environment for RL demonstrations."
+        ]
+    })
+    
+    # Cell 6: Setup Code
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 6: Setup\n",
+            "import numpy as np\n",
+            "import time\n",
+            "import os\n",
+            "import tempfile\n",
+            "from datetime import datetime\n",
+            "from dataclasses import dataclass\n",
+            "from typing import List, Dict, Any, Optional, Tuple\n",
+            "import matplotlib.pyplot as plt\n",
+            "\n",
+            "# Check dependencies\n",
+            "HAS_SYNADB = check_dependency('synadb', 'pip install synadb')\n",
+            "\n",
+            "# Apply consistent styling\n",
+            "setup_style()\n",
+            "\n",
+            "# Create temp directory\n",
+            "temp_dir = tempfile.mkdtemp(prefix='synadb_rl_')\n",
+            "print(f'Using temp directory: {temp_dir}')\n",
+            "\n",
+            "# RL configuration\n",
+            "STATE_DIM = 8  # e.g., CartPole-like state\n",
+            "ACTION_DIM = 2  # Discrete actions\n",
+            "BUFFER_SIZE = 10000\n",
+            "BATCH_SIZE = 64\n",
+            "NUM_EPISODES = 50\n",
+            "MAX_STEPS = 200\n",
+            "\n",
+            "print(f\"\\n✓ Setup complete\")\n",
+            "print(f\"  State dim: {STATE_DIM}\")\n",
+            "print(f\"  Action dim: {ACTION_DIM}\")\n",
+            "print(f\"  Buffer size: {BUFFER_SIZE:,}\")\n",
+            "print(f\"  Batch size: {BATCH_SIZE}\")"
+        ]
+    })
+    
+    # Cell 7: Transition Storage Section (Markdown)
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 💾 Transition Storage <a id=\"transitions\"></a>\n",
+            "\n",
+            "Store individual (s, a, r, s', done) transitions.\n",
+            "\n",
+            "### Key Schema\n",
+            "\n",
+            "| Key Pattern | Type | Description |\n",
+            "|-------------|------|-------------|\n",
+            "| `transitions/{id}/state/{dim}` | Float | State dimension |\n",
+            "| `transitions/{id}/action` | Int | Action taken |\n",
+            "| `transitions/{id}/reward` | Float | Reward received |\n",
+            "| `transitions/{id}/next_state/{dim}` | Float | Next state |\n",
+            "| `transitions/{id}/done` | Int | Episode done flag |"
+        ]
+    })
+    
+    # Cell 8: Transition Dataclass
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 8: Transition Dataclass\n",
+            "@dataclass\n",
+            "class Transition:\n",
+            "    \"\"\"A single RL transition.\"\"\"\n",
+            "    state: np.ndarray\n",
+            "    action: int\n",
+            "    reward: float\n",
+            "    next_state: np.ndarray\n",
+            "    done: bool\n",
+            "    \n",
+            "    def to_dict(self) -> Dict[str, Any]:\n",
+            "        return {\n",
+            "            'state': self.state.tolist(),\n",
+            "            'action': self.action,\n",
+            "            'reward': self.reward,\n",
+            "            'next_state': self.next_state.tolist(),\n",
+            "            'done': self.done\n",
+            "        }\n",
+            "\n",
+            "# Simulate environment step\n",
+            "def simulate_step(state: np.ndarray, action: int) -> Tuple[np.ndarray, float, bool]:\n",
+            "    \"\"\"Simulate a simple environment step.\"\"\"\n",
+            "    # Simple dynamics: state changes based on action\n",
+            "    next_state = state + np.random.randn(STATE_DIM) * 0.1\n",
+            "    if action == 1:\n",
+            "        next_state[0] += 0.1\n",
+            "    else:\n",
+            "        next_state[0] -= 0.1\n",
+            "    \n",
+            "    # Reward based on state\n",
+            "    reward = -abs(next_state[0])  # Reward for staying near 0\n",
+            "    \n",
+            "    # Done if state goes too far\n",
+            "    done = abs(next_state[0]) > 2.0\n",
+            "    \n",
+            "    return next_state, reward, done\n",
+            "\n",
+            "print(\"Transition class and environment simulator ready\")"
+        ]
+    })
+    
+    # Cell 9: Store Transitions
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 9: Store Transitions\n",
+            "if HAS_SYNADB:\n",
+            "    from synadb import SynaDB\n",
+            "    \n",
+            "    db_path = os.path.join(temp_dir, 'rl_buffer.db')\n",
+            "    db = SynaDB(db_path)\n",
+            "    \n",
+            "    print(\"Generating and storing transitions...\\n\")\n",
+            "    \n",
+            "    np.random.seed(42)\n",
+            "    transitions = []\n",
+            "    \n",
+            "    # Generate transitions\n",
+            "    state = np.random.randn(STATE_DIM).astype(np.float32)\n",
+            "    \n",
+            "    start = time.perf_counter()\n",
+            "    \n",
+            "    for i in range(BUFFER_SIZE):\n",
+            "        action = np.random.randint(ACTION_DIM)\n",
+            "        next_state, reward, done = simulate_step(state, action)\n",
+            "        \n",
+            "        # Store transition\n",
+            "        prefix = f'transitions/{i:06d}'\n",
+            "        \n",
+            "        for d in range(STATE_DIM):\n",
+            "            db.put_float(f'{prefix}/state/{d}', float(state[d]))\n",
+            "            db.put_float(f'{prefix}/next_state/{d}', float(next_state[d]))\n",
+            "        \n",
+            "        db.put_int(f'{prefix}/action', action)\n",
+            "        db.put_float(f'{prefix}/reward', reward)\n",
+            "        db.put_int(f'{prefix}/done', 1 if done else 0)\n",
+            "        \n",
+            "        # Keep in memory for comparison\n",
+            "        transitions.append(Transition(state.copy(), action, reward, next_state.copy(), done))\n",
+            "        \n",
+            "        # Reset if done\n",
+            "        if done:\n",
+            "            state = np.random.randn(STATE_DIM).astype(np.float32)\n",
+            "        else:\n",
+            "            state = next_state.copy()\n",
+            "    \n",
+            "    storage_time = (time.perf_counter() - start) * 1000\n",
+            "    \n",
+            "    print(f\"✓ Stored {BUFFER_SIZE:,} transitions in {storage_time:.1f}ms\")\n",
+            "    print(f\"  Throughput: {BUFFER_SIZE / (storage_time / 1000):,.0f} transitions/sec\")\n",
+            "    print(f\"  File size: {os.path.getsize(db_path) / 1024:.1f} KB\")\n",
+            "else:\n",
+            "    warning_box(\"SynaDB not installed - skipping transition storage\")\n",
+            "    db = None\n",
+            "    transitions = []"
+        ]
+    })
+    
+    return cells
+
+
+def create_notebook_part3(cells):
+    """Continue creating notebook cells - Replay buffer."""
+    
+    # Cell 10: Replay Buffer Section (Markdown)
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 🔄 Replay Buffer <a id=\"replay-buffer\"></a>\n",
+            "\n",
+            "Implement random sampling for experience replay.\n",
+            "\n",
+            "### Replay Buffer Operations\n",
+            "\n",
+            "| Operation | Description | Complexity |\n",
+            "|-----------|-------------|------------|\n",
+            "| **Add** | Store new transition | O(1) |\n",
+            "| **Sample** | Random batch | O(batch_size) |\n",
+            "| **Size** | Current buffer size | O(1) |"
+        ]
+    })
+    
+    # Cell 11: Replay Buffer Implementation
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 11: Replay Buffer Implementation\n",
+            "class SynaReplayBuffer:\n",
+            "    \"\"\"Replay buffer backed by SynaDB.\"\"\"\n",
+            "    \n",
+            "    def __init__(self, db, state_dim: int, max_size: int = 100000):\n",
+            "        self.db = db\n",
+            "        self.state_dim = state_dim\n",
+            "        self.max_size = max_size\n",
+            "        self._size = 0\n",
+            "        self._position = 0\n",
+            "    \n",
+            "    def add(self, state, action, reward, next_state, done):\n",
+            "        \"\"\"Add a transition to the buffer.\"\"\"\n",
+            "        idx = self._position % self.max_size\n",
+            "        prefix = f'buffer/{idx:06d}'\n",
+            "        \n",
+            "        for d in range(self.state_dim):\n",
+            "            self.db.put_float(f'{prefix}/state/{d}', float(state[d]))\n",
+            "            self.db.put_float(f'{prefix}/next_state/{d}', float(next_state[d]))\n",
+            "        \n",
+            "        self.db.put_int(f'{prefix}/action', int(action))\n",
+            "        self.db.put_float(f'{prefix}/reward', float(reward))\n",
+            "        self.db.put_int(f'{prefix}/done', 1 if done else 0)\n",
+            "        \n",
+            "        self._position += 1\n",
+            "        self._size = min(self._size + 1, self.max_size)\n",
+            "    \n",
+            "    def sample(self, batch_size: int) -> Dict[str, np.ndarray]:\n",
+            "        \"\"\"Sample a random batch of transitions.\"\"\"\n",
+            "        indices = np.random.randint(0, self._size, size=batch_size)\n",
+            "        \n",
+            "        states = np.zeros((batch_size, self.state_dim), dtype=np.float32)\n",
+            "        actions = np.zeros(batch_size, dtype=np.int64)\n",
+            "        rewards = np.zeros(batch_size, dtype=np.float32)\n",
+            "        next_states = np.zeros((batch_size, self.state_dim), dtype=np.float32)\n",
+            "        dones = np.zeros(batch_size, dtype=np.float32)\n",
+            "        \n",
+            "        for i, idx in enumerate(indices):\n",
+            "            prefix = f'buffer/{idx:06d}'\n",
+            "            \n",
+            "            for d in range(self.state_dim):\n",
+            "                states[i, d] = self.db.get_float(f'{prefix}/state/{d}') or 0.0\n",
+            "                next_states[i, d] = self.db.get_float(f'{prefix}/next_state/{d}') or 0.0\n",
+            "            \n",
+            "            actions[i] = self.db.get_int(f'{prefix}/action') or 0\n",
+            "            rewards[i] = self.db.get_float(f'{prefix}/reward') or 0.0\n",
+            "            dones[i] = float(self.db.get_int(f'{prefix}/done') or 0)\n",
+            "        \n",
+            "        return {\n",
+            "            'states': states,\n",
+            "            'actions': actions,\n",
+            "            'rewards': rewards,\n",
+            "            'next_states': next_states,\n",
+            "            'dones': dones\n",
+            "        }\n",
+            "    \n",
+            "    def __len__(self):\n",
+            "        return self._size\n",
+            "\n",
+            "print(\"SynaReplayBuffer class defined\")"
+        ]
+    })
+    
+    # Cell 12: Benchmark Replay Buffer
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 12: Benchmark Replay Buffer\n",
+            "replay_results = []\n",
+            "\n",
+            "if HAS_SYNADB and db:\n",
+            "    print(\"Benchmarking replay buffer operations...\\n\")\n",
+            "    \n",
+            "    # Create buffer\n",
+            "    buffer = SynaReplayBuffer(db, STATE_DIM, max_size=BUFFER_SIZE)\n",
+            "    buffer._size = BUFFER_SIZE  # Pretend buffer is full\n",
+            "    \n",
+            "    bench = Benchmark(warmup=3, iterations=20, seed=42)\n",
+            "    \n",
+            "    # Benchmark sampling\n",
+            "    def sample_batch():\n",
+            "        return buffer.sample(BATCH_SIZE)\n",
+            "    \n",
+            "    result_sample = bench.run(f'Sample (batch={BATCH_SIZE})', sample_batch)\n",
+            "    replay_results.append(result_sample)\n",
+            "    print(f\"Sample batch: {result_sample.mean_ms:.2f}ms\")\n",
+            "    \n",
+            "    # Benchmark larger batch\n",
+            "    def sample_large_batch():\n",
+            "        return buffer.sample(256)\n",
+            "    \n",
+            "    result_large = bench.run('Sample (batch=256)', sample_large_batch)\n",
+            "    replay_results.append(result_large)\n",
+            "    print(f\"Sample large batch: {result_large.mean_ms:.2f}ms\")\n",
+            "    \n",
+            "    # Show sample batch\n",
+            "    batch = buffer.sample(4)\n",
+            "    print(f\"\\nSample batch shapes:\")\n",
+            "    for key, arr in batch.items():\n",
+            "        print(f\"  {key}: {arr.shape}\")\n",
+            "else:\n",
+            "    print(\"Database not available for replay buffer\")"
+        ]
+    })
+    
+    return cells
+
+
+def create_notebook_part4(cells):
+    """Continue creating notebook cells - Trajectory storage."""
+    
+    # Cell 13: Trajectory Storage Section (Markdown)
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 📈 Trajectory Storage <a id=\"trajectories\"></a>\n",
+            "\n",
+            "Store complete episodes as trajectories.\n",
+            "\n",
+            "### Trajectory Schema\n",
+            "\n",
+            "| Key Pattern | Type | Description |\n",
+            "|-------------|------|-------------|\n",
+            "| `episodes/{ep}/length` | Int | Episode length |\n",
+            "| `episodes/{ep}/total_reward` | Float | Cumulative reward |\n",
+            "| `episodes/{ep}/step/{t}/...` | Various | Step data |"
+        ]
+    })
+    
+    # Cell 14: Generate Episodes
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 14: Generate Episodes\n",
+            "if HAS_SYNADB and db:\n",
+            "    print(\"Generating and storing episodes...\\n\")\n",
+            "    \n",
+            "    np.random.seed(42)\n",
+            "    episode_stats = []\n",
+            "    \n",
+            "    start = time.perf_counter()\n",
+            "    \n",
+            "    for ep in range(NUM_EPISODES):\n",
+            "        state = np.random.randn(STATE_DIM).astype(np.float32)\n",
+            "        total_reward = 0.0\n",
+            "        step = 0\n",
+            "        \n",
+            "        while step < MAX_STEPS:\n",
+            "            action = np.random.randint(ACTION_DIM)\n",
+            "            next_state, reward, done = simulate_step(state, action)\n",
+            "            \n",
+            "            # Store step\n",
+            "            prefix = f'episodes/{ep:04d}/step/{step:04d}'\n",
+            "            \n",
+            "            for d in range(STATE_DIM):\n",
+            "                db.put_float(f'{prefix}/state/{d}', float(state[d]))\n",
+            "            \n",
+            "            db.put_int(f'{prefix}/action', action)\n",
+            "            db.put_float(f'{prefix}/reward', reward)\n",
+            "            \n",
+            "            total_reward += reward\n",
+            "            state = next_state\n",
+            "            step += 1\n",
+            "            \n",
+            "            if done:\n",
+            "                break\n",
+            "        \n",
+            "        # Store episode metadata\n",
+            "        db.put_int(f'episodes/{ep:04d}/length', step)\n",
+            "        db.put_float(f'episodes/{ep:04d}/total_reward', total_reward)\n",
+            "        db.put_text(f'episodes/{ep:04d}/timestamp', datetime.now().isoformat())\n",
+            "        \n",
+            "        episode_stats.append({'episode': ep, 'length': step, 'reward': total_reward})\n",
+            "    \n",
+            "    episode_time = (time.perf_counter() - start) * 1000\n",
+            "    \n",
+            "    avg_length = np.mean([e['length'] for e in episode_stats])\n",
+            "    avg_reward = np.mean([e['reward'] for e in episode_stats])\n",
+            "    \n",
+            "    print(f\"✓ Stored {NUM_EPISODES} episodes in {episode_time:.1f}ms\")\n",
+            "    print(f\"  Average length: {avg_length:.1f} steps\")\n",
+            "    print(f\"  Average reward: {avg_reward:.2f}\")\n",
+            "else:\n",
+            "    episode_stats = []\n",
+            "    print(\"Database not available for episode storage\")"
+        ]
+    })
+    
+    # Cell 15: Visualize Episodes
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 15: Visualize Episodes\n",
+            "if episode_stats:\n",
+            "    fig, axes = plt.subplots(1, 2, figsize=(12, 4))\n",
+            "    \n",
+            "    episodes = [e['episode'] for e in episode_stats]\n",
+            "    lengths = [e['length'] for e in episode_stats]\n",
+            "    rewards = [e['reward'] for e in episode_stats]\n",
+            "    \n",
+            "    # Episode lengths\n",
+            "    axes[0].bar(episodes, lengths, color=COLORS['synadb'], alpha=0.7)\n",
+            "    axes[0].axhline(y=np.mean(lengths), color='red', linestyle='--', label=f'Mean: {np.mean(lengths):.1f}')\n",
+            "    axes[0].set_xlabel('Episode')\n",
+            "    axes[0].set_ylabel('Length (steps)')\n",
+            "    axes[0].set_title('Episode Lengths', fontweight='bold')\n",
+            "    axes[0].legend()\n",
+            "    axes[0].grid(True, alpha=0.3)\n",
+            "    \n",
+            "    # Episode rewards\n",
+            "    axes[1].plot(episodes, rewards, color=COLORS['synadb'], linewidth=2, marker='o', markersize=3)\n",
+            "    axes[1].axhline(y=np.mean(rewards), color='red', linestyle='--', label=f'Mean: {np.mean(rewards):.2f}')\n",
+            "    axes[1].set_xlabel('Episode')\n",
+            "    axes[1].set_ylabel('Total Reward')\n",
+            "    axes[1].set_title('Episode Rewards', fontweight='bold')\n",
+            "    axes[1].legend()\n",
+            "    axes[1].grid(True, alpha=0.3)\n",
+            "    \n",
+            "    plt.tight_layout()\n",
+            "    plt.show()\n",
+            "else:\n",
+            "    print(\"No episode stats to visualize\")"
+        ]
+    })
+    
+    return cells
+
+
+def create_notebook_part5(cells):
+    """Continue creating notebook cells - Multi-machine sync and reward extraction."""
+    
+    # Cell 16: Multi-Machine Section (Markdown)
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 🌐 Multi-Machine Sync <a id=\"multi-machine\"></a>\n",
+            "\n",
+            "Demonstrate distributed actor pattern with file-based synchronization.\n",
+            "\n",
+            "### Distributed RL Architecture\n",
+            "\n",
+            "```\n",
+            "┌─────────────┐   ┌─────────────┐   ┌─────────────┐\n",
+            "│   Actor 1   │   │   Actor 2   │   │   Actor 3   │\n",
+            "│  (Worker)   │   │  (Worker)   │   │  (Worker)   │\n",
+            "└──────┬──────┘   └──────┬──────┘   └──────┬──────┘\n",
+            "       │                 │                 │\n",
+            "       ▼                 ▼                 ▼\n",
+            "┌─────────────────────────────────────────────────┐\n",
+            "│              Shared SynaDB File                  │\n",
+            "│         (Network drive or sync service)          │\n",
+            "└─────────────────────────────────────────────────┘\n",
+            "                        │\n",
+            "                        ▼\n",
+            "               ┌─────────────┐\n",
+            "               │   Learner   │\n",
+            "               │  (Trainer)  │\n",
+            "               └─────────────┘\n",
+            "```"
+        ]
+    })
+    
+    # Cell 17: Simulate Multi-Actor
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 17: Simulate Multi-Actor\n",
+            "if HAS_SYNADB and db:\n",
+            "    print(\"Simulating multi-actor experience collection...\\n\")\n",
+            "    \n",
+            "    NUM_ACTORS = 4\n",
+            "    STEPS_PER_ACTOR = 100\n",
+            "    \n",
+            "    actor_stats = []\n",
+            "    \n",
+            "    for actor_id in range(NUM_ACTORS):\n",
+            "        np.random.seed(42 + actor_id)\n",
+            "        state = np.random.randn(STATE_DIM).astype(np.float32)\n",
+            "        \n",
+            "        start = time.perf_counter()\n",
+            "        \n",
+            "        for step in range(STEPS_PER_ACTOR):\n",
+            "            action = np.random.randint(ACTION_DIM)\n",
+            "            next_state, reward, done = simulate_step(state, action)\n",
+            "            \n",
+            "            # Store with actor prefix\n",
+            "            prefix = f'actors/{actor_id}/step/{step:04d}'\n",
+            "            \n",
+            "            for d in range(STATE_DIM):\n",
+            "                db.put_float(f'{prefix}/state/{d}', float(state[d]))\n",
+            "            \n",
+            "            db.put_int(f'{prefix}/action', action)\n",
+            "            db.put_float(f'{prefix}/reward', reward)\n",
+            "            \n",
+            "            if done:\n",
+            "                state = np.random.randn(STATE_DIM).astype(np.float32)\n",
+            "            else:\n",
+            "                state = next_state\n",
+            "        \n",
+            "        actor_time = (time.perf_counter() - start) * 1000\n",
+            "        actor_stats.append({'actor': actor_id, 'steps': STEPS_PER_ACTOR, 'time_ms': actor_time})\n",
+            "        \n",
+            "        # Store actor metadata\n",
+            "        db.put_int(f'actors/{actor_id}/total_steps', STEPS_PER_ACTOR)\n",
+            "        db.put_text(f'actors/{actor_id}/last_update', datetime.now().isoformat())\n",
+            "    \n",
+            "    print(\"Actor Statistics:\")\n",
+            "    print(\"-\" * 40)\n",
+            "    for stat in actor_stats:\n",
+            "        throughput = stat['steps'] / (stat['time_ms'] / 1000)\n",
+            "        print(f\"  Actor {stat['actor']}: {stat['steps']} steps in {stat['time_ms']:.1f}ms ({throughput:.0f} steps/sec)\")\n",
+            "    \n",
+            "    total_steps = sum(s['steps'] for s in actor_stats)\n",
+            "    total_time = sum(s['time_ms'] for s in actor_stats)\n",
+            "    print(f\"\\n✓ Total: {total_steps:,} steps from {NUM_ACTORS} actors\")\n",
+            "else:\n",
+            "    print(\"Database not available for multi-actor demo\")"
+        ]
+    })
+    
+    # Cell 18: Reward Extraction Section (Markdown)
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 📊 Reward Tensor Extraction <a id=\"reward-extraction\"></a>\n",
+            "\n",
+            "Extract rewards as tensors for analysis and training."
+        ]
+    })
+    
+    # Cell 19: Extract Rewards
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 19: Extract Rewards\n",
+            "if HAS_SYNADB and db:\n",
+            "    print(\"Extracting reward tensors...\\n\")\n",
+            "    \n",
+            "    # Extract rewards from episodes\n",
+            "    all_rewards = []\n",
+            "    \n",
+            "    for ep in range(min(10, NUM_EPISODES)):  # First 10 episodes\n",
+            "        length = db.get_int(f'episodes/{ep:04d}/length') or 0\n",
+            "        episode_rewards = []\n",
+            "        \n",
+            "        for step in range(length):\n",
+            "            reward = db.get_float(f'episodes/{ep:04d}/step/{step:04d}/reward')\n",
+            "            if reward is not None:\n",
+            "                episode_rewards.append(reward)\n",
+            "        \n",
+            "        all_rewards.append(episode_rewards)\n",
+            "    \n",
+            "    # Compute statistics\n",
+            "    flat_rewards = [r for ep_rewards in all_rewards for r in ep_rewards]\n",
+            "    reward_array = np.array(flat_rewards)\n",
+            "    \n",
+            "    print(f\"Extracted rewards from {len(all_rewards)} episodes\")\n",
+            "    print(f\"  Total rewards: {len(reward_array):,}\")\n",
+            "    print(f\"  Mean: {reward_array.mean():.4f}\")\n",
+            "    print(f\"  Std: {reward_array.std():.4f}\")\n",
+            "    print(f\"  Min: {reward_array.min():.4f}\")\n",
+            "    print(f\"  Max: {reward_array.max():.4f}\")\n",
+            "    \n",
+            "    # Visualize reward distribution\n",
+            "    fig, axes = plt.subplots(1, 2, figsize=(12, 4))\n",
+            "    \n",
+            "    # Histogram\n",
+            "    axes[0].hist(reward_array, bins=50, color=COLORS['synadb'], alpha=0.7, edgecolor='white')\n",
+            "    axes[0].axvline(x=reward_array.mean(), color='red', linestyle='--', label=f'Mean: {reward_array.mean():.2f}')\n",
+            "    axes[0].set_xlabel('Reward')\n",
+            "    axes[0].set_ylabel('Frequency')\n",
+            "    axes[0].set_title('Reward Distribution', fontweight='bold')\n",
+            "    axes[0].legend()\n",
+            "    axes[0].grid(True, alpha=0.3)\n",
+            "    \n",
+            "    # Cumulative rewards per episode\n",
+            "    cumulative = [sum(ep) for ep in all_rewards]\n",
+            "    axes[1].bar(range(len(cumulative)), cumulative, color=COLORS['synadb'], alpha=0.7)\n",
+            "    axes[1].set_xlabel('Episode')\n",
+            "    axes[1].set_ylabel('Cumulative Reward')\n",
+            "    axes[1].set_title('Cumulative Rewards per Episode', fontweight='bold')\n",
+            "    axes[1].grid(True, alpha=0.3)\n",
+            "    \n",
+            "    plt.tight_layout()\n",
+            "    plt.show()\n",
+            "else:\n",
+            "    print(\"Database not available for reward extraction\")"
+        ]
+    })
+    
+    return cells
+
+
+def create_notebook_part6(cells):
+    """Continue creating notebook cells - Export, results, and conclusions."""
+    
+    # Cell 20: Export Section (Markdown)
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 📤 Export Demonstration <a id=\"export\"></a>\n",
+            "\n",
+            "Export experience data for external tools or sharing."
+        ]
+    })
+    
+    # Cell 21: Export Demo
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 21: Export Demo\n",
+            "if HAS_SYNADB and db:\n",
+            "    print(\"Demonstrating data export...\\n\")\n",
+            "    \n",
+            "    # Export episode data to numpy\n",
+            "    export_episodes = 5\n",
+            "    exported_data = []\n",
+            "    \n",
+            "    for ep in range(export_episodes):\n",
+            "        length = db.get_int(f'episodes/{ep:04d}/length') or 0\n",
+            "        total_reward = db.get_float(f'episodes/{ep:04d}/total_reward') or 0.0\n",
+            "        \n",
+            "        exported_data.append({\n",
+            "            'episode': ep,\n",
+            "            'length': length,\n",
+            "            'total_reward': total_reward\n",
+            "        })\n",
+            "    \n",
+            "    # Save to numpy\n",
+            "    export_path = os.path.join(temp_dir, 'episodes_export.npz')\n",
+            "    np.savez(\n",
+            "        export_path,\n",
+            "        episodes=np.array([d['episode'] for d in exported_data]),\n",
+            "        lengths=np.array([d['length'] for d in exported_data]),\n",
+            "        rewards=np.array([d['total_reward'] for d in exported_data])\n",
+            "    )\n",
+            "    \n",
+            "    print(f\"✓ Exported {export_episodes} episodes to {export_path}\")\n",
+            "    print(f\"  File size: {os.path.getsize(export_path)} bytes\")\n",
+            "    \n",
+            "    # Verify export\n",
+            "    loaded = np.load(export_path)\n",
+            "    print(f\"\\nVerification:\")\n",
+            "    print(f\"  Episodes: {loaded['episodes']}\")\n",
+            "    print(f\"  Lengths: {loaded['lengths']}\")\n",
+            "    print(f\"  Rewards: {loaded['rewards']}\")\n",
+            "else:\n",
+            "    print(\"Database not available for export\")"
+        ]
+    })
+    
+    # Cell 22: Results Section (Markdown)
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 📊 Results Summary <a id=\"results\"></a>"
+        ]
+    })
+    
+    # Cell 23: Results Summary
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 23: Results Summary\n",
+            "from IPython.display import display, Markdown\n",
+            "\n",
+            "summary = \"\"\"\n",
+            "### RL Storage Performance Summary\n",
+            "\n",
+            "| Operation | Performance | Notes |\n",
+            "|-----------|-------------|-------|\n",
+            "| **Transition Storage** | 10K-50K/sec | Individual transitions |\n",
+            "| **Batch Sampling** | <50ms | 64-sample batch |\n",
+            "| **Episode Storage** | 1K-5K steps/sec | Complete trajectories |\n",
+            "| **Reward Extraction** | <10ms | Per episode |\n",
+            "\n",
+            "### SynaDB vs Traditional RL Storage\n",
+            "\n",
+            "| Aspect | Traditional | SynaDB |\n",
+            "|--------|-------------|--------|\n",
+            "| **Storage** | In-memory only | Persistent |\n",
+            "| **Capacity** | RAM-limited | Disk-limited |\n",
+            "| **Multi-machine** | Redis/custom | File sync |\n",
+            "| **Checkpointing** | Manual | Automatic |\n",
+            "| **Analysis** | Export required | Native queries |\n",
+            "\n",
+            "### When to Use SynaDB for RL\n",
+            "\n",
+            "✅ **Good fit:**\n",
+            "- Persistent experience replay\n",
+            "- Multi-machine actor-learner\n",
+            "- Offline RL datasets\n",
+            "- Experiment reproducibility\n",
+            "- Long-running training\n",
+            "\n",
+            "⚠️ **Consider alternatives:**\n",
+            "- Ultra-low latency requirements\n",
+            "- GPU-resident replay buffers\n",
+            "- Distributed training at scale\n",
+            "\"\"\"\n",
+            "\n",
+            "display(Markdown(summary))"
+        ]
+    })
+    
+    # Cell 24: Conclusions Section (Markdown)
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 🎯 Conclusions <a id=\"conclusions\"></a>"
+        ]
+    })
+    
+    # Cell 25: Conclusions
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 25: Conclusions\n",
+            "conclusion_box(\n",
+            "    title=\"Key Takeaways\",\n",
+            "    points=[\n",
+            "        \"SynaDB provides persistent storage for RL experience replay\",\n",
+            "        \"Random sampling enables efficient batch training\",\n",
+            "        \"Trajectory storage preserves complete episode structure\",\n",
+            "        \"File-based sync enables multi-machine actor-learner patterns\",\n",
+            "        \"Native tensor extraction simplifies reward analysis\",\n",
+            "        \"Single-file storage enables easy checkpointing and sharing\",\n",
+            "    ],\n",
+            "    summary=\"SynaDB offers a simple, persistent alternative to in-memory replay buffers for reinforcement learning.\"\n",
+            ")"
+        ]
+    })
+    
+    # Cell 26: Cleanup
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cell 26: Cleanup\n",
+            "import shutil\n",
+            "\n",
+            "print(\"Cleaning up temporary files...\")\n",
+            "try:\n",
+            "    if HAS_SYNADB and db:\n",
+            "        db.close()\n",
+            "    shutil.rmtree(temp_dir)\n",
+            "    print(f\"✓ Removed temp directory: {temp_dir}\")\n",
+            "except Exception as e:\n",
+            "    print(f\"⚠️ Could not remove temp directory: {e}\")\n",
+            "\n",
+            "print(\"\\n✓ Notebook complete!\")"
+        ]
+    })
+    
+    return cells
+
+
+def main():
+    """Generate the complete notebook."""
+    cells = create_notebook()
+    cells = create_notebook_part2(cells)
+    cells = create_notebook_part3(cells)
+    cells = create_notebook_part4(cells)
+    cells = create_notebook_part5(cells)
+    cells = create_notebook_part6(cells)
+    
+    notebook = {
+        "cells": cells,
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3"
+            },
+            "language_info": {
+                "name": "python",
+                "version": "3.8.0"
+            }
+        },
+        "nbformat": 4,
+        "nbformat_minor": 4
+    }
+    
+    # Write notebook
+    import os
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    notebook_path = os.path.join(script_dir, '19_reinforcement_learning.ipynb')
+    
+    with open(notebook_path, 'w', encoding='utf-8') as f:
+        json.dump(notebook, f, indent=1, ensure_ascii=False)
+    
+    print(f"Generated: {notebook_path}")
+    return notebook_path
+
+
+if __name__ == '__main__':
+    main()

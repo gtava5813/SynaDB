@@ -1,3 +1,6 @@
+// Copyright (c) 2025 SynaDB Contributors
+// Licensed under the SynaDB License. See LICENSE file for details.
+
 //! Experiment tracking for ML workflows.
 //!
 //! This module provides:

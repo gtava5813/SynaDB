@@ -1,3 +1,6 @@
+// Copyright (c) 2025 SynaDB Contributors
+// Licensed under the SynaDB License. See LICENSE file for details.
+
 //! C-ABI Foreign Function Interface for Syna database.
 //!
 //! This module provides extern "C" functions for cross-language access.
@@ -1180,6 +1183,7 @@ pub extern "C" fn SYNA_free_vector(data: *mut f32, dimensions: u16) {
 
 use std::collections::HashMap;
 use std::ffi::CString;
+use std::path::{Path, PathBuf};
 
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
@@ -1191,6 +1195,33 @@ use crate::vector::{VectorConfig, VectorStore};
 /// Uses canonicalized paths as keys to ensure uniqueness.
 static VECTOR_STORE_REGISTRY: Lazy<Mutex<HashMap<String, VectorStore>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
+
+/// Canonicalizes a path to an absolute path string for consistent registry keys.
+///
+/// If the path doesn't exist yet (for new databases), we use the parent directory's
+/// canonical path combined with the filename.
+fn canonicalize_vector_path(path: &str) -> Option<String> {
+    let path_buf = PathBuf::from(path);
+
+    // Try to canonicalize directly (works if file exists)
+    if let Ok(canonical) = std::fs::canonicalize(&path_buf) {
+        return Some(canonical.to_string_lossy().to_string());
+    }
+
+    // File doesn't exist yet - canonicalize parent and append filename
+    let parent = path_buf.parent().unwrap_or(Path::new("."));
+    let filename = path_buf.file_name()?;
+
+    // Canonicalize parent directory
+    let canonical_parent = if parent.as_os_str().is_empty() || parent == Path::new(".") {
+        std::env::current_dir().ok()?
+    } else {
+        std::fs::canonicalize(parent).ok()?
+    };
+
+    let canonical = canonical_parent.join(filename);
+    Some(canonical.to_string_lossy().to_string())
+}
 
 /// Creates a new vector store at the given path.
 ///
@@ -1239,12 +1270,18 @@ pub extern "C" fn SYNA_vector_store_new(path: *const c_char, dimensions: u16, me
             ..Default::default()
         };
 
+        // Canonicalize path for consistent registry keys
+        let canonical_path = match canonicalize_vector_path(path_str) {
+            Some(p) => p,
+            None => return ERR_INVALID_PATH,
+        };
+
         // Create the vector store
         match VectorStore::new(path_str, config) {
             Ok(store) => {
-                // Register in global registry
+                // Register in global registry with canonicalized path
                 let mut registry = VECTOR_STORE_REGISTRY.lock();
-                registry.insert(path_str.to_string(), store);
+                registry.insert(canonical_path, store);
                 ERR_SUCCESS
             }
             Err(_) => ERR_GENERIC,
@@ -1297,6 +1334,12 @@ pub extern "C" fn SYNA_vector_store_insert(
             Err(_) => return ERR_INVALID_PATH,
         };
 
+        // Canonicalize path for consistent registry keys
+        let canonical_path = match canonicalize_vector_path(path_str) {
+            Some(p) => p,
+            None => return ERR_INVALID_PATH,
+        };
+
         // Create vector from raw pointer
         let vector = if dimensions == 0 {
             Vec::new()
@@ -1304,9 +1347,9 @@ pub extern "C" fn SYNA_vector_store_insert(
             unsafe { std::slice::from_raw_parts(data, dimensions as usize) }.to_vec()
         };
 
-        // Get the vector store from registry
+        // Get the vector store from registry using canonicalized path
         let mut registry = VECTOR_STORE_REGISTRY.lock();
-        match registry.get_mut(path_str) {
+        match registry.get_mut(&canonical_path) {
             Some(store) => match store.insert(key_str, &vector) {
                 Ok(_) => ERR_SUCCESS,
                 Err(_) => ERR_GENERIC,
@@ -1367,13 +1410,19 @@ pub extern "C" fn SYNA_vector_store_search(
             Err(_) => return ERR_INVALID_PATH,
         };
 
+        // Canonicalize path for consistent registry keys
+        let canonical_path = match canonicalize_vector_path(path_str) {
+            Some(p) => p,
+            None => return ERR_INVALID_PATH,
+        };
+
         // Create query vector from raw pointer
         let query_vec: Vec<f32> =
             unsafe { std::slice::from_raw_parts(query, dimensions as usize) }.to_vec();
 
-        // Get the vector store from registry
+        // Get the vector store from registry using canonicalized path
         let mut registry = VECTOR_STORE_REGISTRY.lock();
-        match registry.get_mut(path_str) {
+        match registry.get_mut(&canonical_path) {
             Some(store) => match store.search(&query_vec, k) {
                 Ok(results) => {
                     // Convert results to JSON

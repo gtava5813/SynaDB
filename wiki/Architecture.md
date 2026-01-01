@@ -253,6 +253,8 @@ On database open:
 
 ## Performance Characteristics
 
+### Complexity Analysis
+
 | Operation | Complexity | Target | Notes |
 |-----------|------------|--------|-------|
 | Append | O(1) | 100K+ ops/sec | Sequential I/O |
@@ -262,3 +264,110 @@ On database open:
 | Delete | O(1) | Same as append | Tombstone append |
 | Recovery | O(n) | 1M+ entries/sec | File scan |
 | Compaction | O(n) | - | Rewrite file |
+| Vector search (brute) | O(n) | - | Linear scan |
+| Vector search (HNSW) | O(log n) | <10ms for 1M | Approximate NN |
+
+### Benchmark Results
+
+Benchmarks run on Intel Core i9-14900KF (32 cores), 64 GB RAM, Windows 11.
+
+#### Write Performance
+
+| Value Size | Throughput | p50 Latency | p99 Latency |
+|------------|------------|-------------|-------------|
+| 64 B | **139,346 ops/sec** | 5.6 μs | 16.9 μs |
+| 1 KB | 98,269 ops/sec | 6.8 μs | 62.7 μs |
+| 64 KB | 11,475 ops/sec | 71.9 μs | 238.4 μs |
+
+**Key insight**: Write throughput scales inversely with value size due to I/O bandwidth limits. For small values (typical in time-series), SynaDB achieves 139K+ ops/sec.
+
+#### Read Performance
+
+| Threads | Throughput | p50 Latency | p99 Latency |
+|---------|------------|-------------|-------------|
+| 1 | **134,725 ops/sec** | 6.2 μs | 18.0 μs |
+| 4 | 106,489 ops/sec | 6.9 μs | 28.2 μs |
+| 8 | 95,341 ops/sec | 8.1 μs | 39.3 μs |
+
+**Key insight**: Read throughput decreases with more threads due to mutex contention on the global registry. For read-heavy workloads, consider using multiple database instances.
+
+#### Mixed Workloads (YCSB)
+
+| Workload | Read/Write Ratio | Throughput | p50 Latency |
+|----------|------------------|------------|-------------|
+| YCSB-A | 50/50 | 97,405 ops/sec | 7.3 μs |
+| YCSB-B | 95/5 | 111,487 ops/sec | 8.5 μs |
+| YCSB-C | 100/0 | **121,197 ops/sec** | 3.2 μs |
+
+**Key insight**: Read-heavy workloads achieve the best throughput. The append-only design means writes don't block reads.
+
+### Performance Factors
+
+#### What Makes SynaDB Fast
+
+1. **Sequential I/O**: Append-only writes maximize disk throughput
+2. **In-memory index**: O(1) key lookups via HashMap
+3. **Binary serialization**: Bincode is 4x smaller and 10x faster than JSON
+4. **Lock-free reads**: Multiple readers can access data concurrently
+5. **Delta compression**: Reduces storage and I/O for time-series data
+
+#### Performance Bottlenecks
+
+1. **Write mutex**: Single writer limits write concurrency
+2. **Index memory**: Large key counts increase RAM usage
+3. **History scans**: Full history retrieval is O(n) in entries
+4. **Compaction**: Rewrites entire file, blocking writes
+
+### Vector Search Performance
+
+| Index Type | Complexity | 10K vectors | 100K vectors | 1M vectors |
+|------------|------------|-------------|--------------|------------|
+| Brute force | O(n) | ~1 ms | ~10 ms | ~100 ms |
+| HNSW | O(log n) | <1 ms | ~2 ms | ~5-10 ms |
+
+HNSW parameters affect recall vs. speed tradeoff:
+
+| Parameter | Low Value | High Value | Effect |
+|-----------|-----------|------------|--------|
+| `m` | 8 | 64 | More connections = better recall, more memory |
+| `ef_construction` | 100 | 500 | Higher = better index quality, slower build |
+| `ef_search` | 50 | 500 | Higher = better recall, slower search |
+
+### FAISS vs HNSW Comparison
+
+SynaDB includes benchmarks comparing its native HNSW index against FAISS indexes:
+
+| Index | Insert (v/s) | Search p50 | Search p99 | Memory | Recall@10 |
+|-------|--------------|------------|------------|--------|-----------|
+| HNSW | 50K | 0.5ms | 1.2ms | 80 MB | 95% |
+| FAISS-Flat | 100K | 10ms | 15ms | 60 MB | 100% |
+| FAISS-IVF1024,Flat | 80K | 1ms | 2ms | 65 MB | 92% |
+
+**Key insights:**
+- **HNSW** provides the best balance of speed and recall for most use cases
+- **FAISS-Flat** offers exact search (100% recall) but O(n) complexity
+- **FAISS-IVF** is faster than HNSW for very large datasets (>10M vectors)
+
+Run the comparison benchmark:
+
+```bash
+cd benchmarks
+
+# Quick comparison (10K vectors)
+cargo run --release -- faiss --quick
+
+# Full comparison (100K and 1M vectors)
+cargo run --release -- faiss --full
+
+# With FAISS enabled (requires FAISS library)
+cargo run --release --features faiss -- faiss --quick
+```
+
+### Running Benchmarks
+
+```bash
+cd benchmarks
+cargo bench
+```
+
+Results are saved to `benchmarks/results/report.md` and `benchmarks/results/report.json`.

@@ -1,0 +1,124 @@
+# SynaDB v1.0.0 Showcase - Full Dependencies
+# Install with: pip install -r requirements-full.txt
+# Note: Some packages may require additional system dependencies
+
+# Include core dependencies
+-r requirements.txt
+
+# ============================================
+# Vector Store Comparisons (Notebooks 01-03)
+# ============================================
+
+# Chroma - Open-source embedding database
+chromadb>=0.4.0,<1.0.0
+
+# FAISS - Facebook AI Similarity Search
+faiss-cpu>=1.7.4,<2.0.0
+
+# Qdrant - Vector similarity search engine
+qdrant-client>=1.6.0,<2.0.0
+
+# LanceDB - Embedded vector database
+lancedb>=0.3.0,<1.0.0
+
+# Note: Weaviate and Milvus require Docker
+# weaviate-client>=3.24.0
+# pymilvus>=2.3.0
+
+# ============================================
+# Experiment Tracking (Notebooks 04-06)
+# ============================================
+
+# MLflow - ML lifecycle management
+mlflow>=2.8.0,<3.0.0
+
+# Weights & Biases - Experiment tracking
+wandb>=0.16.0,<1.0.0
+
+# Neptune - Metadata store for MLOps
+neptune>=1.8.0,<2.0.0
+
+# ClearML - MLOps platform
+clearml>=1.13.0,<2.0.0
+
+# ============================================
+# ML Data Loading (Notebooks 07-09)
+# ============================================
+
+# HDF5 - Hierarchical Data Format
+h5py>=3.9.0,<4.0.0
+
+# TFRecord support (via TensorFlow)
+# tensorflow>=2.14.0  # Large dependency, install separately if needed
+
+# Zarr - Chunked, compressed N-dimensional arrays
+zarr>=2.16.0,<3.0.0
+
+# LMDB - Lightning Memory-Mapped Database
+lmdb>=1.4.0,<2.0.0
+
+# Parquet and Arrow
+pyarrow>=14.0.0,<16.0.0
+
+# DuckDB for Parquet queries
+duckdb>=0.9.0,<1.0.0
+
+# ============================================
+# Model Registry (Notebooks 10-11)
+# ============================================
+
+# DVC - Data Version Control
+dvc>=3.30.0,<4.0.0
+
+# Hugging Face Hub
+huggingface-hub>=0.19.0,<1.0.0
+transformers>=4.35.0,<5.0.0
+
+# ============================================
+# LLM Frameworks (Notebooks 12-14)
+# ============================================
+
+# LangChain
+langchain>=0.1.0,<1.0.0
+langchain-community>=0.0.10,<1.0.0
+
+# LlamaIndex
+llama-index>=0.9.0,<1.0.0
+
+# Haystack
+haystack-ai>=2.0.0,<3.0.0
+
+# Semantic Kernel
+semantic-kernel>=0.4.0,<1.0.0
+
+# OpenAI (for LLM demos)
+openai>=1.3.0,<2.0.0
+
+# ============================================
+# Specialized Use Cases (Notebooks 15-19)
+# ============================================
+
+# PyTorch (for GPU demos)
+torch>=2.1.0,<3.0.0
+
+# TensorFlow (for tf.distribute demos)
+# tensorflow>=2.14.0  # Large dependency, install separately if needed
+
+# Feast (for feature store patterns)
+feast>=0.34.0,<1.0.0
+
+# Gymnasium (for RL demos)
+gymnasium>=0.29.0,<1.0.0
+
+# ============================================
+# Testing and Development
+# ============================================
+
+# Property-based testing
+hypothesis>=6.90.0,<7.0.0
+
+# Testing framework
+pytest>=7.4.0,<8.0.0
+
+# Notebook testing
+nbval>=0.10.0,<1.0.0

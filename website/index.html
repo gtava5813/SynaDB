@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SynaDB — An AI-native embedded database</title>
+    <meta name="description"
+        content="An AI-native embedded database. Zero config, single file, built for ML workloads.">
+    <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="noise-overlay"></div>
+    <canvas id="log-canvas"></canvas>
+    <header>
+        <div class="header-content">
+            <a href="/" class="logo-link">
+                <img src="../assets/logo-no-bg.png" alt="SynaDB" class="nav-logo">
+                <span class="nav-title">SynaDB</span>
+            </a>
+            <nav>
+                <a href="#features">Features</a>
+                <a href="#install">Install</a>
+                <a href="https://github.com/gtava5813/SynaDB/wiki">Docs</a>
+                <a href="https://github.com/gtava5813/SynaDB" class="github-link">
+                    <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor">
+                        <path
+                            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                    </svg>
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                <img src="../assets/full-logo-no-bg.png" alt="SynaDB" class="hero-logo">
+                <h1>An AI-native embedded database</h1>
+                <p class="hero-subtitle">Zero config. Single file. Built for ML workloads.</p>
+                <div class="hero-actions">
+                    <a href="#install" class="btn-primary">Get Started</a>
+                    <a href="https://github.com/gtava5813/SynaDB/wiki" class="btn-secondary">Documentation</a>
+                </div>
+                <div class="hero-install">
+                    <code>pip install synadb</code>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="features">
+            <div class="section-header">
+                <h2>Built for AI workflows</h2>
+                <p>Everything you need for ML development in a single embedded database.</p>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card reveal">
+                    <h3>Vector Search</h3>
+                    <p>Native HNSW index for similarity search. Optional FAISS backend for billion-scale deployments.
+                    </p>
+                </div>
+                <div class="feature-card reveal" style="transition-delay: 100ms">
+                    <h3>Experiment Tracking</h3>
+                    <p>Log parameters, metrics, and artifacts locally. No external server required.</p>
+                </div>
+                <div class="feature-card reveal" style="transition-delay: 200ms">
+                    <h3>Tensor Storage</h3>
+                    <p>Store and retrieve tensors directly to NumPy and PyTorch with zero serialization overhead.</p>
+                </div>
+
+                <div class="feature-card reveal">
+                    <h3>Model Registry</h3>
+                    <p>Version models with SHA-256 checksums. Promote through development, staging, and production
+                        stages.</p>
+                </div>
+                <div class="feature-card reveal" style="transition-delay: 100ms">
+                    <h3>Single File</h3>
+                    <p>Your entire database in one portable file. No server process, no configuration files.</p>
+                </div>
+                <div class="feature-card reveal" style="transition-delay: 200ms">
+                    <h3>High Performance</h3>
+                    <p>Written in Rust. 100K+ writes per second. Sub-millisecond reads with in-memory indexing.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="install" class="install">
+            <div class="section-header">
+                <h2>Get started</h2>
+            </div>
+            <div class="install-grid">
+                <div class="install-card">
+                    <div class="install-header">
+                        <span class="lang-badge">Python</span>
+                    </div>
+                    <pre><code>pip install synadb</code></pre>
+                </div>
+                <div class="install-card">
+                    <div class="install-header">
+                        <span class="lang-badge">Rust</span>
+                    </div>
+                    <pre><code>cargo add synadb</code></pre>
+                </div>
+            </div>
+            <div class="code-block">
+                <div class="code-header">
+                    <span>example.py</span>
+                </div>
+                <pre><code><span class="kw">from</span> synadb <span class="kw">import</span> SynaDB, VectorStore
+
+<span class="cm"># Key-value storage</span>
+db = SynaDB(<span class="st">"project.db"</span>)
+db.put_float(<span class="st">"accuracy"</span>, <span class="nu">0.95</span>)
+db.put_text(<span class="st">"model_name"</span>, <span class="st">"bert-base"</span>)
+
+<span class="cm"># Vector similarity search</span>
+vectors = VectorStore(<span class="st">"embeddings.db"</span>, dimensions=<span class="nu">768</span>)
+vectors.insert(<span class="st">"doc_1"</span>, embedding)
+results = vectors.search(query, k=<span class="nu">10</span>)</code></pre>
+            </div>
+        </section>
+
+        <section class="philosophy">
+            <div class="section-header">
+                <h2>Three paradigms, one database</h2>
+                <p>SynaDB synthesizes the best ideas from three database traditions.</p>
+            </div>
+            <div class="philosophy-grid">
+                <div class="philosophy-card">
+                    <h3>SQLite</h3>
+                    <p>Single file, zero config, embedded library. No server to manage.</p>
+                </div>
+                <div class="philosophy-card">
+                    <h3>DuckDB</h3>
+                    <p>Columnar history, efficient tensor extraction, analytical queries.</p>
+                </div>
+                <div class="philosophy-card">
+                    <h3>MongoDB</h3>
+                    <p>Schema-free storage, flexible data types, no migrations needed.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="resources">
+            <div class="section-header">
+                <h2>Resources</h2>
+            </div>
+            <div class="resource-grid">
+                <a href="https://github.com/gtava5813/SynaDB/wiki" class="resource-card">
+                    <h3>Documentation</h3>
+                    <p>Guides, API reference, and examples</p>
+                </a>
+                <a href="https://pypi.org/project/synadb/" class="resource-card">
+                    <h3>PyPI</h3>
+                    <p>Python package</p>
+                </a>
+                <a href="https://crates.io/crates/synadb" class="resource-card">
+                    <h3>Crates.io</h3>
+                    <p>Rust crate</p>
+                </a>
+                <a href="https://github.com/gtava5813/SynaDB" class="resource-card">
+                    <h3>GitHub</h3>
+                    <p>Source code and issues</p>
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand">
+                <img src="../assets/logo-no-bg.png" alt="SynaDB" class="footer-logo">
+                <span>SynaDB</span>
+            </div>
+            <div class="footer-links">
+                <a href="mailto:hello@synadb.ai">Contact</a>
+                <a href="https://github.com/gtava5813/SynaDB">GitHub</a>
+                <a href="https://github.com/gtava5813/SynaDB/wiki">Docs</a>
+            </div>
+            <p class="footer-copy">&copy; 2025 SynaDB</p>
+        </div>
+    </footer>
+    <script>
+        // Scroll Reveal Animation
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: "0px 0px -50px 0px"
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.reveal').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Add reveal class to other major sections
+        document.querySelectorAll('section > .section-header, .install-grid, .code-block, .philosophy-grid, .resource-grid').forEach(el => {
+            el.classList.add('reveal');
+            observer.observe(el);
+        });
+    </script>
+    <script src="js/background.js"></script>
+</body>
+
+</html>

@@ -6,6 +6,7 @@ Welcome to the SynaDB wiki! SynaDB is an AI-native embedded database designed fo
 
 - [Getting Started](Getting-Started)
 - [Roadmap](Roadmap)
+- [Migration Guide](Migration-Guide)
 - [Architecture](Architecture)
 - [API Reference](API-Reference)
 - [Python Guide](Python-Guide)
@@ -22,12 +23,17 @@ SynaDB is an embedded, log-structured, columnar-mapped database engine written i
 
 ## Current Version
 
-**v0.5.0** - AI Platform
+**v1.0.0** - Production Release
 - Append-only log storage with schema-free data types
 - Vector Store with HNSW index for similarity search
 - Tensor Engine for batch ML data operations
 - Model Registry with checksum verification
 - Experiment Tracking for ML workflows
+- LangChain, LlamaIndex, Haystack integrations
+- PyTorch and TensorFlow integrations
+- GPU Direct memory access (optional)
+- FAISS integration for billion-scale search (optional)
+- Syna CLI and Studio Web UI
 - LZ4 and delta compression
 - C-ABI for Python/C++ integration
 

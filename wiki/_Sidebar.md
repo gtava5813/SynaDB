@@ -17,6 +17,8 @@
 
 **Project**
 - [Roadmap](Roadmap)
+- [Changelog](Changelog)
+- [Migration Guide](Migration-Guide)
 - [Contributing](Contributing)
 
 **Links**

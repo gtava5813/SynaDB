@@ -45,6 +45,11 @@ class VectorStore:
     Provides a high-level API for storing and searching vector embeddings.
     Supports cosine, euclidean, and dot product distance metrics.
     
+    Supports multiple backends:
+    - "hnsw": Native HNSW index (default for smaller datasets)
+    - "faiss": FAISS index (better for large-scale datasets, optional GPU support)
+    - "auto": Automatically selects based on dataset size and GPU availability
+    
     Example:
         >>> store = VectorStore("vectors.db", dimensions=768)
         >>> store.insert("doc1", embedding1)
@@ -52,6 +57,10 @@ class VectorStore:
         >>> results = store.search(query_embedding, k=5)
         >>> for r in results:
         ...     print(f"{r.key}: {r.score:.4f}")
+        
+        # Using FAISS backend with GPU
+        >>> store = VectorStore("vectors.db", dimensions=768, 
+        ...                     backend="faiss", use_gpu=True)
     
     Attributes:
         COSINE: Cosine distance metric (1 - cosine_similarity).
@@ -63,33 +72,93 @@ class VectorStore:
     EUCLIDEAN = 1
     DOT_PRODUCT = 2
     
+    # Backend constants
+    BACKEND_AUTO = "auto"
+    BACKEND_HNSW = "hnsw"
+    BACKEND_FAISS = "faiss"
+    
     def __init__(
         self,
         path: str,
         dimensions: int,
-        metric: str = "cosine"
+        metric: str = "cosine",
+        backend: str = "auto",
+        faiss_index_type: str = "IVF1024,Flat",
+        faiss_nprobe: int = 10,
+        use_gpu: bool = False,
     ):
         """
-        Create or open a vector store.
+        Create or open a vector store with configurable backend.
         
         Args:
             path: Path to the database file.
             dimensions: Vector dimensions (64-4096).
             metric: Distance metric ("cosine", "euclidean", "dot_product").
+            backend: Index backend to use:
+                - "auto": Automatically select based on dataset size and GPU availability.
+                         Uses FAISS with GPU if available and dataset is large (>100k vectors),
+                         otherwise uses HNSW.
+                - "hnsw": Native HNSW index. Good for datasets up to ~1M vectors.
+                         O(log N) search complexity.
+                - "faiss": FAISS index. Better for large-scale datasets (>1M vectors).
+                         Supports GPU acceleration.
+            faiss_index_type: FAISS index factory string (only used when backend="faiss").
+                Defaults to "IVF1024,Flat". Common options:
+                - "Flat": Exact search (slow for large datasets)
+                - "IVF1024,Flat": Inverted file index with 1024 clusters
+                - "IVF4096,PQ32": IVF with product quantization (memory efficient)
+                - "HNSW32": FAISS HNSW implementation
+            faiss_nprobe: Number of clusters to search for IVF indexes (only used when 
+                backend="faiss"). Higher values = better recall but slower search.
+                Defaults to 10.
+            use_gpu: Whether to use GPU acceleration (only used when backend="faiss").
+                Requires faiss-gpu to be installed. Defaults to False.
         
         Raises:
             ValueError: If dimensions are out of range (64-4096).
+            ValueError: If backend is not one of "auto", "hnsw", or "faiss".
             RuntimeError: If the vector store cannot be created.
+            ImportError: If backend="faiss" but faiss is not installed.
+        
+        Example:
+            >>> # Default HNSW backend
+            >>> store = VectorStore("vectors.db", dimensions=768)
+            
+            >>> # FAISS backend with GPU
+            >>> store = VectorStore("vectors.db", dimensions=768,
+            ...                     backend="faiss", use_gpu=True)
+            
+            >>> # FAISS with custom index type
+            >>> store = VectorStore("vectors.db", dimensions=768,
+            ...                     backend="faiss", 
+            ...                     faiss_index_type="IVF4096,PQ32",
+            ...                     faiss_nprobe=20)
         """
         # Validate dimensions
         if dimensions < 64 or dimensions > 4096:
             raise ValueError(f"Dimensions must be between 64 and 4096, got {dimensions}")
+        
+        # Validate backend
+        valid_backends = [self.BACKEND_AUTO, self.BACKEND_HNSW, self.BACKEND_FAISS]
+        if backend.lower() not in valid_backends:
+            raise ValueError(
+                f"Invalid backend '{backend}'. Must be one of: {', '.join(valid_backends)}"
+            )
         
         # Load the library using SynaDB's class method
         SynaDB._load_library()
         self._lib = SynaDB._lib
         self._path = path.encode('utf-8')
         self._dimensions = dimensions
+        
+        # Store backend configuration
+        self._backend = backend.lower()
+        self._faiss_index_type = faiss_index_type
+        self._faiss_nprobe = faiss_nprobe
+        self._use_gpu = use_gpu
+        
+        # Resolve "auto" backend
+        self._resolved_backend = self._resolve_backend()
         
         # Map metric string to integer
         metric_map = {
@@ -113,6 +182,11 @@ class VectorStore:
         
         # Track inserted keys for __len__
         self._key_count = 0
+        
+        # Initialize FAISS index if needed (lazy initialization)
+        self._faiss_index = None
+        if self._resolved_backend == self.BACKEND_FAISS:
+            self._init_faiss_index()
     
     def _setup_ffi(self):
         """Set up FFI function signatures for vector store operations."""
@@ -135,6 +209,68 @@ class VectorStore:
         # SYNA_free_json
         self._lib.SYNA_free_json.argtypes = [c_char_p]
         self._lib.SYNA_free_json.restype = None
+    
+    def _resolve_backend(self) -> str:
+        """
+        Resolve the "auto" backend to a concrete backend.
+        
+        Returns:
+            The resolved backend name ("hnsw" or "faiss").
+        """
+        if self._backend != self.BACKEND_AUTO:
+            return self._backend
+        
+        # Auto-selection logic:
+        # - Use FAISS if GPU is requested and available
+        # - Otherwise default to HNSW (more widely compatible)
+        if self._use_gpu:
+            try:
+                import faiss
+                if faiss.get_num_gpus() > 0:
+                    return self.BACKEND_FAISS
+            except ImportError:
+                pass
+        
+        # Default to HNSW for auto mode
+        return self.BACKEND_HNSW
+    
+    def _init_faiss_index(self):
+        """
+        Initialize the FAISS index if using FAISS backend.
+        
+        Raises:
+            ImportError: If faiss is not installed.
+            RuntimeError: If GPU is requested but not available.
+        """
+        try:
+            import faiss
+        except ImportError:
+            raise ImportError(
+                "FAISS backend requires faiss to be installed. "
+                "Install with: pip install faiss-cpu (or faiss-gpu for GPU support)"
+            )
+        
+        # Create the index using the factory string
+        self._faiss_index = faiss.index_factory(
+            self._dimensions, 
+            self._faiss_index_type,
+            faiss.METRIC_L2 if self._metric == self.EUCLIDEAN else faiss.METRIC_INNER_PRODUCT
+        )
+        
+        # Move to GPU if requested
+        if self._use_gpu:
+            if faiss.get_num_gpus() == 0:
+                raise RuntimeError(
+                    "GPU requested but no GPUs available. "
+                    "Install faiss-gpu and ensure CUDA is properly configured."
+                )
+            # Use the first GPU
+            res = faiss.StandardGpuResources()
+            self._faiss_index = faiss.index_cpu_to_gpu(res, 0, self._faiss_index)
+        
+        # Set nprobe for IVF indexes
+        if hasattr(self._faiss_index, 'nprobe'):
+            self._faiss_index.nprobe = self._faiss_nprobe
     
     def insert(self, key: str, vector: np.ndarray) -> None:
         """
@@ -315,3 +451,42 @@ class VectorStore:
             self.DOT_PRODUCT: "dot_product",
         }
         return metric_names.get(self._metric, "unknown")
+    
+    @property
+    def backend(self) -> str:
+        """Return the configured backend ("auto", "hnsw", or "faiss")."""
+        return self._backend
+    
+    @property
+    def resolved_backend(self) -> str:
+        """Return the resolved backend ("hnsw" or "faiss").
+        
+        When backend="auto", this returns the actual backend that was selected.
+        """
+        return self._resolved_backend
+    
+    @property
+    def faiss_index_type(self) -> str:
+        """Return the FAISS index factory string."""
+        return self._faiss_index_type
+    
+    @property
+    def faiss_nprobe(self) -> int:
+        """Return the FAISS nprobe parameter."""
+        return self._faiss_nprobe
+    
+    @property
+    def use_gpu(self) -> bool:
+        """Return whether GPU acceleration is enabled."""
+        return self._use_gpu
+    
+    @property
+    def is_faiss_trained(self) -> bool:
+        """Return whether the FAISS index is trained (if using FAISS backend).
+        
+        Some FAISS index types (like IVF) require training before use.
+        Returns True if not using FAISS backend.
+        """
+        if self._faiss_index is None:
+            return True
+        return self._faiss_index.is_trained

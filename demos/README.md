@@ -9,11 +9,43 @@ Syna is an AI-native embedded database designed for ML workloads. These demos sh
 - **Low-level usage** in Rust, Python, and C/C++
 - **HuggingFace integration** for datasets and models
 - **Time-series ML** patterns for IoT and forecasting
+- **v1.0.0 Showcase** - 17 comprehensive Jupyter notebooks with side-by-side comparisons
+
+## 🆕 v1.0.0 Showcase
+
+The **[v1.0.0 Showcase](v1.0.0/)** is a comprehensive collection of 17 Jupyter notebooks demonstrating SynaDB's capabilities through side-by-side comparisons with industry-standard tools:
+
+| Category | Notebooks | Comparisons |
+|----------|-----------|-------------|
+| **Vector Stores** | 4 notebooks | Chroma, FAISS, Weaviate, Milvus, Qdrant, LanceDB |
+| **Experiment Tracking** | 3 notebooks | MLflow, Weights & Biases, Neptune, ClearML |
+| **Data Loading** | 3 notebooks | HDF5, TFRecord, Zarr, LMDB, Parquet, Arrow |
+| **Model Registry** | 2 notebooks | MLflow Model Registry, DVC, Hugging Face Hub |
+| **LLM Frameworks** | 3 notebooks | LangChain, LlamaIndex, Haystack, Semantic Kernel |
+| **Specialized** | 5 notebooks | GPU, Time-series, Feature Store, E2E Pipeline, RL |
+
+**Quick Start:**
+```bash
+cd demos/v1.0.0
+pip install -r requirements.txt
+jupyter notebook
+```
+
+See [demos/v1.0.0/README.md](v1.0.0/README.md) for detailed setup instructions.
 
 ## Directory Structure
 
 ```
 demos/
+├── v1.0.0/             # 🆕 v1.0.0 Showcase (17 Jupyter notebooks)
+│   ├── README.md       # Setup and overview
+│   ├── vector_stores/  # Vector database comparisons
+│   ├── experiment_tracking/  # MLflow, W&B comparisons
+│   ├── data_loading/   # HDF5, Zarr, Parquet comparisons
+│   ├── model_registry/ # Model versioning comparisons
+│   ├── llm_frameworks/ # LangChain, LlamaIndex demos
+│   ├── specialized/    # GPU, time-series, feature store
+│   └── utils/          # Shared benchmarking utilities
 ├── rust/               # Rust usage examples
 │   └── README.md       # Rust-specific instructions
 ├── python/             # Python ctypes wrapper and examples
@@ -291,6 +323,6 @@ cargo build --release
 ## Related Documentation
 
 - [Benchmarks README](../benchmarks/README.md) - Performance benchmarks
-- [API Reference](../.kiro/steering/api-reference.md) - Full API documentation
-- [Architecture](../.kiro/steering/architecture.md) - Technical design
+- [API Reference](https://github.com/gtava5813/SynaDB/wiki/API-Reference) - Full API documentation
+- [Architecture](https://github.com/gtava5813/SynaDB/wiki/Architecture) - Technical design
 

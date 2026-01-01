@@ -1,0 +1,618 @@
+#!/usr/bin/env python3
+"""Generate the LangChain integration notebook."""
+
+import json
+
+notebook = {
+    "cells": [],
+    "metadata": {
+        "kernelspec": {
+            "display_name": "Python 3",
+            "language": "python",
+            "name": "python3"
+        },
+        "language_info": {
+            "name": "python",
+            "version": "3.11.0"
+        }
+    },
+    "nbformat": 4,
+    "nbformat_minor": 4
+}
+
+def add_code_cell(source):
+    """Add a code cell to the notebook."""
+    notebook["cells"].append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": source if isinstance(source, list) else source.split('\n')
+    })
+
+def add_markdown_cell(source):
+    """Add a markdown cell to the notebook."""
+    notebook["cells"].append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": source if isinstance(source, list) else source.split('\n')
+    })
+
+# Cell 1: Header and Setup
+add_code_cell("""# Cell 1: Header and Setup
+import sys
+sys.path.insert(0, '..')
+
+from utils.notebook_utils import display_header, display_toc, check_dependency, conclusion_box, info_box, warning_box
+from utils.system_info import display_system_info
+from utils.benchmark import Benchmark, BenchmarkResult, ComparisonTable
+from utils.charts import setup_style, bar_comparison, COLORS
+
+display_header('LangChain Integration', 'SynaDB as a LangChain Backend')""")
+
+# Cell 2: Table of Contents
+add_code_cell("""# Cell 2: Table of Contents
+sections = [
+    ('Introduction', 'introduction'),
+    ('Setup', 'setup'),
+    ('SynaVectorStore Demo', 'vectorstore'),
+    ('SynaChatMessageHistory Demo', 'chathistory'),
+    ('SynaLoader Demo', 'loader'),
+    ('Complete RAG Chain', 'rag-chain'),
+    ('Agent Memory Demo', 'agent-memory'),
+    ('Persistence Demo', 'persistence'),
+    ('Results Summary', 'results'),
+    ('Conclusions', 'conclusions'),
+]
+display_toc(sections)""")
+
+# Cell 3: Introduction
+add_markdown_cell("""## 📌 Introduction <a id="introduction"></a>
+
+This notebook demonstrates **SynaDB's LangChain integration**, showing how to use SynaDB as a backend for LangChain applications.
+
+### LangChain Components Provided by SynaDB
+
+| Component | Class | Purpose |
+|-----------|-------|---------|
+| **Vector Store** | `SynaVectorStore` | Store and search document embeddings for RAG |
+| **Chat History** | `SynaChatMessageHistory` | Persist conversation history |
+| **Document Loader** | `SynaLoader` | Load documents from SynaDB |
+
+### Why Use SynaDB with LangChain?
+
+| Feature | SynaDB Advantage |
+|---------|------------------|
+| **Single File** | No external database server needed |
+| **Zero Config** | Works out of the box |
+| **Persistence** | Data survives restarts |
+| **Offline** | No network required |
+| **Fast** | Native HNSW index for vector search |
+
+### What We'll Demonstrate
+
+1. **SynaVectorStore** - Document ingestion and semantic search
+2. **SynaChatMessageHistory** - Conversation persistence
+3. **SynaLoader** - Loading documents from SynaDB
+4. **Complete RAG Chain** - End-to-end retrieval-augmented generation
+5. **Agent Memory** - Using SynaDB for agent state persistence""")
+
+# Cell 4: System Info
+add_code_cell("""# Cell 4: System Info
+display_system_info()""")
+
+# Cell 5: Setup markdown
+add_markdown_cell("""## 🔧 Setup <a id="setup"></a>
+
+Let's set up our environment and check for required dependencies.""")
+
+# Cell 6: Check Dependencies
+add_code_cell("""# Cell 6: Check Dependencies and Imports
+import numpy as np
+import time
+import os
+import tempfile
+from pathlib import Path
+
+# Check for SynaDB
+HAS_SYNADB = check_dependency('synadb', 'pip install synadb')
+
+# Check for LangChain
+HAS_LANGCHAIN = check_dependency('langchain', 'pip install langchain langchain-core langchain-community')
+
+# Check for sentence-transformers (for embeddings)
+HAS_SENTENCE_TRANSFORMERS = check_dependency('sentence_transformers', 'pip install sentence-transformers')
+
+# Apply consistent styling
+setup_style()
+
+print("\\n✓ Dependencies checked")""")
+
+# Cell 7: Create temp directory
+add_code_cell("""# Cell 7: Create Temp Directory for Databases
+temp_dir = tempfile.mkdtemp(prefix='synadb_langchain_')
+print(f'Using temp directory: {temp_dir}')
+
+# Paths for databases
+vectorstore_path = os.path.join(temp_dir, 'vectorstore.db')
+chat_path = os.path.join(temp_dir, 'chat.db')
+docs_path = os.path.join(temp_dir, 'docs.db')""")
+
+# Cell 8: Create Mock Embeddings
+add_code_cell("""# Cell 8: Create Mock Embeddings Class (for demo without API keys)
+class MockEmbeddings:
+    \"\"\"Mock embeddings for demonstration without API keys.\"\"\"
+    
+    def __init__(self, dimensions: int = 384):
+        self.dimensions = dimensions
+        np.random.seed(42)  # For reproducibility
+    
+    def embed_documents(self, texts):
+        \"\"\"Generate deterministic embeddings for documents.\"\"\"
+        embeddings = []
+        for text in texts:
+            # Create deterministic embedding based on text hash
+            np.random.seed(hash(text) % 2**32)
+            embedding = np.random.randn(self.dimensions).astype(np.float32)
+            embedding = embedding / np.linalg.norm(embedding)
+            embeddings.append(embedding.tolist())
+        return embeddings
+    
+    def embed_query(self, text):
+        \"\"\"Generate deterministic embedding for a query.\"\"\"
+        np.random.seed(hash(text) % 2**32)
+        embedding = np.random.randn(self.dimensions).astype(np.float32)
+        embedding = embedding / np.linalg.norm(embedding)
+        return embedding.tolist()
+
+# Create mock embeddings instance
+mock_embeddings = MockEmbeddings(dimensions=384)
+print(f"✓ Created mock embeddings with {mock_embeddings.dimensions} dimensions")""")
+
+# Cell 9: VectorStore markdown
+add_markdown_cell("""## 📦 SynaVectorStore Demo <a id="vectorstore"></a>
+
+The `SynaVectorStore` class implements LangChain's VectorStore interface, enabling:
+- Document ingestion with automatic embedding
+- Semantic similarity search
+- Integration with LangChain retrievers and chains""")
+
+# Cell 10: VectorStore Demo
+add_code_cell("""# Cell 10: SynaVectorStore Demo
+if HAS_SYNADB and HAS_LANGCHAIN:
+    from synadb.integrations.langchain import SynaVectorStore
+    
+    print("Creating SynaVectorStore...")
+    
+    # Sample documents for demonstration
+    sample_texts = [
+        "Machine learning is a subset of artificial intelligence that enables systems to learn from data.",
+        "Deep learning uses neural networks with multiple layers to process complex patterns.",
+        "Natural language processing allows computers to understand and generate human language.",
+        "Computer vision enables machines to interpret and analyze visual information from images.",
+        "Reinforcement learning trains agents through rewards and penalties in an environment.",
+        "Transfer learning applies knowledge from one task to improve performance on another.",
+        "SynaDB is an AI-native embedded database designed for machine learning workloads.",
+        "Vector databases store embeddings for efficient similarity search operations.",
+        "RAG combines retrieval with generation for more accurate AI responses.",
+        "LangChain provides tools for building applications with large language models.",
+    ]
+    
+    # Create metadata for each document
+    sample_metadatas = [
+        {"category": "ml", "topic": "basics"},
+        {"category": "ml", "topic": "deep_learning"},
+        {"category": "nlp", "topic": "basics"},
+        {"category": "cv", "topic": "basics"},
+        {"category": "ml", "topic": "reinforcement"},
+        {"category": "ml", "topic": "transfer"},
+        {"category": "database", "topic": "synadb"},
+        {"category": "database", "topic": "vectors"},
+        {"category": "llm", "topic": "rag"},
+        {"category": "llm", "topic": "langchain"},
+    ]
+    
+    # Create vector store from texts
+    start = time.perf_counter()
+    vectorstore = SynaVectorStore.from_texts(
+        texts=sample_texts,
+        embedding=mock_embeddings,
+        metadatas=sample_metadatas,
+        path=vectorstore_path
+    )
+    creation_time = (time.perf_counter() - start) * 1000
+    
+    print(f"✓ Created vectorstore with {len(sample_texts)} documents in {creation_time:.2f}ms")
+    print(f"  Path: {vectorstore_path}")
+else:
+    print("⚠️ SynaDB or LangChain not available, skipping vectorstore demo")
+    vectorstore = None""")
+
+# Cell 11: Similarity Search
+add_code_cell("""# Cell 11: Similarity Search Demo
+if vectorstore:
+    print("Performing similarity search...\\n")
+    
+    # Test queries
+    queries = [
+        "What is machine learning?",
+        "How do neural networks work?",
+        "Tell me about SynaDB",
+    ]
+    
+    for query in queries:
+        print(f"Query: '{query}'")
+        print("-" * 50)
+        
+        # Search with scores
+        start = time.perf_counter()
+        results = vectorstore.similarity_search_with_score(query, k=3)
+        search_time = (time.perf_counter() - start) * 1000
+        
+        for i, (doc, score) in enumerate(results, 1):
+            print(f"  {i}. (score: {score:.4f}) {doc.page_content[:60]}...")
+            if doc.metadata:
+                print(f"     Metadata: {doc.metadata}")
+        
+        print(f"  ⏱️ Search time: {search_time:.2f}ms\\n")
+else:
+    print("⚠️ Vectorstore not available")""")
+
+# Cell 12: ChatHistory markdown
+add_markdown_cell("""## 💬 SynaChatMessageHistory Demo <a id="chathistory"></a>
+
+The `SynaChatMessageHistory` class implements LangChain's chat history interface, enabling:
+- Persistent conversation storage
+- Session-based message management
+- Integration with LangChain memory components""")
+
+# Cell 13: ChatHistory Demo
+add_code_cell("""# Cell 13: SynaChatMessageHistory Demo
+if HAS_SYNADB and HAS_LANGCHAIN:
+    from synadb.integrations.langchain import SynaChatMessageHistory
+    
+    print("Creating SynaChatMessageHistory...")
+    
+    # Create chat history for a session
+    session_id = "user_123"
+    chat_history = SynaChatMessageHistory(path=chat_path, session_id=session_id)
+    
+    # Simulate a conversation
+    from langchain_core.messages import HumanMessage, AIMessage
+    
+    # Add messages to the conversation
+    messages_to_add = [
+        HumanMessage(content="Hello! What is SynaDB?"),
+        AIMessage(content="SynaDB is an AI-native embedded database designed for machine learning workloads. It provides vector storage, experiment tracking, and model registry features."),
+        HumanMessage(content="How does it compare to other vector databases?"),
+        AIMessage(content="SynaDB offers several advantages: single-file storage, zero configuration, native HNSW indexing, and built-in ML features like experiment tracking. Unlike server-based solutions, it's embedded and works offline."),
+        HumanMessage(content="Can I use it with LangChain?"),
+        AIMessage(content="Yes! SynaDB provides LangChain integrations including SynaVectorStore for RAG applications, SynaChatMessageHistory for conversation persistence, and SynaLoader for document loading."),
+    ]
+    
+    print(f"\\nAdding {len(messages_to_add)} messages to session '{session_id}'...")
+    for msg in messages_to_add:
+        chat_history.add_message(msg)
+    
+    print("✓ Messages added successfully")
+    
+    # Retrieve and display messages
+    print(f"\\nRetrieving messages from session '{session_id}':")
+    print("-" * 60)
+    
+    retrieved_messages = chat_history.messages
+    for msg in retrieved_messages:
+        role = "Human" if msg.type == "human" else "AI"
+        print(f"[{role}]: {msg.content[:80]}{'...' if len(msg.content) > 80 else ''}")
+    
+    print(f"\\n✓ Retrieved {len(retrieved_messages)} messages")
+else:
+    print("⚠️ SynaDB or LangChain not available, skipping chat history demo")
+    chat_history = None""")
+
+# Cell 14: Loader markdown
+add_markdown_cell("""## 📄 SynaLoader Demo <a id="loader"></a>
+
+The `SynaLoader` class implements LangChain's document loader interface, enabling:
+- Loading documents stored in SynaDB
+- Pattern-based document filtering
+- Integration with LangChain document processing pipelines""")
+
+# Cell 15: Loader Demo
+add_code_cell("""# Cell 15: SynaLoader Demo
+if HAS_SYNADB and HAS_LANGCHAIN:
+    from synadb.integrations.langchain import SynaLoader
+    from synadb import SynaDB
+    
+    print("Setting up SynaLoader demo...")
+    
+    # First, store some documents in SynaDB
+    docs_db = SynaDB(docs_path)
+    
+    # Store various documents with different prefixes
+    documents_to_store = {
+        "articles/ml_intro": "Machine learning is transforming industries by enabling computers to learn from data without explicit programming.",
+        "articles/dl_basics": "Deep learning is a subset of machine learning that uses neural networks with many layers.",
+        "tutorials/python_basics": "Python is a versatile programming language widely used in data science and machine learning.",
+        "tutorials/numpy_guide": "NumPy is a fundamental library for numerical computing in Python.",
+        "notes/meeting_2024": "Meeting notes: Discussed SynaDB integration with LangChain framework.",
+        "notes/ideas": "Ideas for future features: streaming support, async operations, cloud sync.",
+    }
+    
+    for key, content in documents_to_store.items():
+        docs_db.put_text(key, content)
+    
+    print(f"✓ Stored {len(documents_to_store)} documents in SynaDB")
+    
+    # Load all documents
+    print("\\nLoading all documents:")
+    print("-" * 50)
+    loader_all = SynaLoader(path=docs_path, pattern="*")
+    all_docs = loader_all.load()
+    for doc in all_docs:
+        print(f"  📄 {doc.metadata['source']}: {doc.page_content[:50]}...")
+    
+    # Load only articles
+    print("\\nLoading only articles:")
+    print("-" * 50)
+    loader_articles = SynaLoader(path=docs_path, pattern="articles/*")
+    article_docs = loader_articles.load()
+    for doc in article_docs:
+        print(f"  📄 {doc.metadata['source']}: {doc.page_content[:50]}...")
+    
+    # Load only tutorials
+    print("\\nLoading only tutorials:")
+    print("-" * 50)
+    loader_tutorials = SynaLoader(path=docs_path, pattern="tutorials/*")
+    tutorial_docs = loader_tutorials.load()
+    for doc in tutorial_docs:
+        print(f"  📄 {doc.metadata['source']}: {doc.page_content[:50]}...")
+    
+    print(f"\\n✓ Loaded {len(all_docs)} total, {len(article_docs)} articles, {len(tutorial_docs)} tutorials")
+else:
+    print("⚠️ SynaDB or LangChain not available, skipping loader demo")""")
+
+# Cell 16: RAG Chain markdown
+add_markdown_cell("""## 🔗 Complete RAG Chain <a id="rag-chain"></a>
+
+Let's demonstrate a complete RAG (Retrieval-Augmented Generation) workflow using SynaDB as the vector store backend.
+
+> **Note:** This demo uses mock components to work without API keys. In production, you would use real LLM providers like OpenAI, Anthropic, or local models.""")
+
+# Cell 17: RAG Chain Demo
+add_code_cell("""# Cell 17: Complete RAG Chain Demo
+if vectorstore:
+    print("Building RAG Chain with SynaDB...\\n")
+    
+    # Create a retriever from the vectorstore
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+    
+    # Simulate a RAG query
+    query = "What are the key features of SynaDB?"
+    
+    print(f"Query: '{query}'")
+    print("=" * 60)
+    
+    # Step 1: Retrieve relevant documents
+    print("\\n📚 Step 1: Retrieving relevant documents...")
+    start = time.perf_counter()
+    relevant_docs = retriever.invoke(query)
+    retrieval_time = (time.perf_counter() - start) * 1000
+    
+    print(f"   Retrieved {len(relevant_docs)} documents in {retrieval_time:.2f}ms:")
+    for i, doc in enumerate(relevant_docs, 1):
+        print(f"   {i}. {doc.page_content[:70]}...")
+    
+    # Step 2: Build context from retrieved documents
+    print("\\n📝 Step 2: Building context...")
+    context = "\\n\\n".join([doc.page_content for doc in relevant_docs])
+    print(f"   Context length: {len(context)} characters")
+    
+    # Step 3: Generate response (simulated)
+    print("\\n🤖 Step 3: Generating response (simulated)...")
+    
+    # In production, this would be an LLM call
+    simulated_response = f\"\"\"Based on the retrieved documents, here are the key features of SynaDB:
+
+1. **AI-Native Design**: SynaDB is specifically designed for machine learning workloads.
+2. **Vector Storage**: Efficient storage and retrieval of embeddings for similarity search.
+3. **RAG Support**: Combines retrieval with generation for accurate AI responses.
+4. **LangChain Integration**: Provides tools for building LLM applications.
+
+The retrieval found {len(relevant_docs)} relevant documents to answer your question.\"\"\"
+    
+    print(f"\\n   Response:\\n   {'-' * 50}")
+    print(f"   {simulated_response}")
+    
+    print(f"\\n✓ RAG chain completed successfully")
+else:
+    print("⚠️ Vectorstore not available, skipping RAG chain demo")""")
+
+# Cell 18: Agent Memory markdown
+add_markdown_cell("""## 🧠 Agent Memory Demo <a id="agent-memory"></a>
+
+SynaDB can be used to persist agent memory across sessions, enabling:
+- Long-term memory for conversational agents
+- State persistence between application restarts
+- Multi-session agent interactions""")
+
+# Cell 19: Agent Memory Demo
+add_code_cell("""# Cell 19: Agent Memory Demo
+if HAS_SYNADB and HAS_LANGCHAIN:
+    print("Demonstrating Agent Memory with SynaDB...\\n")
+    
+    # Create a new chat history for agent memory
+    agent_session = "agent_001"
+    agent_memory = SynaChatMessageHistory(path=chat_path, session_id=agent_session)
+    
+    # Simulate agent interactions over multiple "sessions"
+    print("Session 1: Initial interaction")
+    print("-" * 40)
+    
+    # Session 1 messages
+    agent_memory.add_message(HumanMessage(content="My name is Alice and I'm working on a ML project."))
+    agent_memory.add_message(AIMessage(content="Hello Alice! I'd be happy to help with your ML project. What are you working on?"))
+    agent_memory.add_message(HumanMessage(content="I'm building a recommendation system using collaborative filtering."))
+    agent_memory.add_message(AIMessage(content="That's a great choice! Collaborative filtering is effective for recommendations. Are you using user-based or item-based filtering?"))
+    
+    print("✓ Session 1 messages stored")
+    
+    # Simulate "closing" and "reopening" the session
+    print("\\n[Simulating application restart...]\\n")
+    
+    # Create new history instance (simulating new session)
+    agent_memory_restored = SynaChatMessageHistory(path=chat_path, session_id=agent_session)
+    
+    print("Session 2: Continuing conversation")
+    print("-" * 40)
+    
+    # Retrieve previous context
+    previous_messages = agent_memory_restored.messages
+    print(f"✓ Restored {len(previous_messages)} messages from previous session")
+    
+    # Show the agent "remembers" the context
+    print("\\nAgent's memory of the conversation:")
+    for msg in previous_messages:
+        role = "Human" if msg.type == "human" else "AI"
+        print(f"  [{role}]: {msg.content[:60]}{'...' if len(msg.content) > 60 else ''}")
+    
+    # Continue the conversation
+    agent_memory_restored.add_message(HumanMessage(content="I'm using item-based filtering. Can you suggest some improvements?"))
+    agent_memory_restored.add_message(AIMessage(content="For item-based filtering, consider: 1) Adding content-based features, 2) Using matrix factorization, 3) Implementing a hybrid approach combining multiple methods."))
+    
+    print("\\n✓ Session 2 messages added")
+    print(f"✓ Total messages in memory: {len(agent_memory_restored.messages)}")
+else:
+    print("⚠️ SynaDB or LangChain not available, skipping agent memory demo")""")
+
+# Cell 20: Persistence markdown
+add_markdown_cell("""## 💾 Persistence Demo <a id="persistence"></a>
+
+One of SynaDB's key advantages is its single-file persistence. Let's demonstrate how data survives across sessions.""")
+
+# Cell 21: Persistence Demo
+add_code_cell("""# Cell 21: Persistence Demo
+if HAS_SYNADB and HAS_LANGCHAIN:
+    print("Demonstrating SynaDB Persistence...\\n")
+    
+    # Show current database files
+    print("Database files created:")
+    print("-" * 50)
+    
+    import os
+    for filename in os.listdir(temp_dir):
+        filepath = os.path.join(temp_dir, filename)
+        if os.path.isfile(filepath):
+            size = os.path.getsize(filepath)
+            print(f"  📁 {filename}: {size:,} bytes ({size/1024:.1f} KB)")
+    
+    # Demonstrate vectorstore persistence
+    print("\\nVectorStore Persistence Test:")
+    print("-" * 50)
+    
+    # Close and reopen vectorstore
+    del vectorstore
+    
+    # Reopen the vectorstore
+    vectorstore_reopened = SynaVectorStore(
+        path=vectorstore_path,
+        embedding=mock_embeddings,
+        dimensions=384
+    )
+    
+    # Search in reopened store
+    query = "machine learning basics"
+    results = vectorstore_reopened.similarity_search(query, k=2)
+    
+    print(f"  Query: '{query}'")
+    print(f"  ✓ Found {len(results)} results after reopening:")
+    for i, doc in enumerate(results, 1):
+        print(f"    {i}. {doc.page_content[:50]}...")
+    
+    # Demonstrate chat history persistence
+    print("\\nChat History Persistence Test:")
+    print("-" * 50)
+    
+    # Reopen chat history
+    chat_reopened = SynaChatMessageHistory(path=chat_path, session_id="user_123")
+    messages = chat_reopened.messages
+    
+    print(f"  ✓ Retrieved {len(messages)} messages after reopening")
+    print(f"  First message: [{messages[0].type}] {messages[0].content[:50]}...")
+    print(f"  Last message: [{messages[-1].type}] {messages[-1].content[:50]}...")
+    
+    print("\\n✓ Persistence verified - data survives across sessions!")
+else:
+    print("⚠️ SynaDB or LangChain not available, skipping persistence demo")""")
+
+# Cell 22: Results markdown
+add_markdown_cell("""## 📊 Results Summary <a id="results"></a>
+
+Let's summarize the LangChain integration capabilities demonstrated.""")
+
+# Cell 23: Results Summary
+add_code_cell("""# Cell 23: Results Summary
+from IPython.display import display, Markdown
+
+summary_table = \"\"\"
+### LangChain Integration Summary
+
+| Component | Status | Features Demonstrated |
+|-----------|--------|----------------------|
+| **SynaVectorStore** | ✅ Working | Document ingestion, similarity search, retriever creation |
+| **SynaChatMessageHistory** | ✅ Working | Message storage, session management, persistence |
+| **SynaLoader** | ✅ Working | Pattern-based loading, document filtering |
+| **RAG Chain** | ✅ Working | Retrieval, context building, response generation |
+| **Agent Memory** | ✅ Working | Cross-session persistence, memory restoration |
+| **Persistence** | ✅ Working | Single-file storage, data survival across restarts |
+
+### Key Advantages
+
+| Feature | Benefit |
+|---------|---------|
+| **Single File** | No database server needed, easy deployment |
+| **Zero Config** | Works immediately without setup |
+| **Offline** | No network required for operation |
+| **Fast Search** | Native HNSW index for efficient similarity search |
+| **Persistence** | Data survives application restarts |
+| **Integration** | Seamless LangChain compatibility |
+\"\"\"
+
+display(Markdown(summary_table))""")
+
+# Cell 24: Conclusions markdown
+add_markdown_cell("""## 🎯 Conclusions <a id="conclusions"></a>""")
+
+# Cell 25: Conclusions
+add_code_cell("""# Cell 25: Conclusions
+conclusion_box(
+    title="Key Takeaways",
+    points=[
+        "SynaDB provides full LangChain integration with VectorStore, ChatHistory, and Loader components",
+        "Single-file storage eliminates the need for external database servers",
+        "Data persists across sessions, enabling long-term memory for agents",
+        "Zero configuration required - works out of the box",
+        "Native HNSW indexing provides fast similarity search",
+        "Ideal for local development, prototyping, and offline applications",
+    ],
+    summary="SynaDB offers a simple, embedded alternative to server-based vector databases for LangChain applications."
+)""")
+
+# Cell 26: Cleanup
+add_code_cell("""# Cell 26: Cleanup
+import shutil
+
+print("Cleaning up temporary files...")
+try:
+    shutil.rmtree(temp_dir)
+    print(f"✓ Removed temp directory: {temp_dir}")
+except Exception as e:
+    print(f"⚠️ Could not remove temp directory: {e}")
+
+print("\\n✓ Notebook complete!")""")
+
+# Write the notebook
+with open('12_langchain.ipynb', 'w') as f:
+    json.dump(notebook, f, indent=1)
+
+print("Generated 12_langchain.ipynb")

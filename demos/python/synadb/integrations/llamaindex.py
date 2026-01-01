@@ -20,7 +20,6 @@ Requirements:
 
 from typing import Any, Dict, List, Optional
 import json
-import ctypes
 import numpy as np
 
 try:
@@ -140,71 +139,17 @@ class SynaVectorStore(VectorStore):
         return ids
     
     def _store_metadata(self, node_id: str, metadata: dict) -> None:
-        """Store metadata for a node in the underlying database."""
-        # Cache metadata locally for fast retrieval
-        self._metadata_cache[node_id] = metadata
+        """Store metadata for a node in the in-memory cache.
         
-        try:
-            from ..wrapper import SynaDB
-            SynaDB._load_library()
-            lib = SynaDB._lib
-            
-            # Store metadata as JSON text
-            metadata_key = f"llamaindex_meta/{node_id}"
-            metadata_json = json.dumps(metadata)
-            
-            lib.SYNA_put_text(
-                self._path.encode('utf-8'),
-                metadata_key.encode('utf-8'),
-                metadata_json.encode('utf-8')
-            )
-        except Exception:
-            # If metadata storage fails, continue without it
-            # The vector is still stored and metadata is in cache
-            pass
+        Note: Metadata is stored in-memory only because VectorStore and SynaDB
+        cannot safely share the same database file simultaneously. In a future
+        version, VectorStore should support metadata natively.
+        """
+        self._metadata_cache[node_id] = metadata
     
     def _get_metadata(self, node_id: str) -> dict:
-        """Retrieve metadata for a node from the underlying database."""
-        # Check cache first
-        if node_id in self._metadata_cache:
-            return self._metadata_cache[node_id].copy()
-        
-        try:
-            from ..wrapper import SynaDB
-            SynaDB._load_library()
-            lib = SynaDB._lib
-            
-            metadata_key = f"llamaindex_meta/{node_id}"
-            
-            # Set up the function signature if not already done
-            if not hasattr(lib, '_llamaindex_metadata_setup'):
-                lib.SYNA_get_text.argtypes = [
-                    ctypes.c_char_p, 
-                    ctypes.c_char_p, 
-                    ctypes.POINTER(ctypes.c_char_p)
-                ]
-                lib.SYNA_get_text.restype = ctypes.c_int32
-                lib._llamaindex_metadata_setup = True
-            
-            out_text = ctypes.c_char_p()
-            result = lib.SYNA_get_text(
-                self._path.encode('utf-8'),
-                metadata_key.encode('utf-8'),
-                ctypes.byref(out_text)
-            )
-            
-            if result == 1 and out_text.value:
-                metadata_json = out_text.value.decode('utf-8')
-                # Free the string
-                lib.SYNA_free_string(out_text)
-                metadata = json.loads(metadata_json)
-                # Cache for future use
-                self._metadata_cache[node_id] = metadata
-                return metadata
-        except Exception:
-            pass
-        
-        return {}
+        """Retrieve metadata for a node from the in-memory cache."""
+        return self._metadata_cache.get(node_id, {}).copy()
     
     def delete(self, ref_doc_id: str, **kwargs: Any) -> None:
         """
@@ -219,17 +164,6 @@ class SynaVectorStore(VectorStore):
         
         try:
             self._store.delete(ref_doc_id)
-            
-            # Also delete metadata
-            from ..wrapper import SynaDB
-            SynaDB._load_library()
-            lib = SynaDB._lib
-            
-            metadata_key = f"llamaindex_meta/{ref_doc_id}"
-            lib.SYNA_delete(
-                self._path.encode('utf-8'),
-                metadata_key.encode('utf-8')
-            )
         except Exception:
             pass
     

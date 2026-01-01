@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "synadb"
-version = "0.5.1"
+version = "1.0.0"
 description = "AI-native embedded database for ML/AI applications - vectors, tensors, experiments, and model registry"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "SynaDB License"}
 authors = [
-    {name = "gtava5813", email = "hello@eyelid.ai"}
+    {name = "gtava5813", email = "hello@synadb.ai"}
 ]
 keywords = [
     "database", "embedded", "ai", "ml", "machine-learning",
@@ -20,7 +20,7 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    "License :: Other/Proprietary License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
@@ -56,7 +56,7 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/gtava5813/SynaDB"
+Homepage = "https://synadb.ai"
 Documentation = "https://github.com/gtava5813/SynaDB/wiki"
 Repository = "https://github.com/gtava5813/SynaDB"
 Issues = "https://github.com/gtava5813/SynaDB/issues"

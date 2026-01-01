@@ -135,6 +135,54 @@ Custom PyTorch Dataset backed by Syna:
 python models/pytorch_dataloader.py
 ```
 
+SynaDB provides built-in PyTorch integration via `synadb.torch`:
+
+```python
+from synadb.torch import SynaDataset, SynaDataLoader
+
+# Create dataset from SynaDB
+dataset = SynaDataset(
+    path="mnist.db",
+    pattern="train/*",
+    transform=None  # Optional torchvision transforms
+)
+
+# Use with optimized DataLoader
+loader = SynaDataLoader(
+    dataset,
+    batch_size=32,
+    shuffle=True,
+    num_workers=4,
+    prefetch_factor=2
+)
+
+# Training loop
+for batch in loader:
+    # batch is a torch.Tensor
+    pass
+```
+
+**Distributed Training:**
+
+```python
+from synadb.torch import create_distributed_loader, get_distributed_sampler
+
+# Option 1: Create loader with sampler
+loader, sampler = create_distributed_loader(dataset, batch_size=32)
+
+# Option 2: Get sampler separately
+sampler = get_distributed_sampler(dataset, shuffle=True)
+loader = DataLoader(dataset, sampler=sampler, batch_size=32)
+
+# Training loop
+for epoch in range(num_epochs):
+    sampler.set_epoch(epoch)  # Important for shuffling
+    for batch in loader:
+        pass
+```
+
+**Legacy Demo Dataset (for comparison):**
+
 ```python
 from torch.utils.data import DataLoader
 
@@ -157,6 +205,64 @@ class SynaDataset(torch.utils.data.Dataset):
 # Use with DataLoader
 dataset = SynaDataset("mnist.db", "train/image/")
 loader = DataLoader(dataset, batch_size=32, shuffle=True)
+```
+
+### TensorFlow Integration
+
+SynaDB provides built-in TensorFlow integration via `synadb.tensorflow`:
+
+```python
+from synadb.tensorflow import syna_dataset, SynaDataset, create_distributed_dataset
+import tensorflow as tf
+
+# Functional API - quick and simple
+dataset = syna_dataset(
+    path="data.db",
+    pattern="train/*",
+    batch_size=32
+).prefetch(tf.data.AUTOTUNE)
+
+for batch in dataset:
+    # batch is a tf.Tensor
+    pass
+```
+
+**Object-Oriented Interface:**
+
+```python
+from synadb.tensorflow import SynaDataset
+
+ds = SynaDataset("data.db", pattern="train/*")
+tf_dataset = ds.to_tf_dataset(
+    batch_size=32,
+    shuffle=True,
+    buffer_size=1000
+)
+
+# Use with Keras
+model.fit(tf_dataset, epochs=10)
+```
+
+**Distributed Training with tf.distribute:**
+
+```python
+from synadb.tensorflow import create_distributed_dataset
+import tensorflow as tf
+
+strategy = tf.distribute.MirroredStrategy()
+
+with strategy.scope():
+    dataset = create_distributed_dataset(
+        path="data.db",
+        pattern="train/*",
+        batch_size=32
+    )
+    dist_dataset = strategy.experimental_distribute_dataset(dataset)
+    
+    model = create_model()
+    model.compile(optimizer='adam', loss='mse')
+
+model.fit(dist_dataset, epochs=10)
 ```
 
 ### Training Loop (`models/training_loop.py`)

@@ -9,6 +9,7 @@ default = []
 duckdb = ["dep:duckdb"]
 leveldb = ["dep:rusty-leveldb"]
 rocksdb = ["dep:rocksdb"]
+faiss = ["synadb/faiss"]
 
 [dependencies]
 # Syna core
@@ -50,14 +51,9 @@ plotters = "0.3"
 name = "Syna_bench"
 path = "src/main.rs"
 
-# Criterion benchmarks (uncomment when bench files are created)
-# [[bench]]
-# name = "write_bench"
-# harness = false
-# path = "benches/write_bench.rs"
-
-# [[bench]]
-# name = "read_bench"
-# harness = false
-# path = "benches/read_bench.rs"
+# Criterion benchmarks
+[[bench]]
+name = "ai_native_bench"
+harness = false
+path = "src/ai_native_bench.rs"
 

@@ -16,6 +16,7 @@ mod competitors;
 mod reproducibility;
 mod vector_bench;
 mod tensor_bench;
+mod faiss_bench;
 
 pub use config::*;
 pub use report::*;
@@ -120,6 +121,41 @@ enum Commands {
         iterations: usize,
         
         /// Run full benchmark suite including blob storage comparison
+        #[arg(long, default_value = "false")]
+        full: bool,
+    },
+    
+    /// Run tensor throughput validation benchmark (2 GB/s target)
+    /// Tests chunked, batched, and mmap storage methods at various sizes.
+    Throughput {
+        /// Run quick validation (10MB, 100MB only)
+        #[arg(long, default_value = "false")]
+        quick: bool,
+    },
+    
+    /// Run FAISS vs HNSW comparison benchmark
+    Faiss {
+        /// Vector dimensions
+        #[arg(long, default_value = "768")]
+        dimensions: u16,
+        
+        /// Number of vectors to insert
+        #[arg(long, default_value = "100000")]
+        num_vectors: usize,
+        
+        /// Number of search queries
+        #[arg(long, default_value = "100")]
+        num_queries: usize,
+        
+        /// Number of nearest neighbors to retrieve
+        #[arg(long, default_value = "10")]
+        k: usize,
+        
+        /// Run quick benchmark (smaller dataset)
+        #[arg(long, default_value = "false")]
+        quick: bool,
+        
+        /// Run full benchmark suite (100K and 1M vectors)
         #[arg(long, default_value = "false")]
         full: bool,
     },
@@ -371,6 +407,109 @@ fn main() {
             }
         }
         
+        Commands::Throughput { quick } => {
+            println!("Running tensor throughput validation benchmark...");
+            println!("Target: 2 GB/s for both read and write operations\n");
+            
+            if quick {
+                // Quick validation with smaller sizes
+                let results = tensor_bench::run_quick_throughput_validation();
+                println!("\n=== Quick Throughput Validation Complete ===");
+                println!("Total benchmarks run: {}", results.len());
+            } else {
+                // Full validation up to 1GB tensors
+                let results = tensor_bench::run_tensor_throughput_comparison();
+                println!("\n=== Full Throughput Validation Complete ===");
+                println!("Total benchmarks run: {}", results.len());
+            }
+        }
+        
+        Commands::Faiss { dimensions, num_vectors, num_queries, k, quick, full } => {
+            println!("Running FAISS vs HNSW benchmark...");
+            
+            if full {
+                // Run full benchmark suite with 100K and 1M vectors
+                faiss_bench::run_faiss_vs_hnsw_benchmark();
+            } else if quick {
+                // Run quick benchmark with smaller dataset
+                let results = faiss_bench::run_quick_faiss_vs_hnsw_benchmark();
+                println!("\n=== Quick FAISS vs HNSW Benchmark Complete ===");
+                println!("Total index types benchmarked: {}", results.len());
+            } else {
+                // Run specific configuration
+                let config = faiss_bench::FaissVsHnswConfig {
+                    dimensions,
+                    num_vectors,
+                    num_queries,
+                    k,
+                    warmup_iterations: 10,
+                };
+                
+                println!("  Dimensions: {}", dimensions);
+                println!("  Vectors: {}", num_vectors);
+                println!("  Queries: {}", num_queries);
+                println!("  K: {}", k);
+                
+                let mut results = Vec::new();
+                
+                // Benchmark HNSW
+                println!("\n--- HNSW Benchmark ---");
+                let hnsw_result = faiss_bench::bench_hnsw(&config);
+                println!("  Insert throughput: {:.0} vectors/sec", hnsw_result.insert_throughput);
+                println!("  Search latency p50: {:.2} ms", hnsw_result.search_latency_p50_ms);
+                println!("  Search latency p99: {:.2} ms", hnsw_result.search_latency_p99_ms);
+                println!("  Memory usage: {:.1} MB", hnsw_result.memory_mb);
+                println!("  Recall@{}: {:.1}%", k, hnsw_result.recall_at_k * 100.0);
+                println!("  Build time: {:.2}s", hnsw_result.build_time_secs);
+                results.push(hnsw_result);
+                
+                // Benchmark FAISS Flat
+                println!("\n--- FAISS Flat Benchmark ---");
+                let faiss_flat_result = faiss_bench::bench_faiss("Flat", &config);
+                if faiss_flat_result.insert_throughput > 0.0 {
+                    println!("  Insert throughput: {:.0} vectors/sec", faiss_flat_result.insert_throughput);
+                    println!("  Search latency p50: {:.2} ms", faiss_flat_result.search_latency_p50_ms);
+                    println!("  Search latency p99: {:.2} ms", faiss_flat_result.search_latency_p99_ms);
+                    println!("  Memory usage: {:.1} MB", faiss_flat_result.memory_mb);
+                    println!("  Recall@{}: {:.1}%", k, faiss_flat_result.recall_at_k * 100.0);
+                }
+                results.push(faiss_flat_result);
+                
+                // Benchmark FAISS IVF
+                println!("\n--- FAISS IVF1024,Flat Benchmark ---");
+                let faiss_ivf_result = faiss_bench::bench_faiss("IVF1024,Flat", &config);
+                if faiss_ivf_result.insert_throughput > 0.0 {
+                    println!("  Insert throughput: {:.0} vectors/sec", faiss_ivf_result.insert_throughput);
+                    println!("  Search latency p50: {:.2} ms", faiss_ivf_result.search_latency_p50_ms);
+                    println!("  Search latency p99: {:.2} ms", faiss_ivf_result.search_latency_p99_ms);
+                    println!("  Memory usage: {:.1} MB", faiss_ivf_result.memory_mb);
+                    println!("  Recall@{}: {:.1}%", k, faiss_ivf_result.recall_at_k * 100.0);
+                }
+                results.push(faiss_ivf_result);
+                
+                // Print comparison table
+                faiss_bench::print_comparison(&results);
+                
+                // Check targets
+                println!("\n=== Performance Target Check ===");
+                let hnsw = &results[0];
+                
+                // Target: <10ms for search
+                if hnsw.search_latency_p50_ms < 10.0 {
+                    println!("  ✓ HNSW search latency target met: p50 < 10ms ({:.2}ms)", hnsw.search_latency_p50_ms);
+                } else {
+                    println!("  ✗ HNSW search latency target NOT met: p50 >= 10ms ({:.2}ms)", hnsw.search_latency_p50_ms);
+                }
+                
+                // Target: >90% recall
+                if hnsw.recall_at_k >= 0.9 {
+                    println!("  ✓ HNSW recall target met: >= 90% ({:.1}%)", hnsw.recall_at_k * 100.0);
+                } else {
+                    println!("  ✗ HNSW recall target NOT met: < 90% ({:.1}%)", hnsw.recall_at_k * 100.0);
+                }
+            }
+        }
+        
         Commands::All { output } => {
             println!("Running full benchmark suite...");
             println!("  Output directory: {}", output);
@@ -385,6 +524,14 @@ fn main() {
             // Add tensor benchmarks
             println!("\n=== Running Tensor Benchmarks ===");
             results.extend(tensor_bench::run_all_tensor_benchmarks());
+            
+            // Add FAISS vs HNSW benchmarks
+            println!("\n=== Running FAISS vs HNSW Benchmarks ===");
+            let faiss_results = faiss_bench::run_quick_faiss_vs_hnsw_benchmark();
+            let faiss_config = faiss_bench::FaissVsHnswConfig::default();
+            for result in &faiss_results {
+                results.push(faiss_bench::to_benchmark_result(result, &faiss_config));
+            }
             
             report::generate_report(&results, &output);
             

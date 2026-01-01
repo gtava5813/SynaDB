@@ -150,11 +150,10 @@ chore: update dependencies
 
 ### Adding New Features
 
-1. Start with a spec in `.kiro/specs/`
-2. Define requirements (EARS format)
-3. Design with correctness properties
-4. Implement with property tests
-5. Update documentation
+1. Define requirements and design
+2. Implement with property tests
+3. Update documentation (wiki and READMEs)
+4. Submit PR for review
 
 ## Getting Help
 

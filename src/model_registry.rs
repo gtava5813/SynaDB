@@ -1,3 +1,6 @@
+// Copyright (c) 2025 SynaDB Contributors
+// Licensed under the SynaDB License. See LICENSE file for details.
+
 //! Model registry for versioned artifact storage.
 //!
 //! This module provides:

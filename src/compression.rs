@@ -1,3 +1,6 @@
+// Copyright (c) 2025 SynaDB Contributors
+// Licensed under the SynaDB License. See LICENSE file for details.
+
 //! Compression utilities for Syna database.
 //!
 //! This module provides two compression strategies:

@@ -629,3 +629,426 @@ class SynaDB:
             'value': history
         })
 
+    # =========================================================================
+    # Export Methods
+    # =========================================================================
+    
+    def _collect_data(self, key_pattern: str = None) -> List[dict]:
+        """
+        Collect all data as a list of dicts for export.
+        
+        Args:
+            key_pattern: Optional glob pattern to filter keys
+            
+        Returns:
+            List of dicts with 'key', 'type', and 'value' fields
+        """
+        all_keys = self.keys()
+        
+        # Filter keys if pattern provided
+        if key_pattern:
+            import fnmatch
+            all_keys = [k for k in all_keys if fnmatch.fnmatch(k, key_pattern)]
+        
+        records = []
+        for key in all_keys:
+            # Try each type in order
+            value = self.get_float(key)
+            if value is not None:
+                records.append({'key': key, 'type': 'float', 'value': value})
+                continue
+            
+            value = self.get_int(key)
+            if value is not None:
+                records.append({'key': key, 'type': 'int', 'value': value})
+                continue
+            
+            value = self.get_text(key)
+            if value is not None:
+                records.append({'key': key, 'type': 'text', 'value': value})
+                continue
+            
+            value = self.get_bytes(key)
+            if value is not None:
+                records.append({'key': key, 'type': 'bytes', 'value': value.hex()})
+                continue
+        
+        return records
+    
+    def export_json(self, path: str, key_pattern: str = None) -> int:
+        """
+        Export database to JSON file.
+        
+        Args:
+            path: Output file path
+            key_pattern: Optional glob pattern to filter keys
+            
+        Returns:
+            Number of records exported
+        """
+        import json
+        
+        self._check_open()
+        records = self._collect_data(key_pattern)
+        
+        with open(path, 'w') as f:
+            json.dump({r['key']: r['value'] for r in records}, f, indent=2)
+        
+        return len(records)
+    
+    def export_jsonl(self, path: str, key_pattern: str = None) -> int:
+        """
+        Export database to JSON Lines file (one JSON object per line).
+        
+        Args:
+            path: Output file path
+            key_pattern: Optional glob pattern to filter keys
+            
+        Returns:
+            Number of records exported
+        """
+        import json
+        
+        self._check_open()
+        records = self._collect_data(key_pattern)
+        
+        with open(path, 'w') as f:
+            for record in records:
+                f.write(json.dumps(record) + '\n')
+        
+        return len(records)
+    
+    def export_csv(self, path: str, key_pattern: str = None) -> int:
+        """
+        Export database to CSV file.
+        
+        Args:
+            path: Output file path
+            key_pattern: Optional glob pattern to filter keys
+            
+        Returns:
+            Number of records exported
+        """
+        import csv
+        
+        self._check_open()
+        records = self._collect_data(key_pattern)
+        
+        with open(path, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=['key', 'type', 'value'])
+            writer.writeheader()
+            writer.writerows(records)
+        
+        return len(records)
+    
+    def export_pickle(self, path: str, key_pattern: str = None) -> int:
+        """
+        Export database to Python pickle file.
+        
+        Args:
+            path: Output file path
+            key_pattern: Optional glob pattern to filter keys
+            
+        Returns:
+            Number of records exported
+            
+        Note:
+            Pickle files can only be read by Python. For cross-language
+            compatibility, use Parquet or Arrow.
+        """
+        import pickle
+        
+        self._check_open()
+        records = self._collect_data(key_pattern)
+        
+        with open(path, 'wb') as f:
+            pickle.dump(records, f)
+        
+        return len(records)
+    
+    def export_parquet(self, path: str, key_pattern: str = None) -> int:
+        """
+        Export database to Apache Parquet file.
+        
+        Requires: pyarrow or fastparquet
+        
+        Args:
+            path: Output file path
+            key_pattern: Optional glob pattern to filter keys
+            
+        Returns:
+            Number of records exported
+            
+        Note:
+            Parquet is a columnar format ideal for analytics and ML.
+            It's readable by pandas, Spark, DuckDB, and many other tools.
+        """
+        import pandas as pd
+        
+        self._check_open()
+        records = self._collect_data(key_pattern)
+        
+        df = pd.DataFrame(records)
+        df.to_parquet(path, index=False)
+        
+        return len(records)
+    
+    def export_arrow(self, path: str, key_pattern: str = None) -> int:
+        """
+        Export database to Apache Arrow IPC file (.arrow or .feather).
+        
+        Requires: pyarrow
+        
+        Args:
+            path: Output file path
+            key_pattern: Optional glob pattern to filter keys
+            
+        Returns:
+            Number of records exported
+            
+        Note:
+            Arrow is a columnar in-memory format with zero-copy reads.
+            It's ideal for high-performance data exchange between systems.
+        """
+        import pyarrow as pa
+        import pyarrow.feather as feather
+        
+        self._check_open()
+        records = self._collect_data(key_pattern)
+        
+        # Convert to Arrow table
+        table = pa.Table.from_pylist(records)
+        
+        # Write as Feather (Arrow IPC format)
+        feather.write_feather(table, path)
+        
+        return len(records)
+    
+    def export_msgpack(self, path: str, key_pattern: str = None) -> int:
+        """
+        Export database to MessagePack file.
+        
+        Requires: msgpack
+        
+        Args:
+            path: Output file path
+            key_pattern: Optional glob pattern to filter keys
+            
+        Returns:
+            Number of records exported
+            
+        Note:
+            MessagePack is a compact binary format, smaller than JSON.
+        """
+        import msgpack
+        
+        self._check_open()
+        records = self._collect_data(key_pattern)
+        
+        with open(path, 'wb') as f:
+            msgpack.pack(records, f)
+        
+        return len(records)
+    
+    # =========================================================================
+    # Import Methods
+    # =========================================================================
+    
+    def import_json(self, path: str, key_prefix: str = "") -> int:
+        """
+        Import data from JSON file.
+        
+        Args:
+            path: Input file path
+            key_prefix: Optional prefix for imported keys
+            
+        Returns:
+            Number of records imported
+        """
+        import json
+        
+        self._check_open()
+        
+        with open(path, 'r') as f:
+            data = json.load(f)
+        
+        count = 0
+        for key, value in data.items():
+            full_key = f"{key_prefix}{key}" if key_prefix else key
+            
+            if isinstance(value, float):
+                self.put_float(full_key, value)
+            elif isinstance(value, int):
+                self.put_int(full_key, value)
+            elif isinstance(value, str):
+                self.put_text(full_key, value)
+            else:
+                self.put_text(full_key, str(value))
+            count += 1
+        
+        return count
+    
+    def import_jsonl(self, path: str, key_prefix: str = "") -> int:
+        """
+        Import data from JSON Lines file.
+        
+        Args:
+            path: Input file path
+            key_prefix: Optional prefix for imported keys
+            
+        Returns:
+            Number of records imported
+        """
+        import json
+        
+        self._check_open()
+        count = 0
+        
+        with open(path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                record = json.loads(line)
+                key = record.get('key', '')
+                value = record.get('value')
+                
+                if not key:
+                    continue
+                
+                full_key = f"{key_prefix}{key}" if key_prefix else key
+                
+                if isinstance(value, float):
+                    self.put_float(full_key, value)
+                elif isinstance(value, int):
+                    self.put_int(full_key, value)
+                elif isinstance(value, str):
+                    self.put_text(full_key, value)
+                else:
+                    self.put_text(full_key, str(value))
+                count += 1
+        
+        return count
+    
+    def import_csv(self, path: str, key_prefix: str = "") -> int:
+        """
+        Import data from CSV file.
+        
+        Expects columns: key, type, value
+        
+        Args:
+            path: Input file path
+            key_prefix: Optional prefix for imported keys
+            
+        Returns:
+            Number of records imported
+        """
+        import csv
+        
+        self._check_open()
+        count = 0
+        
+        with open(path, 'r', newline='') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                key = row.get('key', '')
+                value_type = row.get('type', 'text')
+                value = row.get('value', '')
+                
+                if not key:
+                    continue
+                
+                full_key = f"{key_prefix}{key}" if key_prefix else key
+                
+                if value_type == 'float':
+                    self.put_float(full_key, float(value))
+                elif value_type == 'int':
+                    self.put_int(full_key, int(value))
+                else:
+                    self.put_text(full_key, value)
+                count += 1
+        
+        return count
+    
+    def import_pickle(self, path: str, key_prefix: str = "") -> int:
+        """
+        Import data from Python pickle file.
+        
+        Args:
+            path: Input file path
+            key_prefix: Optional prefix for imported keys
+            
+        Returns:
+            Number of records imported
+        """
+        import pickle
+        
+        self._check_open()
+        
+        with open(path, 'rb') as f:
+            records = pickle.load(f)
+        
+        count = 0
+        for record in records:
+            key = record.get('key', '')
+            value_type = record.get('type', 'text')
+            value = record.get('value')
+            
+            if not key:
+                continue
+            
+            full_key = f"{key_prefix}{key}" if key_prefix else key
+            
+            if value_type == 'float':
+                self.put_float(full_key, float(value))
+            elif value_type == 'int':
+                self.put_int(full_key, int(value))
+            else:
+                self.put_text(full_key, str(value))
+            count += 1
+        
+        return count
+    
+    def import_parquet(self, path: str, key_prefix: str = "") -> int:
+        """
+        Import data from Apache Parquet file.
+        
+        Requires: pyarrow or fastparquet
+        
+        Expects columns: key, type, value
+        
+        Args:
+            path: Input file path
+            key_prefix: Optional prefix for imported keys
+            
+        Returns:
+            Number of records imported
+        """
+        import pandas as pd
+        
+        self._check_open()
+        
+        df = pd.read_parquet(path)
+        count = 0
+        
+        for _, row in df.iterrows():
+            key = row.get('key', '')
+            value_type = row.get('type', 'text')
+            value = row.get('value')
+            
+            if not key:
+                continue
+            
+            full_key = f"{key_prefix}{key}" if key_prefix else key
+            
+            if value_type == 'float':
+                self.put_float(full_key, float(value))
+            elif value_type == 'int':
+                self.put_int(full_key, int(value))
+            else:
+                self.put_text(full_key, str(value))
+            count += 1
+        
+        return count
+

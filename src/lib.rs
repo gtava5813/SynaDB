@@ -1,3 +1,6 @@
+// Copyright (c) 2025 SynaDB Contributors
+// Licensed under the SynaDB License. See LICENSE file for details.
+
 //! # Syna DB
 //!
 //! An embedded, log-structured, columnar-mapped database engine written in Rust.
@@ -58,8 +61,12 @@ pub mod distance;
 pub mod engine;
 pub mod error;
 pub mod experiment;
+#[cfg(feature = "faiss")]
+pub mod faiss_index;
 pub mod ffi;
+pub mod gpu;
 pub mod hnsw;
+pub mod mmap;
 pub mod model_registry;
 pub mod tensor;
 pub mod types;
@@ -71,4 +78,13 @@ pub use error::{Result, SynaError};
 pub use types::{Atom, LogHeader, HEADER_SIZE, IS_COMPRESSED, IS_DELTA, IS_TOMBSTONE};
 
 // Re-export tensor types for high-throughput operations
-pub use tensor::{DType, TensorEngine, TensorMeta, DEFAULT_CHUNK_SIZE};
+pub use tensor::{
+    optimal_chunk_size, DType, MmapTensorMeta, MmapTensorRef, TensorEngine, TensorMeta,
+    CHUNK_SIZE_LARGE, CHUNK_SIZE_MEDIUM, CHUNK_SIZE_SMALL, DEFAULT_CHUNK_SIZE,
+};
+
+// Re-export memory-mapped reader for zero-copy access
+pub use mmap::MmapReader;
+
+// Re-export GPU types for direct memory access
+pub use gpu::{GpuContext, GpuTensor};

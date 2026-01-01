@@ -1,3 +1,6 @@
+// Copyright (c) 2025 SynaDB Contributors
+// Licensed under the SynaDB License. See LICENSE file for details.
+
 //! Core data types for Syna database.
 //!
 //! This module defines the fundamental data structures used throughout Syna:

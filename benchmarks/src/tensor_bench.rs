@@ -597,6 +597,616 @@ pub fn run_quick_tensor_benchmark() -> BenchmarkResult {
     run_tensor_get_benchmark(&config)
 }
 
+// =============================================================================
+// 2 GB/s Throughput Validation Benchmark Suite
+// =============================================================================
+
+/// Result of a throughput benchmark for a specific method and size.
+#[derive(Debug, Clone)]
+pub struct ThroughputResult {
+    /// Storage method name
+    pub method: String,
+    /// Tensor size in MB
+    pub size_mb: usize,
+    /// Write throughput in MB/s
+    pub write_throughput_mb_sec: f64,
+    /// Read throughput in MB/s
+    pub read_throughput_mb_sec: f64,
+    /// Write throughput in GB/s
+    pub write_throughput_gb_sec: f64,
+    /// Read throughput in GB/s
+    pub read_throughput_gb_sec: f64,
+    /// Write latency p50 in ms
+    pub write_latency_ms: f64,
+    /// Read latency p50 in ms
+    pub read_latency_ms: f64,
+    /// Whether write meets 2 GB/s target
+    pub write_meets_target: bool,
+    /// Whether read meets 2 GB/s target
+    pub read_meets_target: bool,
+}
+
+/// Benchmark chunked storage method.
+///
+/// Tests put_tensor_chunked and get_tensor_chunked throughput.
+fn bench_chunked(size_mb: usize) -> ThroughputResult {
+    let dir = tempdir().expect("Failed to create temp dir");
+    let db_path = dir.path().join("chunked.db");
+    
+    let db = SynaDB::new(&db_path).expect("Failed to create database");
+    let mut engine = TensorEngine::new(db);
+    
+    let num_elements = size_mb * 1024 * 1024 / 8; // f64 elements
+    let data = generate_tensor_data(num_elements, DType::Float64, 42);
+    let shape = vec![num_elements];
+    
+    // Warmup
+    engine.put_tensor_chunked("warmup", &data, &shape, DType::Float64).ok();
+    let _ = engine.get_tensor_chunked("warmup");
+    
+    // Measure write
+    let iterations = 3;
+    let mut write_latencies = Vec::with_capacity(iterations);
+    let write_start = Instant::now();
+    
+    for i in 0..iterations {
+        let name = format!("tensor_{}", i);
+        let op_start = Instant::now();
+        engine.put_tensor_chunked(&name, &data, &shape, DType::Float64).ok();
+        write_latencies.push(op_start.elapsed());
+    }
+    
+    let write_duration = write_start.elapsed();
+    let total_bytes = data.len() * iterations;
+    let write_throughput_mb_sec = (total_bytes as f64 / 1024.0 / 1024.0) / write_duration.as_secs_f64();
+    let write_throughput_gb_sec = write_throughput_mb_sec / 1024.0;
+    let (write_p50, _, _) = calculate_percentiles(write_latencies);
+    
+    // Measure read
+    let mut read_latencies = Vec::with_capacity(iterations);
+    let read_start = Instant::now();
+    
+    for i in 0..iterations {
+        let name = format!("tensor_{}", i);
+        let op_start = Instant::now();
+        let _ = engine.get_tensor_chunked(&name);
+        read_latencies.push(op_start.elapsed());
+    }
+    
+    let read_duration = read_start.elapsed();
+    let read_throughput_mb_sec = (total_bytes as f64 / 1024.0 / 1024.0) / read_duration.as_secs_f64();
+    let read_throughput_gb_sec = read_throughput_mb_sec / 1024.0;
+    let (read_p50, _, _) = calculate_percentiles(read_latencies);
+    
+    ThroughputResult {
+        method: "chunked".to_string(),
+        size_mb,
+        write_throughput_mb_sec,
+        read_throughput_mb_sec,
+        write_throughput_gb_sec,
+        read_throughput_gb_sec,
+        write_latency_ms: write_p50 / 1000.0,
+        read_latency_ms: read_p50 / 1000.0,
+        write_meets_target: write_throughput_gb_sec >= 2.0,
+        read_meets_target: read_throughput_gb_sec >= 2.0,
+    }
+}
+
+/// Benchmark batched storage method.
+///
+/// Tests put_tensor_batched and get_tensor_batched throughput.
+fn bench_batched(size_mb: usize) -> ThroughputResult {
+    let dir = tempdir().expect("Failed to create temp dir");
+    let db_path = dir.path().join("batched.db");
+    
+    let db = SynaDB::new(&db_path).expect("Failed to create database");
+    let mut engine = TensorEngine::new(db);
+    
+    let num_elements = size_mb * 1024 * 1024 / 8; // f64 elements
+    let data = generate_tensor_data(num_elements, DType::Float64, 42);
+    let shape = vec![num_elements];
+    
+    // Warmup
+    engine.put_tensor_batched("warmup", &data, &shape, DType::Float64).ok();
+    let _ = engine.get_tensor_batched("warmup");
+    
+    // Measure write
+    let iterations = 3;
+    let mut write_latencies = Vec::with_capacity(iterations);
+    let write_start = Instant::now();
+    
+    for i in 0..iterations {
+        let name = format!("tensor_{}", i);
+        let op_start = Instant::now();
+        engine.put_tensor_batched(&name, &data, &shape, DType::Float64).ok();
+        write_latencies.push(op_start.elapsed());
+    }
+    
+    let write_duration = write_start.elapsed();
+    let total_bytes = data.len() * iterations;
+    let write_throughput_mb_sec = (total_bytes as f64 / 1024.0 / 1024.0) / write_duration.as_secs_f64();
+    let write_throughput_gb_sec = write_throughput_mb_sec / 1024.0;
+    let (write_p50, _, _) = calculate_percentiles(write_latencies);
+    
+    // Measure read
+    let mut read_latencies = Vec::with_capacity(iterations);
+    let read_start = Instant::now();
+    
+    for i in 0..iterations {
+        let name = format!("tensor_{}", i);
+        let op_start = Instant::now();
+        let _ = engine.get_tensor_batched(&name);
+        read_latencies.push(op_start.elapsed());
+    }
+    
+    let read_duration = read_start.elapsed();
+    let read_throughput_mb_sec = (total_bytes as f64 / 1024.0 / 1024.0) / read_duration.as_secs_f64();
+    let read_throughput_gb_sec = read_throughput_mb_sec / 1024.0;
+    let (read_p50, _, _) = calculate_percentiles(read_latencies);
+    
+    ThroughputResult {
+        method: "batched".to_string(),
+        size_mb,
+        write_throughput_mb_sec,
+        read_throughput_mb_sec,
+        write_throughput_gb_sec,
+        read_throughput_gb_sec,
+        write_latency_ms: write_p50 / 1000.0,
+        read_latency_ms: read_p50 / 1000.0,
+        write_meets_target: write_throughput_gb_sec >= 2.0,
+        read_meets_target: read_throughput_gb_sec >= 2.0,
+    }
+}
+
+/// Benchmark memory-mapped storage method.
+///
+/// Tests put_tensor_mmap and get_tensor_mmap throughput.
+fn bench_mmap(size_mb: usize) -> ThroughputResult {
+    let dir = tempdir().expect("Failed to create temp dir");
+    let db_path = dir.path().join("mmap.db");
+    
+    let db = SynaDB::new(&db_path).expect("Failed to create database");
+    let mut engine = TensorEngine::new(db);
+    
+    let num_elements = size_mb * 1024 * 1024 / 8; // f64 elements
+    let data = generate_tensor_data(num_elements, DType::Float64, 42);
+    let shape = vec![num_elements];
+    
+    // Warmup
+    engine.put_tensor_mmap("warmup", &data, &shape, DType::Float64).ok();
+    let _ = engine.get_tensor_mmap("warmup");
+    
+    // Measure write
+    let iterations = 3;
+    let mut write_latencies = Vec::with_capacity(iterations);
+    let write_start = Instant::now();
+    
+    for i in 0..iterations {
+        let name = format!("tensor_{}", i);
+        let op_start = Instant::now();
+        engine.put_tensor_mmap(&name, &data, &shape, DType::Float64).ok();
+        write_latencies.push(op_start.elapsed());
+    }
+    
+    let write_duration = write_start.elapsed();
+    let total_bytes = data.len() * iterations;
+    let write_throughput_mb_sec = (total_bytes as f64 / 1024.0 / 1024.0) / write_duration.as_secs_f64();
+    let write_throughput_gb_sec = write_throughput_mb_sec / 1024.0;
+    let (write_p50, _, _) = calculate_percentiles(write_latencies);
+    
+    // Measure read
+    let mut read_latencies = Vec::with_capacity(iterations);
+    let read_start = Instant::now();
+    
+    for i in 0..iterations {
+        let name = format!("tensor_{}", i);
+        let op_start = Instant::now();
+        let _ = engine.get_tensor_mmap(&name);
+        read_latencies.push(op_start.elapsed());
+    }
+    
+    let read_duration = read_start.elapsed();
+    let read_throughput_mb_sec = (total_bytes as f64 / 1024.0 / 1024.0) / read_duration.as_secs_f64();
+    let read_throughput_gb_sec = read_throughput_mb_sec / 1024.0;
+    let (read_p50, _, _) = calculate_percentiles(read_latencies);
+    
+    ThroughputResult {
+        method: "mmap".to_string(),
+        size_mb,
+        write_throughput_mb_sec,
+        read_throughput_mb_sec,
+        write_throughput_gb_sec,
+        read_throughput_gb_sec,
+        write_latency_ms: write_p50 / 1000.0,
+        read_latency_ms: read_p50 / 1000.0,
+        write_meets_target: write_throughput_gb_sec >= 2.0,
+        read_meets_target: read_throughput_gb_sec >= 2.0,
+    }
+}
+
+/// Benchmark optimized memory-mapped storage method (async flush).
+///
+/// Tests put_tensor_mmap_fast and get_tensor_mmap throughput.
+/// This method uses async flush for maximum write throughput.
+fn bench_mmap_fast(size_mb: usize) -> ThroughputResult {
+    let dir = tempdir().expect("Failed to create temp dir");
+    let db_path = dir.path().join("mmap_fast.db");
+    
+    let db = SynaDB::new(&db_path).expect("Failed to create database");
+    let mut engine = TensorEngine::new(db);
+    
+    let num_elements = size_mb * 1024 * 1024 / 8; // f64 elements
+    let data = generate_tensor_data(num_elements, DType::Float64, 42);
+    let shape = vec![num_elements];
+    
+    // Warmup
+    engine.put_tensor_mmap_fast("warmup", &data, &shape, DType::Float64).ok();
+    let _ = engine.get_tensor_mmap("warmup");
+    
+    // Measure write
+    let iterations = 3;
+    let mut write_latencies = Vec::with_capacity(iterations);
+    let write_start = Instant::now();
+    
+    for i in 0..iterations {
+        let name = format!("tensor_{}", i);
+        let op_start = Instant::now();
+        engine.put_tensor_mmap_fast(&name, &data, &shape, DType::Float64).ok();
+        write_latencies.push(op_start.elapsed());
+    }
+    
+    let write_duration = write_start.elapsed();
+    let total_bytes = data.len() * iterations;
+    let write_throughput_mb_sec = (total_bytes as f64 / 1024.0 / 1024.0) / write_duration.as_secs_f64();
+    let write_throughput_gb_sec = write_throughput_mb_sec / 1024.0;
+    let (write_p50, _, _) = calculate_percentiles(write_latencies);
+    
+    // Measure read (uses same get_tensor_mmap as regular mmap)
+    let mut read_latencies = Vec::with_capacity(iterations);
+    let read_start = Instant::now();
+    
+    for i in 0..iterations {
+        let name = format!("tensor_{}", i);
+        let op_start = Instant::now();
+        let _ = engine.get_tensor_mmap(&name);
+        read_latencies.push(op_start.elapsed());
+    }
+    
+    let read_duration = read_start.elapsed();
+    let read_throughput_mb_sec = (total_bytes as f64 / 1024.0 / 1024.0) / read_duration.as_secs_f64();
+    let read_throughput_gb_sec = read_throughput_mb_sec / 1024.0;
+    let (read_p50, _, _) = calculate_percentiles(read_latencies);
+    
+    ThroughputResult {
+        method: "mmap_fast".to_string(),
+        size_mb,
+        write_throughput_mb_sec,
+        read_throughput_mb_sec,
+        write_throughput_gb_sec,
+        read_throughput_gb_sec,
+        write_latency_ms: write_p50 / 1000.0,
+        read_latency_ms: read_p50 / 1000.0,
+        write_meets_target: write_throughput_gb_sec >= 2.0,
+        read_meets_target: read_throughput_gb_sec >= 2.0,
+    }
+}
+
+/// Print throughput comparison table.
+fn print_throughput_comparison(results: &[ThroughputResult]) {
+    println!("\n╔══════════════════════════════════════════════════════════════════════════════════════════════╗");
+    println!("║                           TENSOR THROUGHPUT COMPARISON (Target: 2 GB/s)                       ║");
+    println!("╠══════════════════════════════════════════════════════════════════════════════════════════════╣");
+    println!("║ Method   │ Size   │ Write MB/s │ Write GB/s │ Read MB/s  │ Read GB/s  │ Write OK │ Read OK   ║");
+    println!("╠══════════════════════════════════════════════════════════════════════════════════════════════╣");
+    
+    for r in results {
+        let write_status = if r.write_meets_target { "✓" } else { "✗" };
+        let read_status = if r.read_meets_target { "✓" } else { "✗" };
+        
+        println!(
+            "║ {:8} │ {:4} MB │ {:10.1} │ {:10.3} │ {:10.1} │ {:10.3} │    {}     │    {}      ║",
+            r.method,
+            r.size_mb,
+            r.write_throughput_mb_sec,
+            r.write_throughput_gb_sec,
+            r.read_throughput_mb_sec,
+            r.read_throughput_gb_sec,
+            write_status,
+            read_status
+        );
+    }
+    
+    println!("╚══════════════════════════════════════════════════════════════════════════════════════════════╝");
+    
+    // Summary
+    let any_write_meets = results.iter().any(|r| r.write_meets_target);
+    let any_read_meets = results.iter().any(|r| r.read_meets_target);
+    
+    println!("\n=== Summary ===");
+    if any_write_meets {
+        let best_write = results.iter()
+            .max_by(|a, b| a.write_throughput_gb_sec.partial_cmp(&b.write_throughput_gb_sec).unwrap())
+            .unwrap();
+        println!("✓ WRITE target met: {} method achieves {:.2} GB/s at {} MB", 
+            best_write.method, best_write.write_throughput_gb_sec, best_write.size_mb);
+    } else {
+        let best_write = results.iter()
+            .max_by(|a, b| a.write_throughput_gb_sec.partial_cmp(&b.write_throughput_gb_sec).unwrap())
+            .unwrap();
+        println!("✗ WRITE target NOT met: best is {} method at {:.2} GB/s ({:.0}% of target)", 
+            best_write.method, best_write.write_throughput_gb_sec, best_write.write_throughput_gb_sec / 2.0 * 100.0);
+    }
+    
+    if any_read_meets {
+        let best_read = results.iter()
+            .max_by(|a, b| a.read_throughput_gb_sec.partial_cmp(&b.read_throughput_gb_sec).unwrap())
+            .unwrap();
+        println!("✓ READ target met: {} method achieves {:.2} GB/s at {} MB", 
+            best_read.method, best_read.read_throughput_gb_sec, best_read.size_mb);
+    } else {
+        let best_read = results.iter()
+            .max_by(|a, b| a.read_throughput_gb_sec.partial_cmp(&b.read_throughput_gb_sec).unwrap())
+            .unwrap();
+        println!("✗ READ target NOT met: best is {} method at {:.2} GB/s ({:.0}% of target)", 
+            best_read.method, best_read.read_throughput_gb_sec, best_read.read_throughput_gb_sec / 2.0 * 100.0);
+    }
+}
+
+/// Run tensor throughput comparison benchmark.
+///
+/// Benchmarks all tensor storage methods (chunked, batched, mmap) at various
+/// sizes up to 1GB to validate 2 GB/s throughput target.
+///
+/// # Validation Criteria
+///
+/// - At least one method achieves 2 GB/s write throughput
+/// - At least one method achieves 2 GB/s read throughput
+/// - Benchmark runs on 1GB tensor without OOM
+///
+/// _Requirements: 9.3_
+pub fn run_tensor_throughput_comparison() -> Vec<BenchmarkResult> {
+    let sizes_mb = [10, 50, 100, 500, 1000]; // Up to 1GB tensors
+    let mut throughput_results = Vec::new();
+    let mut benchmark_results = Vec::new();
+    
+    println!("\n╔══════════════════════════════════════════════════════════════════════════════════════════════╗");
+    println!("║                    TENSOR THROUGHPUT VALIDATION BENCHMARK (Target: 2 GB/s)                    ║");
+    println!("╚══════════════════════════════════════════════════════════════════════════════════════════════╝");
+    
+    for &size_mb in &sizes_mb {
+        println!("\n=== {} MB Tensor ===", size_mb);
+        
+        // Test chunked method
+        print!("  Testing chunked... ");
+        std::io::Write::flush(&mut std::io::stdout()).ok();
+        let chunked_result = bench_chunked(size_mb);
+        println!("Write: {:.2} GB/s, Read: {:.2} GB/s", 
+            chunked_result.write_throughput_gb_sec, chunked_result.read_throughput_gb_sec);
+        
+        benchmark_results.push(BenchmarkResult {
+            benchmark: format!("tensor_chunked_{}mb_write", size_mb),
+            database: "Syna".to_string(),
+            config: BenchmarkConfig {
+                warmup_iterations: 1,
+                measurement_iterations: 3,
+                value_size_bytes: size_mb * 1024 * 1024,
+                thread_count: 1,
+                sync_on_write: false,
+            },
+            throughput_ops_sec: chunked_result.write_throughput_mb_sec,
+            latency_p50_us: chunked_result.write_latency_ms * 1000.0,
+            latency_p95_us: 0.0,
+            latency_p99_us: 0.0,
+            memory_mb: 0.0,
+            disk_mb: 0.0,
+            duration_secs: 0.0,
+        });
+        
+        throughput_results.push(chunked_result);
+        
+        // Test batched method
+        print!("  Testing batched... ");
+        std::io::Write::flush(&mut std::io::stdout()).ok();
+        let batched_result = bench_batched(size_mb);
+        println!("Write: {:.2} GB/s, Read: {:.2} GB/s", 
+            batched_result.write_throughput_gb_sec, batched_result.read_throughput_gb_sec);
+        
+        benchmark_results.push(BenchmarkResult {
+            benchmark: format!("tensor_batched_{}mb_write", size_mb),
+            database: "Syna".to_string(),
+            config: BenchmarkConfig {
+                warmup_iterations: 1,
+                measurement_iterations: 3,
+                value_size_bytes: size_mb * 1024 * 1024,
+                thread_count: 1,
+                sync_on_write: false,
+            },
+            throughput_ops_sec: batched_result.write_throughput_mb_sec,
+            latency_p50_us: batched_result.write_latency_ms * 1000.0,
+            latency_p95_us: 0.0,
+            latency_p99_us: 0.0,
+            memory_mb: 0.0,
+            disk_mb: 0.0,
+            duration_secs: 0.0,
+        });
+        
+        throughput_results.push(batched_result);
+        
+        // Test mmap method
+        print!("  Testing mmap... ");
+        std::io::Write::flush(&mut std::io::stdout()).ok();
+        let mmap_result = bench_mmap(size_mb);
+        println!("Write: {:.2} GB/s, Read: {:.2} GB/s", 
+            mmap_result.write_throughput_gb_sec, mmap_result.read_throughput_gb_sec);
+        
+        benchmark_results.push(BenchmarkResult {
+            benchmark: format!("tensor_mmap_{}mb_write", size_mb),
+            database: "Syna".to_string(),
+            config: BenchmarkConfig {
+                warmup_iterations: 1,
+                measurement_iterations: 3,
+                value_size_bytes: size_mb * 1024 * 1024,
+                thread_count: 1,
+                sync_on_write: false,
+            },
+            throughput_ops_sec: mmap_result.write_throughput_mb_sec,
+            latency_p50_us: mmap_result.write_latency_ms * 1000.0,
+            latency_p95_us: 0.0,
+            latency_p99_us: 0.0,
+            memory_mb: 0.0,
+            disk_mb: 0.0,
+            duration_secs: 0.0,
+        });
+        
+        throughput_results.push(mmap_result);
+        
+        // Test mmap_fast method (async flush for maximum throughput)
+        print!("  Testing mmap_fast... ");
+        std::io::Write::flush(&mut std::io::stdout()).ok();
+        let mmap_fast_result = bench_mmap_fast(size_mb);
+        println!("Write: {:.2} GB/s, Read: {:.2} GB/s", 
+            mmap_fast_result.write_throughput_gb_sec, mmap_fast_result.read_throughput_gb_sec);
+        
+        benchmark_results.push(BenchmarkResult {
+            benchmark: format!("tensor_mmap_fast_{}mb_write", size_mb),
+            database: "Syna".to_string(),
+            config: BenchmarkConfig {
+                warmup_iterations: 1,
+                measurement_iterations: 3,
+                value_size_bytes: size_mb * 1024 * 1024,
+                thread_count: 1,
+                sync_on_write: false,
+            },
+            throughput_ops_sec: mmap_fast_result.write_throughput_mb_sec,
+            latency_p50_us: mmap_fast_result.write_latency_ms * 1000.0,
+            latency_p95_us: 0.0,
+            latency_p99_us: 0.0,
+            memory_mb: 0.0,
+            disk_mb: 0.0,
+            duration_secs: 0.0,
+        });
+        
+        throughput_results.push(mmap_fast_result);
+    }
+    
+    // Print comparison table
+    print_throughput_comparison(&throughput_results);
+    
+    // Validate targets
+    let any_write_meets = throughput_results.iter().any(|r| r.write_meets_target);
+    let any_read_meets = throughput_results.iter().any(|r| r.read_meets_target);
+    let ran_1gb = throughput_results.iter().any(|r| r.size_mb == 1000);
+    
+    println!("\n=== Validation Results ===");
+    println!("  [{}] At least one method achieves 2 GB/s write", if any_write_meets { "✓" } else { "✗" });
+    println!("  [{}] At least one method achieves 2 GB/s read", if any_read_meets { "✓" } else { "✗" });
+    println!("  [{}] Benchmark runs on 1GB tensor without OOM", if ran_1gb { "✓" } else { "✗" });
+    
+    benchmark_results
+}
+
+/// Run a quick throughput validation (smaller sizes for CI).
+///
+/// Tests only 10MB and 100MB tensors for faster CI runs.
+pub fn run_quick_throughput_validation() -> Vec<BenchmarkResult> {
+    let sizes_mb = [10, 100];
+    let mut throughput_results = Vec::new();
+    let mut benchmark_results = Vec::new();
+    
+    println!("\n=== Quick Throughput Validation (Target: 2 GB/s) ===\n");
+    
+    for &size_mb in &sizes_mb {
+        println!("Testing {} MB tensor...", size_mb);
+        
+        let chunked = bench_chunked(size_mb);
+        println!("  chunked: W={:.2} GB/s, R={:.2} GB/s", 
+            chunked.write_throughput_gb_sec, chunked.read_throughput_gb_sec);
+        throughput_results.push(chunked.clone());
+        
+        benchmark_results.push(BenchmarkResult {
+            benchmark: format!("quick_chunked_{}mb", size_mb),
+            database: "Syna".to_string(),
+            config: BenchmarkConfig::default(),
+            throughput_ops_sec: chunked.write_throughput_mb_sec,
+            latency_p50_us: chunked.write_latency_ms * 1000.0,
+            latency_p95_us: 0.0,
+            latency_p99_us: 0.0,
+            memory_mb: 0.0,
+            disk_mb: 0.0,
+            duration_secs: 0.0,
+        });
+        
+        let batched = bench_batched(size_mb);
+        println!("  batched: W={:.2} GB/s, R={:.2} GB/s", 
+            batched.write_throughput_gb_sec, batched.read_throughput_gb_sec);
+        throughput_results.push(batched.clone());
+        
+        benchmark_results.push(BenchmarkResult {
+            benchmark: format!("quick_batched_{}mb", size_mb),
+            database: "Syna".to_string(),
+            config: BenchmarkConfig::default(),
+            throughput_ops_sec: batched.write_throughput_mb_sec,
+            latency_p50_us: batched.write_latency_ms * 1000.0,
+            latency_p95_us: 0.0,
+            latency_p99_us: 0.0,
+            memory_mb: 0.0,
+            disk_mb: 0.0,
+            duration_secs: 0.0,
+        });
+        
+        let mmap = bench_mmap(size_mb);
+        println!("  mmap: W={:.2} GB/s, R={:.2} GB/s", 
+            mmap.write_throughput_gb_sec, mmap.read_throughput_gb_sec);
+        throughput_results.push(mmap.clone());
+        
+        benchmark_results.push(BenchmarkResult {
+            benchmark: format!("quick_mmap_{}mb", size_mb),
+            database: "Syna".to_string(),
+            config: BenchmarkConfig::default(),
+            throughput_ops_sec: mmap.write_throughput_mb_sec,
+            latency_p50_us: mmap.write_latency_ms * 1000.0,
+            latency_p95_us: 0.0,
+            latency_p99_us: 0.0,
+            memory_mb: 0.0,
+            disk_mb: 0.0,
+            duration_secs: 0.0,
+        });
+        
+        let mmap_fast = bench_mmap_fast(size_mb);
+        println!("  mmap_fast: W={:.2} GB/s, R={:.2} GB/s", 
+            mmap_fast.write_throughput_gb_sec, mmap_fast.read_throughput_gb_sec);
+        throughput_results.push(mmap_fast.clone());
+        
+        benchmark_results.push(BenchmarkResult {
+            benchmark: format!("quick_mmap_fast_{}mb", size_mb),
+            database: "Syna".to_string(),
+            config: BenchmarkConfig::default(),
+            throughput_ops_sec: mmap_fast.write_throughput_mb_sec,
+            latency_p50_us: mmap_fast.write_latency_ms * 1000.0,
+            latency_p95_us: 0.0,
+            latency_p99_us: 0.0,
+            memory_mb: 0.0,
+            disk_mb: 0.0,
+            duration_secs: 0.0,
+        });
+    }
+    
+    // Find best results
+    let best_write = throughput_results.iter()
+        .max_by(|a, b| a.write_throughput_gb_sec.partial_cmp(&b.write_throughput_gb_sec).unwrap())
+        .unwrap();
+    let best_read = throughput_results.iter()
+        .max_by(|a, b| a.read_throughput_gb_sec.partial_cmp(&b.read_throughput_gb_sec).unwrap())
+        .unwrap();
+    
+    println!("\nBest write: {} at {} MB = {:.2} GB/s", 
+        best_write.method, best_write.size_mb, best_write.write_throughput_gb_sec);
+    println!("Best read: {} at {} MB = {:.2} GB/s", 
+        best_read.method, best_read.size_mb, best_read.read_throughput_gb_sec);
+    
+    benchmark_results
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

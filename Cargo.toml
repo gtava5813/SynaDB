@@ -1,12 +1,12 @@
 [package]
 name = "synadb"
-version = "0.5.1"
+version = "1.0.0"
 edition = "2021"
 authors = ["gtava5813"]
 description = "An AI-native embedded database"
-license = "MIT"
+license = "LicenseRef-SynaDB"
 repository = "https://github.com/gtava5813/SynaDB"
-homepage = "https://github.com/gtava5813/SynaDB"
+homepage = "https://synadb.ai"
 documentation = "https://docs.rs/synadb"
 readme = "README.md"
 keywords = ["database", "embedded", "ai", "ml", "tensor"]
@@ -29,6 +29,15 @@ thiserror = "1.0"
 sha2 = "0.10"
 
 uuid = { version = "1.8", features = ["v4"] }
+tokio = { version = "1.0", features = ["fs", "rt-multi-thread", "macros", "io-util"], optional = true }
+faiss = { version = "0.12", optional = true }  # FAISS bindings for billion-scale vector search
+
+[features]
+default = []
+gpu = []  # Enable GPU Direct memory access (requires CUDA toolkit)
+async = ["tokio"]  # Enable async parallel chunk writes for high-throughput tensor storage
+faiss = ["dep:faiss"]  # Enable FAISS index integration for billion-scale vector search
+faiss-gpu = ["faiss"]  # Enable FAISS with GPU support (requires CUDA)
 
 [dev-dependencies]
 proptest = "1.4"

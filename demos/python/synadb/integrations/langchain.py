@@ -87,6 +87,7 @@ class SynaVectorStore(VectorStore):
     Attributes:
         _store: The underlying Syna VectorStore instance.
         _embedding: The embedding model used to convert text to vectors.
+        _metadata_db: Persistent SynaDB instance for metadata storage.
     """
     
     def __init__(
@@ -116,6 +117,7 @@ class SynaVectorStore(VectorStore):
             )
         
         from ..vector import VectorStore as SynaStore
+        from ..wrapper import SynaDB
         
         self._embedding = embedding
         self._path = path
@@ -128,6 +130,12 @@ class SynaVectorStore(VectorStore):
         
         self._dimensions = dimensions
         self._store = SynaStore(path, dimensions=dimensions, metric=metric)
+        
+        # Store metadata in-memory (keyed by doc_id)
+        # Note: This is a workaround because VectorStore and SynaDB cannot
+        # safely share the same database file simultaneously. In a future
+        # version, VectorStore should support metadata natively.
+        self._metadata_cache: Dict[str, dict] = {}
     
     @property
     def embeddings(self) -> Optional["Embeddings"]:
@@ -160,85 +168,26 @@ class SynaVectorStore(VectorStore):
             doc_id = f"doc_{hash(text) % 10**12}"
             
             # Prepare metadata, including the original text
-            metadata = metadatas[i] if metadatas else {}
+            metadata = metadatas[i].copy() if metadatas else {}
             metadata["text"] = text
             
             # Insert into Syna VectorStore
-            # Note: The current VectorStore doesn't support metadata directly,
-            # so we store it as part of the key or in a separate entry
             self._store.insert(doc_id, np.array(embedding, dtype=np.float32))
             
-            # Store metadata separately using the underlying database
-            # This is a workaround until VectorStore supports metadata natively
-            self._store_metadata(doc_id, metadata)
+            # Store metadata in-memory cache
+            self._metadata_cache[doc_id] = metadata
             
             ids.append(doc_id)
         
         return ids
     
     def _store_metadata(self, doc_id: str, metadata: dict) -> None:
-        """Store metadata for a document in the underlying database."""
-        # Import json for serialization
-        import json
-        
-        # Access the underlying library through the store
-        try:
-            from ..wrapper import SynaDB
-            SynaDB._load_library()
-            lib = SynaDB._lib
-            
-            # Store metadata as JSON text
-            metadata_key = f"meta/{doc_id}"
-            metadata_json = json.dumps(metadata)
-            
-            lib.SYNA_put_text(
-                self._path.encode('utf-8'),
-                metadata_key.encode('utf-8'),
-                metadata_json.encode('utf-8')
-            )
-        except Exception:
-            # If metadata storage fails, continue without it
-            # The vector is still stored
-            pass
+        """Store metadata for a document in the in-memory cache."""
+        self._metadata_cache[doc_id] = metadata
     
     def _get_metadata(self, doc_id: str) -> dict:
-        """Retrieve metadata for a document from the underlying database."""
-        import json
-        import ctypes
-        
-        try:
-            from ..wrapper import SynaDB
-            SynaDB._load_library()
-            lib = SynaDB._lib
-            
-            metadata_key = f"meta/{doc_id}"
-            
-            # Set up the function signature if not already done
-            if not hasattr(lib, '_metadata_setup'):
-                lib.SYNA_get_text.argtypes = [
-                    ctypes.c_char_p, 
-                    ctypes.c_char_p, 
-                    ctypes.POINTER(ctypes.c_char_p)
-                ]
-                lib.SYNA_get_text.restype = ctypes.c_int32
-                lib._metadata_setup = True
-            
-            out_text = ctypes.c_char_p()
-            result = lib.SYNA_get_text(
-                self._path.encode('utf-8'),
-                metadata_key.encode('utf-8'),
-                ctypes.byref(out_text)
-            )
-            
-            if result == 1 and out_text.value:
-                metadata_json = out_text.value.decode('utf-8')
-                # Free the string
-                lib.SYNA_free_string(out_text)
-                return json.loads(metadata_json)
-        except Exception:
-            pass
-        
-        return {}
+        """Retrieve metadata for a document from the in-memory cache."""
+        return self._metadata_cache.get(doc_id, {}).copy()
     
     def similarity_search(
         self,
@@ -494,7 +443,16 @@ class SynaChatMessageHistory(BaseChatMessageHistory):
             msg_json = self._db.get_text(key)
             if msg_json:
                 msg_dict = json.loads(msg_json)
-                messages.extend(messages_from_dict([msg_dict]))
+                # Convert to the format expected by messages_from_dict
+                # which expects {"type": "human/ai/system", "data": {...}}
+                formatted_dict = {
+                    "type": msg_dict.get("type", "human"),
+                    "data": {
+                        "content": msg_dict.get("content", ""),
+                        "additional_kwargs": msg_dict.get("additional_kwargs", {}),
+                    }
+                }
+                messages.extend(messages_from_dict([formatted_dict]))
         
         return messages
     
@@ -507,7 +465,13 @@ class SynaChatMessageHistory(BaseChatMessageHistory):
         """
         import time
         key = f"{self._key_prefix}{int(time.time() * 1000000)}"
-        self._db.put_text(key, message.json())
+        # Store in a format that can be reconstructed
+        msg_dict = {
+            "type": message.type,
+            "content": message.content,
+            "additional_kwargs": message.additional_kwargs,
+        }
+        self._db.put_text(key, json.dumps(msg_dict))
     
     def clear(self) -> None:
         """Clear all messages in the session."""

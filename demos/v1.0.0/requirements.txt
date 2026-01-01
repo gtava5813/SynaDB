@@ -1,0 +1,25 @@
+# SynaDB v1.0.0 Showcase - Core Dependencies
+# Install with: pip install -r requirements.txt
+
+# SynaDB - The AI-native embedded database
+synadb>=1.0.0
+
+# Numerical computing
+numpy>=1.24.0,<2.0.0
+
+# Data manipulation
+pandas>=2.0.0,<3.0.0
+
+# Visualization
+matplotlib>=3.7.0,<4.0.0
+
+# Jupyter environment
+jupyter>=1.0.0
+notebook>=7.0.0
+ipywidgets>=8.0.0
+
+# System info
+psutil>=5.9.0,<6.0.0
+
+# Progress bars
+tqdm>=4.65.0,<5.0.0

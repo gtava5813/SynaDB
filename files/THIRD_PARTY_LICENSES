@@ -1,0 +1,9 @@
+This software includes the following third-party components: 
+
+FAISS (Facebook AI Similarity Search)
+--------------------------------------
+Copyright (c) Facebook, Inc. and its affiliates. 
+Licensed under the MIT License
+https://github.com/facebookresearch/faiss
+
+[Full MIT License text...]

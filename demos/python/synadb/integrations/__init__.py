@@ -60,6 +60,14 @@ except ImportError:
     HAYSTACK_AVAILABLE = False
     HaystackSynaDocumentStore = None
 
+# Import MLflow integrations if available
+try:
+    from .mlflow import SynaTrackingStore, register_syna_tracking_store, MLFLOW_AVAILABLE
+except ImportError:
+    MLFLOW_AVAILABLE = False
+    SynaTrackingStore = None
+    register_syna_tracking_store = None
+
 __all__ = []
 
 if LANGCHAIN_AVAILABLE:
@@ -73,3 +81,6 @@ if LLAMAINDEX_CHAT_AVAILABLE:
 
 if HAYSTACK_AVAILABLE:
     __all__.extend(["HaystackSynaDocumentStore"])
+
+if MLFLOW_AVAILABLE:
+    __all__.extend(["SynaTrackingStore", "register_syna_tracking_store"])

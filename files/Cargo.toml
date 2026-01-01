@@ -1,0 +1,11 @@
+[dependencies]
+# Add faiss binding - choose one: 
+faiss = "0.12"  # Pure Rust bindings (easier setup)
+# OR for full FAISS with GPU support:
+# faiss-sys = "0.5"  # C++ bindings (requires FAISS installed)
+
+[features]
+default = ["hnsw"]
+hnsw = []
+faiss = ["dep:faiss"]
+faiss-gpu = ["faiss", "faiss/gpu"]

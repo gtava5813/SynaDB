@@ -14,7 +14,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-synadb = "0.5.1"
+synadb = "1.0.0"
 ```
 
 ### Building from Source
@@ -200,6 +200,137 @@ for key in db.keys():
         X.append(np.frombuffer(data, dtype=np.float32))
 X = np.stack(X)
 ```
+
+## Performance Tips
+
+### 1. Batch Writes for High Throughput
+
+Instead of writing one value at a time, batch your writes:
+
+```python
+# Slower: Individual writes
+for i in range(10000):
+    db.put_float(f"sensor/{i}", values[i])
+
+# Faster: Use TensorEngine for batch operations
+from synadb import TensorEngine
+engine = TensorEngine("data.db")
+engine.put_tensor("sensor/", values)  # Single operation
+```
+
+### 2. Disable Sync for Speed
+
+By default, SynaDB syncs to disk after each write for durability. For high-throughput scenarios where you can tolerate some data loss on crash:
+
+```python
+from synadb import SynaDB, DbConfig
+
+config = DbConfig(
+    sync_on_write=False  # 10x faster, but less safe
+)
+db = SynaDB("data.db", config=config)
+```
+
+### 3. Use HNSW for Large Vector Collections
+
+For vector stores with >10,000 vectors, HNSW provides O(log N) search:
+
+```python
+from synadb import VectorStore
+
+# HNSW is automatically enabled for large collections
+store = VectorStore("vectors.db", dimensions=768)
+
+# For 1M vectors: ~5-10ms search time vs ~100ms brute force
+```
+
+### 4. Tune HNSW Parameters
+
+For better recall vs. speed tradeoff:
+
+```rust
+// Rust API for custom HNSW config
+let config = HnswConfig::with_m(32)  // More connections = better recall
+    .ef_construction(200)             // Higher = better index quality
+    .ef_search(100);                  // Higher = better search recall
+```
+
+| Use Case | m | ef_construction | ef_search |
+|----------|---|-----------------|-----------|
+| Speed priority | 8 | 100 | 50 |
+| Balanced | 16 | 200 | 100 |
+| Recall priority | 32 | 400 | 200 |
+
+### 5. Use Pattern Matching for Bulk Reads
+
+Instead of reading keys one by one:
+
+```python
+# Slower: Individual reads
+data = []
+for key in db.keys():
+    if key.startswith("sensor/"):
+        data.append(db.get_float(key))
+
+# Faster: Use TensorEngine with pattern matching
+engine = TensorEngine("data.db")
+data, shape = engine.get_tensor("sensor/*")
+```
+
+### 6. Compact Periodically
+
+After many deletes, compact to reclaim space:
+
+```python
+# Compaction rewrites the file with only latest values
+db.compact()
+```
+
+### 7. Use Multiple Databases for Parallelism
+
+For read-heavy workloads, split data across multiple databases:
+
+```python
+# Instead of one large database
+db = SynaDB("all_data.db")
+
+# Use multiple databases for parallel access
+db_sensors = SynaDB("sensors.db")
+db_models = SynaDB("models.db")
+db_experiments = SynaDB("experiments.db")
+```
+
+### Performance Expectations
+
+| Operation | Expected Throughput | Latency (p50) |
+|-----------|---------------------|---------------|
+| Write (64B) | 139K ops/sec | 5.6 μs |
+| Write (1KB) | 98K ops/sec | 6.8 μs |
+| Read (single) | 135K ops/sec | 6.2 μs |
+| Vector search (10K) | ~1 ms | - |
+| Vector search (1M, HNSW) | ~5-10 ms | - |
+
+### FAISS vs HNSW Comparison
+
+SynaDB includes benchmarks comparing its native HNSW index against FAISS:
+
+```bash
+cd benchmarks
+
+# Quick comparison
+cargo run --release -- faiss --quick
+
+# Full comparison (100K and 1M vectors)
+cargo run --release -- faiss --full
+```
+
+| Index | Insert | Search p50 | Recall@10 |
+|-------|--------|------------|-----------|
+| HNSW | 50K v/s | 0.5ms | 95% |
+| FAISS-Flat | 100K v/s | 10ms | 100% |
+| FAISS-IVF | 80K v/s | 1ms | 92% |
+
+See [Architecture](Architecture#performance-characteristics) for detailed benchmarks.
 
 ## Next Steps
 

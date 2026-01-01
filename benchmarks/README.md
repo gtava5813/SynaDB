@@ -15,6 +15,8 @@ cargo run --release -- write --iterations 10000 --sizes 64,1024,65536
 cargo run --release -- read --iterations 10000 --threads 1,4,8
 cargo run --release -- mixed --workload A --operations 100000
 cargo run --release -- storage --entries 100000
+cargo run --release -- vector --num-vectors 100000 --dimensions 768
+cargo run --release -- faiss --quick  # FAISS vs HNSW comparison
 ```
 
 ## Benchmark Types
@@ -49,6 +51,48 @@ Measures disk usage:
 - Bytes per entry
 - Compression ratios (none, LZ4, delta, both)
 - Compaction effectiveness
+
+### Vector Benchmarks
+
+Tests vector store performance:
+- Insert throughput (vectors/sec)
+- Search latency (brute force and HNSW)
+- Recall@k accuracy
+
+### FAISS vs HNSW Comparison
+
+Compares SynaDB's native HNSW index against FAISS indexes:
+
+```bash
+# Quick comparison (10K vectors)
+cargo run --release -- faiss --quick
+
+# Custom configuration
+cargo run --release -- faiss --dimensions 768 --num-vectors 100000 --k 10
+
+# Full benchmark (100K and 1M vectors)
+cargo run --release -- faiss --full
+
+# With FAISS enabled (requires FAISS library)
+cargo run --release --features faiss -- faiss --quick
+```
+
+**Metrics compared:**
+- Insert throughput (vectors/sec)
+- Search latency p50/p99 (ms)
+- Memory usage (MB)
+- Recall@10 accuracy
+
+**Example output:**
+```
+┌─────────────────────┬───────────────┬──────────────┬──────────────┬────────────┬────────────┐
+│ Index               │ Insert (v/s)  │ Search p50   │ Search p99   │ Memory MB  │ Recall@10  │
+├─────────────────────┼───────────────┼──────────────┼──────────────┼────────────┼────────────┤
+│ HNSW                │         50000 │       0.50ms │       1.20ms │       80.0 │      95.0% │
+│ FAISS-Flat          │        100000 │      10.00ms │      15.00ms │       60.0 │     100.0% │
+│ FAISS-IVF1024,Flat  │         80000 │       1.00ms │       2.00ms │       65.0 │      92.0% │
+└─────────────────────┴───────────────┴──────────────┴──────────────┴────────────┴────────────┘
+```
 
 ## Compared Databases
 

@@ -155,10 +155,10 @@ jobs:
               long_description=long_description,
               long_description_content_type="text/markdown",
               author="Golvis Tavarez",
-              author_email="golvis@eyelid.ai",
+              author_email="hello@synadb.ai",
               url="https://github.com/gtava5813/SynaDB",
               project_urls={
-                  "Homepage": "https://github.com/gtava5813/SynaDB",
+                  "Homepage": "https://synadb.ai",
                   "Documentation": "https://github.com/gtava5813/SynaDB/wiki",
                   "Repository": "https://github.com/gtava5813/SynaDB",
                   "Issues": "https://github.com/gtava5813/SynaDB/issues",

@@ -1,3 +1,6 @@
+// Copyright (c) 2025 SynaDB Contributors
+// Licensed under the SynaDB License. See LICENSE file for details.
+
 //! Vector store for embedding storage and similarity search.
 //!
 //! This module provides a high-level API for storing and searching vector embeddings,
@@ -41,6 +44,8 @@ use std::path::Path;
 use crate::distance::DistanceMetric;
 use crate::engine::SynaDB;
 use crate::error::{Result, SynaError};
+#[cfg(feature = "faiss")]
+use crate::faiss_index::FaissConfig;
 use crate::hnsw::{HnswConfig, HnswIndex};
 use crate::types::Atom;
 
@@ -49,7 +54,7 @@ use crate::types::Atom;
 /// # Example
 ///
 /// ```rust
-/// use synadb::vector::VectorConfig;
+/// use synadb::vector::{VectorConfig, IndexBackend};
 /// use synadb::distance::DistanceMetric;
 ///
 /// let config = VectorConfig {
@@ -57,6 +62,7 @@ use crate::types::Atom;
 ///     metric: DistanceMetric::Cosine,
 ///     key_prefix: "embeddings/".to_string(),
 ///     index_threshold: 10000,
+///     backend: IndexBackend::default(),
 /// };
 /// ```
 #[derive(Debug, Clone)]
@@ -74,6 +80,11 @@ pub struct VectorConfig {
     /// Set to 0 to disable automatic indexing.
     /// Default: 10000
     pub index_threshold: usize,
+    /// Index backend selection for similarity search.
+    /// Default: HNSW with default configuration.
+    ///
+    /// **Requirements:** 1.5
+    pub backend: IndexBackend,
 }
 
 impl Default for VectorConfig {
@@ -83,7 +94,56 @@ impl Default for VectorConfig {
             metric: DistanceMetric::Cosine,
             key_prefix: "vec/".to_string(),
             index_threshold: 10000,
+            backend: IndexBackend::default(),
         }
+    }
+}
+
+/// Index backend selection for vector similarity search.
+///
+/// This enum allows choosing between different indexing strategies:
+/// - HNSW (default): Built-in hierarchical navigable small world graph
+/// - FAISS: High-performance library for billion-scale search (requires 'faiss' feature)
+/// - None: Brute-force search only (no index)
+///
+/// # Example
+///
+/// ```rust
+/// use synadb::vector::IndexBackend;
+/// use synadb::hnsw::HnswConfig;
+///
+/// // Use default HNSW index
+/// let backend = IndexBackend::default();
+///
+/// // Use custom HNSW configuration
+/// let backend = IndexBackend::Hnsw(HnswConfig {
+///     m: 32,
+///     ef_construction: 400,
+///     ..Default::default()
+/// });
+///
+/// // Disable indexing (brute-force only)
+/// let backend = IndexBackend::None;
+/// ```
+///
+/// **Requirements:** 1.5
+#[derive(Debug, Clone)]
+pub enum IndexBackend {
+    /// Built-in HNSW implementation (default).
+    /// Provides O(log N) approximate nearest neighbor search.
+    Hnsw(HnswConfig),
+    /// FAISS-backed index (requires 'faiss' feature).
+    /// Supports billion-scale search and GPU acceleration.
+    #[cfg(feature = "faiss")]
+    Faiss(FaissConfig),
+    /// No index (brute-force only).
+    /// Uses O(N) linear scan for all searches.
+    None,
+}
+
+impl Default for IndexBackend {
+    fn default() -> Self {
+        IndexBackend::Hnsw(HnswConfig::default())
     }
 }
 
@@ -109,6 +169,7 @@ pub struct SearchResult {
 /// - Dimension validation
 /// - Brute-force k-nearest neighbor search for small datasets
 /// - HNSW index for fast approximate nearest neighbor search on large datasets
+/// - FAISS index for billion-scale search and GPU acceleration (requires 'faiss' feature)
 /// - Key prefixing for namespace isolation
 /// - Automatic index building when vector count exceeds threshold
 ///
@@ -141,6 +202,10 @@ pub struct VectorStore {
     /// HNSW index for fast approximate nearest neighbor search.
     /// Built automatically when vector count exceeds `config.index_threshold`.
     hnsw_index: Option<HnswIndex>,
+    /// FAISS index for billion-scale search (requires 'faiss' feature).
+    /// Used when `config.backend` is `IndexBackend::Faiss`.
+    #[cfg(feature = "faiss")]
+    faiss_index: Option<crate::faiss_index::FaissIndex>,
 }
 
 impl VectorStore {
@@ -155,6 +220,7 @@ impl VectorStore {
     ///
     /// * `SynaError::InvalidDimensions` - If dimensions are not in range 64-4096
     /// * `SynaError::Io` - If the database file cannot be opened/created
+    /// * `SynaError::IndexError` - If FAISS index creation fails (when using FAISS backend)
     ///
     /// # Example
     ///
@@ -163,6 +229,15 @@ impl VectorStore {
     ///
     /// let store = VectorStore::new("vectors.db", VectorConfig::default()).unwrap();
     /// ```
+    ///
+    /// # Backend Selection
+    ///
+    /// The backend is determined by `config.backend`:
+    /// - `IndexBackend::Hnsw(config)` - Uses built-in HNSW index (default)
+    /// - `IndexBackend::Faiss(config)` - Uses FAISS index (requires 'faiss' feature)
+    /// - `IndexBackend::None` - Brute-force search only
+    ///
+    /// **Requirements:** 1.5
     pub fn new<P: AsRef<Path>>(path: P, config: VectorConfig) -> Result<Self> {
         // Validate dimensions
         if config.dimensions < 64 || config.dimensions > 4096 {
@@ -178,11 +253,24 @@ impl VectorStore {
             .filter(|k| k.starts_with(&config.key_prefix))
             .collect();
 
+        // Initialize FAISS index if configured (feature-gated)
+        #[cfg(feature = "faiss")]
+        let faiss_index = match &config.backend {
+            IndexBackend::Faiss(faiss_config) => Some(crate::faiss_index::FaissIndex::new(
+                config.dimensions,
+                config.metric,
+                faiss_config.clone(),
+            )?),
+            _ => None,
+        };
+
         Ok(Self {
             db,
             config,
             vector_keys,
             hnsw_index: None,
+            #[cfg(feature = "faiss")]
+            faiss_index,
         })
     }
 
@@ -231,8 +319,11 @@ impl VectorStore {
 
     /// Searches for the k nearest neighbors to the query vector.
     ///
-    /// Uses HNSW index if available and vector count exceeds the threshold,
-    /// otherwise falls back to brute-force search.
+    /// The search method is determined by the configured backend:
+    /// - `IndexBackend::Hnsw` - Uses HNSW index if available and vector count exceeds threshold
+    /// - `IndexBackend::Faiss` - Uses FAISS index (requires 'faiss' feature)
+    /// - `IndexBackend::None` - Always uses brute-force search
+    ///
     /// Results are sorted by score (ascending), so lower scores indicate
     /// more similar vectors.
     ///
@@ -245,6 +336,7 @@ impl VectorStore {
     ///
     /// * `SynaError::DimensionMismatch` - If query length doesn't match configured dimensions
     /// * `SynaError::Io` - If reading vectors fails
+    /// * `SynaError::IndexError` - If FAISS search fails (when using FAISS backend)
     ///
     /// # Example
     ///
@@ -266,16 +358,34 @@ impl VectorStore {
             });
         }
 
-        // Use HNSW if we have an index and enough vectors
-        if self.hnsw_index.is_some()
-            && self.config.index_threshold > 0
-            && self.vector_keys.len() >= self.config.index_threshold
-        {
-            return self.search_hnsw(query, k);
-        }
+        // Select search method based on backend configuration
+        match &self.config.backend {
+            // FAISS backend (feature-gated)
+            #[cfg(feature = "faiss")]
+            IndexBackend::Faiss(_) => {
+                if self.faiss_index.is_some() {
+                    return self.search_faiss(query, k);
+                }
+                // Fall back to brute force if FAISS index not initialized
+                self.search_brute_force(query, k)
+            }
 
-        // Fall back to brute force
-        self.search_brute_force(query, k)
+            // HNSW backend (default)
+            IndexBackend::Hnsw(_) => {
+                // Use HNSW if we have an index and enough vectors
+                if self.hnsw_index.is_some()
+                    && self.config.index_threshold > 0
+                    && self.vector_keys.len() >= self.config.index_threshold
+                {
+                    return self.search_hnsw(query, k);
+                }
+                // Fall back to brute force
+                self.search_brute_force(query, k)
+            }
+
+            // No index - always brute force
+            IndexBackend::None => self.search_brute_force(query, k),
+        }
     }
 
     /// Searches using brute-force comparison against all vectors.
@@ -351,6 +461,60 @@ impl VectorStore {
             };
 
             results.push(SearchResult { key, score, vector });
+        }
+
+        Ok(results)
+    }
+
+    /// Searches using the FAISS index for approximate nearest neighbors.
+    ///
+    /// FAISS provides high-performance vector search with support for:
+    /// - Billion-scale datasets
+    /// - GPU acceleration
+    /// - Various index types (IVF, PQ, HNSW, etc.)
+    ///
+    /// This method is only available when the 'faiss' feature is enabled.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - The query vector (must match configured dimensions)
+    /// * `k` - Maximum number of results to return
+    ///
+    /// # Errors
+    ///
+    /// * `SynaError::CorruptedIndex` - If FAISS index is not available
+    /// * `SynaError::IndexError` - If FAISS search fails
+    ///
+    /// **Requirements:** 1.5
+    #[cfg(feature = "faiss")]
+    fn search_faiss(&mut self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
+        let index = self
+            .faiss_index
+            .as_mut()
+            .ok_or_else(|| SynaError::CorruptedIndex("FAISS index not available".to_string()))?;
+
+        // Search the FAISS index
+        let faiss_results = index.search(query, k)?;
+
+        // Convert FAISS results to SearchResult, fetching vectors from DB
+        let mut results = Vec::with_capacity(faiss_results.len());
+        for (key_without_prefix, score) in faiss_results {
+            // Reconstruct full key with prefix
+            let full_key = format!("{}{}", self.config.key_prefix, key_without_prefix);
+
+            // Fetch the vector from the database
+            let vector = if let Some(Atom::Vector(vec, _)) = self.db.get(&full_key)? {
+                vec
+            } else {
+                // Vector not found in DB, skip it
+                continue;
+            };
+
+            results.push(SearchResult {
+                key: key_without_prefix,
+                score,
+                vector,
+            });
         }
 
         Ok(results)
@@ -728,5 +892,86 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(custom_config.index_threshold, 5000);
+    }
+
+    #[test]
+    fn test_backend_selection_default() {
+        let config = VectorConfig::default();
+        // Default backend should be HNSW
+        match config.backend {
+            IndexBackend::Hnsw(_) => {} // Expected
+            _ => panic!("Default backend should be HNSW"),
+        }
+    }
+
+    #[test]
+    fn test_backend_selection_none() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        // Configure with no index (brute-force only)
+        let config = VectorConfig {
+            dimensions: 64,
+            metric: DistanceMetric::Euclidean,
+            backend: IndexBackend::None,
+            ..Default::default()
+        };
+
+        let mut store = VectorStore::new(&db_path, config).unwrap();
+
+        // Insert vectors
+        for i in 0..10 {
+            let vec: Vec<f32> = (0..64).map(|j| (i * 64 + j) as f32 * 0.001).collect();
+            store.insert(&format!("v{}", i), &vec).unwrap();
+        }
+
+        // Search should use brute force (IndexBackend::None)
+        let query: Vec<f32> = (0..64).map(|j| j as f32 * 0.001).collect();
+        let results = store.search(&query, 3).unwrap();
+
+        assert_eq!(results.len(), 3);
+        // First result should be v0 (identical to query)
+        assert_eq!(results[0].key, "v0");
+        assert!(results[0].score < 0.001);
+    }
+
+    #[test]
+    fn test_backend_selection_hnsw_custom() {
+        use crate::hnsw::HnswConfig;
+
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        // Configure with custom HNSW settings
+        let config = VectorConfig {
+            dimensions: 64,
+            metric: DistanceMetric::Euclidean,
+            index_threshold: 5,
+            backend: IndexBackend::Hnsw(HnswConfig {
+                m: 32,
+                ef_construction: 400,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let mut store = VectorStore::new(&db_path, config).unwrap();
+
+        // Insert vectors
+        for i in 0..10 {
+            let vec: Vec<f32> = (0..64).map(|j| (i * 64 + j) as f32 * 0.001).collect();
+            store.insert(&format!("v{}", i), &vec).unwrap();
+        }
+
+        // Build index
+        store.build_index().unwrap();
+        assert!(store.has_index());
+
+        // Search should work
+        let query: Vec<f32> = (0..64).map(|j| j as f32 * 0.001).collect();
+        let results = store.search(&query, 3).unwrap();
+
+        assert_eq!(results.len(), 3);
+        assert_eq!(results[0].key, "v0");
     }
 }

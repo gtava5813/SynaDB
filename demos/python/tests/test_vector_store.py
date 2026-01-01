@@ -59,6 +59,68 @@ class TestVectorStoreCreation:
                 assert store.metric_name == metric
 
 
+class TestVectorStoreBackend:
+    """Test backend configuration."""
+    
+    def test_default_backend_is_auto(self):
+        """Default backend should be 'auto'."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "test_vectors.db")
+            store = VectorStore(db_path, dimensions=128)
+            assert store.backend == "auto"
+    
+    def test_auto_resolves_to_hnsw_by_default(self):
+        """Auto backend should resolve to HNSW when no GPU is requested."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "test_vectors.db")
+            store = VectorStore(db_path, dimensions=128, backend="auto")
+            assert store.resolved_backend == "hnsw"
+    
+    def test_explicit_hnsw_backend(self):
+        """Should accept explicit HNSW backend."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "test_vectors.db")
+            store = VectorStore(db_path, dimensions=128, backend="hnsw")
+            assert store.backend == "hnsw"
+            assert store.resolved_backend == "hnsw"
+    
+    def test_invalid_backend_raises_error(self):
+        """Should reject invalid backend names."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "test_vectors.db")
+            with pytest.raises(ValueError, match="Invalid backend"):
+                VectorStore(db_path, dimensions=128, backend="invalid")
+    
+    def test_faiss_parameters_stored(self):
+        """FAISS parameters should be stored even when using HNSW."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "test_vectors.db")
+            store = VectorStore(
+                db_path, 
+                dimensions=128, 
+                backend="hnsw",
+                faiss_index_type="IVF4096,PQ32",
+                faiss_nprobe=20,
+                use_gpu=False
+            )
+            assert store.faiss_index_type == "IVF4096,PQ32"
+            assert store.faiss_nprobe == 20
+            assert store.use_gpu == False
+    
+    def test_backend_constants(self):
+        """Backend constants should be defined."""
+        assert VectorStore.BACKEND_AUTO == "auto"
+        assert VectorStore.BACKEND_HNSW == "hnsw"
+        assert VectorStore.BACKEND_FAISS == "faiss"
+    
+    def test_is_faiss_trained_true_for_hnsw(self):
+        """is_faiss_trained should return True when not using FAISS."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "test_vectors.db")
+            store = VectorStore(db_path, dimensions=128, backend="hnsw")
+            assert store.is_faiss_trained == True
+
+
 class TestVectorStoreInsert:
     """Test inserting vectors."""
     

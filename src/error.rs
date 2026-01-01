@@ -1,3 +1,6 @@
+// Copyright (c) 2025 SynaDB Contributors
+// Licensed under the SynaDB License. See LICENSE file for details.
+
 //! Error types for Syna database operations.
 //!
 //! This module provides:
@@ -42,6 +45,12 @@ pub const ERR_KEY_TOO_LONG: i32 = -8;
 
 /// Internal panic occurred (should not happen in normal operation).
 pub const ERR_INTERNAL_PANIC: i32 = -100;
+
+/// GPU is unavailable or not supported.
+pub const ERR_GPU_UNAVAILABLE: i32 = -50;
+
+/// GPU out of memory.
+pub const ERR_GPU_OUT_OF_MEMORY: i32 = -51;
 
 // =============================================================================
 // Rust Error Types
@@ -164,4 +173,16 @@ pub enum SynaError {
     /// Experiment run has already ended.
     #[error("Run already ended: {0}")]
     RunAlreadyEnded(String),
+
+    /// GPU is unavailable or not supported.
+    #[error("GPU unavailable: {0}")]
+    GpuUnavailable(String),
+
+    /// GPU out of memory.
+    #[error("GPU out of memory: {0}")]
+    GpuOutOfMemory(String),
+
+    /// Index operation error (e.g., FAISS index creation/search failed).
+    #[error("Index error: {0}")]
+    IndexError(String),
 }

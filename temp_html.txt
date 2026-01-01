@@ -1,0 +1,202 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Syna Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg-primary: #0f0f23; --bg-secondary: #1a1a2e; --bg-tertiary: #16213e; --bg-card: #1e1e3f;
+    --accent-primary: #6366f1; --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    --text-primary: #f8fafc; --text-secondary: #94a3b8; --text-muted: #64748b; --border-color: #334155;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+.app { display: flex; min-height: 100vh; }
+.sidebar { width: 260px; background: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; position: fixed; height: 100vh; }
+.main-content { flex: 1; margin-left: 260px; padding: 24px 32px; }
+.logo { display: flex; align-items: center; gap: 12px; padding: 24px 20px; border-bottom: 1px solid var(--border-color); }
+.logo-icon { width: 40px; height: 40px; background: var(--accent-gradient); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; }
+.logo-text { font-size: 18px; font-weight: 700; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.nav-menu { padding: 16px 12px; flex: 1; }
+.nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; color: var(--text-secondary); text-decoration: none; }
+.nav-item.active { background: var(--accent-gradient); color: white; }
+.db-info { padding: 16px 20px; border-top: 1px solid var(--border-color); background: var(--bg-tertiary); }
+.db-info-label { font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.db-info-path { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-secondary); word-break: break-all; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.header-title { display: flex; align-items: center; gap: 12px; }
+.header-title h1 { font-size: 28px; font-weight: 700; }
+.key-count-badge { background: var(--bg-card); padding: 6px 12px; border-radius: 20px; font-size: 13px; color: var(--text-secondary); border: 1px solid var(--border-color); }
+.search-container { flex: 1; max-width: 500px; }
+.search-box { position: relative; display: flex; align-items: center; }
+.search-icon { position: absolute; left: 16px; width: 18px; height: 18px; color: var(--text-muted); }
+.search-box input { width: 100%; padding: 12px 80px 12px 48px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 14px; }
+.search-box input:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); }
+.search-box input::placeholder { color: var(--text-muted); }
+.search-hint { position: absolute; right: 12px; background: var(--bg-tertiary); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+<div class="logo"><div class="logo-icon">S</div><span class="logo-text">Syna Studio</span></div>
+<nav class="nav-menu"><a href="#" class="nav-item active">Keys Explorer</a></nav>
+<div class="db-info"><div class="db-info-label">Database</div><div class="db-info-path">D:\synadb\demos\python\demo_studio.db</div></div>
+</aside>
+<main class="main-content">
+<header class="header">
+<div class="header-title"><h1>Keys Explorer</h1><span class="key-count-badge" id="total-count">28 keys</span></div>
+<div class="search-container">
+<div class="search-box">
+<svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+<input type="text" id="search" placeholder="Search keys..." autocomplete="off">
+<kbd class="search-hint">Enter</kbd>
+</div>
+</div>
+</header>
+<style>
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 14px; }
+.stat-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+.float-icon { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+.int-icon { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+.text-icon { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.bytes-icon { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.vector-icon { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
+.stat-value { font-size: 22px; font-weight: 700; }
+.stat-label { font-size: 12px; color: var(--text-secondary); }
+.table-container { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
+.table-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-color); }
+.table-header h2 { font-size: 16px; font-weight: 600; }
+.btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+.btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 12px 20px; text-align: left; border-bottom: 1px solid var(--border-color); }
+th { background: var(--bg-tertiary); font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); }
+tr:hover td { background: rgba(99, 102, 241, 0.05); }
+.key-cell { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent-primary); }
+.type-badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+.type-float { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+.type-int { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+.type-text { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.type-bytes { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.type-vector { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
+.type-unknown { background: rgba(100, 116, 139, 0.2); color: #94a3b8; }
+.value-cell { max-width: 350px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); padding: 5px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+.view-btn:hover { background: var(--accent-primary); border-color: var(--accent-primary); color: white; }
+.loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--text-muted); gap: 12px; }
+.spinner { width: 24px; height: 24px; border: 2px solid var(--border-color); border-top-color: var(--accent-primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { text-align: center; padding: 40px; color: var(--text-muted); }
+.modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+.modal.active { display: flex; }
+.modal-box { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; width: 90%; max-width: 500px; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-color); }
+.modal-head h3 { font-size: 16px; }
+.modal-close { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+.modal-body { padding: 20px; }
+.detail-row { margin-bottom: 16px; }
+.detail-label { font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.detail-value { font-family: 'JetBrains Mono', monospace; font-size: 13px; background: var(--bg-tertiary); padding: 10px 14px; border-radius: 6px; word-break: break-all; }
+</style>
+<div class="stats-grid">
+<div class="stat-card"><div class="stat-icon float-icon">f64</div><div><div class="stat-value" id="float-count">-</div><div class="stat-label">Float</div></div></div>
+<div class="stat-card"><div class="stat-icon int-icon">i64</div><div><div class="stat-value" id="int-count">-</div><div class="stat-label">Integer</div></div></div>
+<div class="stat-card"><div class="stat-icon text-icon">str</div><div><div class="stat-value" id="text-count">-</div><div class="stat-label">Text</div></div></div>
+<div class="stat-card"><div class="stat-icon bytes-icon">bin</div><div><div class="stat-value" id="bytes-count">-</div><div class="stat-label">Bytes</div></div></div>
+<div class="stat-card"><div class="stat-icon vector-icon">vec</div><div><div class="stat-value" id="vector-count">-</div><div class="stat-label">Vector</div></div></div>
+</div>
+<div class="table-container">
+<div class="table-header"><h2>All Keys</h2><button class="btn" onclick="loadKeys()">Refresh</button></div>
+<div id="content"><div class="loading"><div class="spinner"></div><span>Loading...</span></div></div>
+</div>
+</main>
+</div>
+<div id="modal" class="modal" onclick="if(event.target===this)closeModal()">
+<div class="modal-box">
+<div class="modal-head"><h3 id="modal-title">Details</h3><button class="modal-close" onclick="closeModal()">x</button></div>
+<div class="modal-body" id="modal-body"></div>
+</div>
+</div>
+<script>
+let allKeys = [];
+let typeCounts = {float:0, int:0, text:0, bytes:0, vector:0};
+
+async function loadKeys() {
+    document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div><span>Loading...</span></div>';
+    try {
+        const r = await fetch('/api/keys');
+        const d = await r.json();
+        allKeys = d.keys;
+        typeCounts = d.type_counts;
+        updateStats();
+        renderTable(allKeys);
+    } catch(e) {
+        document.getElementById('content').innerHTML = '<div class="empty">Error: '+e.message+'</div>';
+    }
+}
+
+function updateStats() {
+    document.getElementById('total-count').textContent = allKeys.length + ' keys';
+    document.getElementById('float-count').textContent = typeCounts.float || 0;
+    document.getElementById('int-count').textContent = typeCounts.int || 0;
+    document.getElementById('text-count').textContent = typeCounts.text || 0;
+    document.getElementById('bytes-count').textContent = typeCounts.bytes || 0;
+    document.getElementById('vector-count').textContent = typeCounts.vector || 0;
+}
+
+function search() {
+    const q = document.getElementById('search').value.toLowerCase().trim();
+    if (!q) { renderTable(allKeys); return; }
+    const filtered = allKeys.filter(i => i.key.toLowerCase().includes(q));
+    renderTable(filtered);
+}
+
+document.getElementById('search').addEventListener('keypress', e => { if(e.key==='Enter') search(); });
+
+function renderTable(data) {
+    if (!data.length) { document.getElementById('content').innerHTML = '<div class="empty">No keys found</div>'; return; }
+    let h = '<table><thead><tr><th>Key</th><th>Type</th><th>Value</th><th></th></tr></thead><tbody>';
+    for (const i of data) {
+        const tc = 'type-' + (i.type || 'unknown');
+        const v = fmtVal(i.value, i.type);
+        h += '<tr><td class="key-cell">'+esc(i.key)+'</td><td><span class="type-badge '+tc+'">'+(i.type||'?')+'</span></td><td class="value-cell">'+v+'</td><td><button class="view-btn" onclick="viewDetail(''+esc(i.key).replace(/'/g,"\'")+'')">View</button></td></tr>';
+    }
+    h += '</tbody></table>';
+    document.getElementById('content').innerHTML = h;
+}
+
+function fmtVal(v, t) {
+    if (v === null || v === undefined) return '<em style="color:var(--text-muted)">null</em>';
+    if (t === 'float') return typeof v === 'number' ? v.toFixed(4) : String(v);
+    if (t === 'vector' && Array.isArray(v)) return '['+v.slice(0,3).map(x=>x.toFixed(2)).join(', ')+(v.length>3?'...':'')+']';
+    const s = String(v);
+    return s.length > 50 ? esc(s.substring(0,50))+'...' : esc(s);
+}
+
+function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+async function viewDetail(key) {
+    document.getElementById('modal-title').textContent = key;
+    document.getElementById('modal-body').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    document.getElementById('modal').classList.add('active');
+    try {
+        const r = await fetch('/api/get/' + encodeURIComponent(key));
+        const d = await r.json();
+        let h = '<div class="detail-row"><div class="detail-label">Key</div><div class="detail-value">'+esc(d.key)+'</div></div>';
+        h += '<div class="detail-row"><div class="detail-label">Type</div><div class="detail-value">'+(d.type||'unknown')+'</div></div>';
+        h += '<div class="detail-row"><div class="detail-label">Value</div><div class="detail-value">'+esc(String(d.value))+'</div></div>';
+        document.getElementById('modal-body').innerHTML = h;
+    } catch(e) { document.getElementById('modal-body').innerHTML = '<div class="empty">Error</div>'; }
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('active'); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+loadKeys();
+</script>
+</body>
+</html>
