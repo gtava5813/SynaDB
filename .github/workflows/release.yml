@@ -195,7 +195,15 @@ jobs:
 
       - name: Copy native libraries to package
         run: |
+          # Copy ALL platform libraries into the package
+          # Linux x86_64
           cp artifacts/x86_64-unknown-linux-gnu/libsynadb-linux-x86_64.so demos/python/synadb/libsynadb.so
+          # macOS x86_64
+          cp artifacts/x86_64-apple-darwin/libsynadb-macos-x86_64.dylib demos/python/synadb/libsynadb-x86_64.dylib
+          # macOS ARM64
+          cp artifacts/aarch64-apple-darwin/libsynadb-macos-aarch64.dylib demos/python/synadb/libsynadb-arm64.dylib
+          # Windows x86_64
+          cp artifacts/x86_64-pc-windows-msvc/synadb-windows-x86_64.dll demos/python/synadb/synadb.dll
 
       - name: Install build dependencies
         run: pip install build twine

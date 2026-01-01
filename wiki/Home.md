@@ -23,6 +23,10 @@ SynaDB is an embedded, log-structured, columnar-mapped database engine written i
 
 ## Current Version
 
+**v1.0.3** - Latest Release (January 2026)
+- Fixed: `pip install synadb` now works on all platforms (Linux, macOS x86/ARM, Windows)
+- All native libraries bundled in PyPI package
+
 **v1.0.0** - Production Release
 - Append-only log storage with schema-free data types
 - Vector Store with HNSW index for similarity search

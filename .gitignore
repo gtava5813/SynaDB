@@ -51,3 +51,6 @@ benchmarks/results/*.csv
 # Local config
 .env
 .env.local
+
+# Workspace files
+*.code-workspace

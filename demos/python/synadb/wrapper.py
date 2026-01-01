@@ -38,30 +38,41 @@ class SynaError(Exception):
 def _find_library() -> str:
     """Find the Syna shared library."""
     system = platform.system()
+    machine = platform.machine().lower()
     
     if system == "Windows":
         lib_name = "synadb.dll"
+        lib_names = ["synadb.dll"]
     elif system == "Darwin":
         lib_name = "libsynadb.dylib"
+        # macOS: try architecture-specific first, then generic
+        if machine in ("arm64", "aarch64"):
+            lib_names = ["libsynadb-arm64.dylib", "libsynadb.dylib"]
+        else:
+            lib_names = ["libsynadb-x86_64.dylib", "libsynadb.dylib"]
     else:
         lib_name = "libsynadb.so"
+        lib_names = ["libsynadb.so"]
     
-    # Search paths
-    search_paths = [
-        # Relative to this file
-        Path(__file__).parent.parent.parent.parent / "target" / "release" / lib_name,
-        Path(__file__).parent.parent.parent.parent / "target" / "debug" / lib_name,
-        # Current directory
-        Path.cwd() / lib_name,
-        Path.cwd() / "target" / "release" / lib_name,
-        Path.cwd() / "target" / "debug" / lib_name,
-    ]
+    # Search paths for each library name variant
+    for lib in lib_names:
+        search_paths = [
+            # Inside installed package (pip install synadb)
+            Path(__file__).parent / lib,
+            # Relative to this file (development)
+            Path(__file__).parent.parent.parent.parent / "target" / "release" / lib_name,
+            Path(__file__).parent.parent.parent.parent / "target" / "debug" / lib_name,
+            # Current directory
+            Path.cwd() / lib,
+            Path.cwd() / "target" / "release" / lib_name,
+            Path.cwd() / "target" / "debug" / lib_name,
+        ]
+        
+        for path in search_paths:
+            if path.exists():
+                return str(path)
     
-    for path in search_paths:
-        if path.exists():
-            return str(path)
-    
-    # Try system library path
+    # Try system library path as fallback
     return lib_name
 
 

@@ -4,6 +4,43 @@ This document contains the complete release history for SynaDB.
 
 ---
 
+## v1.0.3 - PyPI Native Library Fix
+
+**Released:** January 2026  
+**PyPI:** [synadb 1.0.3](https://pypi.org/project/synadb/)  
+**Crates.io:** [synadb 1.0.3](https://crates.io/crates/synadb)
+
+### Fixed
+
+#### PyPI Native Library Bundling
+- **Fixed:** `pip install synadb` now works on all platforms (Linux, macOS, Windows)
+- **Issue:** Previous releases only bundled the Linux x86_64 native library
+- **Solution:** Release workflow now copies all platform libraries into the PyPI package
+
+#### Platform Support
+| Platform | Library |
+|----------|---------|
+| Linux x86_64 | `libsynadb.so` |
+| macOS x86_64 | `libsynadb-x86_64.dylib` |
+| macOS ARM64 (Apple Silicon) | `libsynadb-arm64.dylib` |
+| Windows x86_64 | `synadb.dll` |
+
+#### Python Wrapper
+- Enhanced `_find_library()` to detect platform AND architecture
+- macOS ARM64 (Apple Silicon) now correctly loads ARM-specific library
+- Library search now checks inside installed package directory first
+
+---
+
+## v1.0.2 - Bug Fixes
+
+**Released:** January 2026
+
+### Fixed
+- Minor bug fixes and stability improvements
+
+---
+
 ## v1.0.0 - Production Release
 
 **Released:** January 2026  
@@ -522,7 +559,7 @@ pip install synadb
 
 ```toml
 [dependencies]
-synadb = "1.0.2"
+synadb = "1.0.3"
 ```
 
 ### Building from Source
