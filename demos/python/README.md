@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/gtava5813/SynaDB/actions/workflows/ci.yml/badge.svg)](https://github.com/gtava5813/SynaDB/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/synadb.svg)](https://pypi.org/project/synadb/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-SynaDB-blue.svg)](https://github.com/gtava5813/SynaDB/blob/main/LICENSE)
 
 > AI-native embedded database for Python
 
@@ -591,4 +591,4 @@ get_gpu_info(device=0) -> Optional[dict]
 
 ## License
 
-MIT License
+SynaDB License - Free for personal use and companies under $10M ARR / 1M MAUs. See [LICENSE](https://github.com/gtava5813/SynaDB/blob/main/LICENSE) for details.

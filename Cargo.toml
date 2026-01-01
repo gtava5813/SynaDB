@@ -1,6 +1,6 @@
 [package]
 name = "synadb"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 authors = ["gtava5813"]
 description = "An AI-native embedded database"
@@ -12,6 +12,19 @@ readme = "README.md"
 keywords = ["database", "embedded", "ai", "ml", "tensor"]
 categories = ["database", "data-structures", "science"]
 rust-version = "1.81.0"
+exclude = [
+    "demos/",
+    "assets/",
+    "website/",
+    "wiki/",
+    "benchmarks/",
+    "files/",
+    "syna-cli/",
+    ".github/",
+    "*.db",
+    "*.txt",
+    "READMEv0.1.0.md",
+]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

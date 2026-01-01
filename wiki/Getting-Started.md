@@ -14,7 +14,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-synadb = "1.0.0"
+synadb = "1.0.1"
 ```
 
 ### Building from Source
