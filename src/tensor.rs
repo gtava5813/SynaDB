@@ -1318,7 +1318,7 @@ impl TensorEngine {
 
         // 3. Async flush - tells OS to start writing but doesn't wait
         // This is the key optimization: we don't block on disk I/O
-        #[cfg(unix)]
+        #[cfg(target_os = "linux")]
         {
             use std::os::unix::io::AsRawFd;
             // fdatasync is faster than fsync as it doesn't update metadata
@@ -1328,9 +1328,9 @@ impl TensorEngine {
                 unsafe { libc::posix_fadvise(file.as_raw_fd(), 0, 0, libc::POSIX_FADV_DONTNEED) };
         }
 
-        #[cfg(windows)]
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
         {
-            // On Windows, we rely on the OS page cache
+            // On macOS and Windows, we rely on the OS page cache
             // Data will be written asynchronously by the OS
         }
 

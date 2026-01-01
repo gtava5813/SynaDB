@@ -256,12 +256,13 @@ impl MmapReader {
     /// }
     /// ```
     pub fn try_as_f32_slice(&self, offset: usize, count: usize) -> Result<&[f32]> {
-        let byte_len = count
-            .checked_mul(std::mem::size_of::<f32>())
-            .ok_or(SynaError::ShapeMismatch {
-                data_size: usize::MAX,
-                expected_size: 0,
-            })?;
+        let byte_len =
+            count
+                .checked_mul(std::mem::size_of::<f32>())
+                .ok_or(SynaError::ShapeMismatch {
+                    data_size: usize::MAX,
+                    expected_size: 0,
+                })?;
 
         let end = offset
             .checked_add(byte_len)
@@ -354,12 +355,13 @@ impl MmapReader {
     /// }
     /// ```
     pub fn try_as_f64_slice(&self, offset: usize, count: usize) -> Result<&[f64]> {
-        let byte_len = count
-            .checked_mul(std::mem::size_of::<f64>())
-            .ok_or(SynaError::ShapeMismatch {
-                data_size: usize::MAX,
-                expected_size: 0,
-            })?;
+        let byte_len =
+            count
+                .checked_mul(std::mem::size_of::<f64>())
+                .ok_or(SynaError::ShapeMismatch {
+                    data_size: usize::MAX,
+                    expected_size: 0,
+                })?;
 
         let end = offset
             .checked_add(byte_len)

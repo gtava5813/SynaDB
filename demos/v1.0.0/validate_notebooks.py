@@ -184,7 +184,7 @@ def main():
     
     notebooks = get_all_notebooks()
     
-    print(f"🔍 Validating {len(notebooks)} notebooks...\n")
+    print(f"Validating {len(notebooks)} notebooks...\n")
     
     passed = 0
     failed = 0
@@ -195,10 +195,10 @@ def main():
         valid, errors = validate_notebook(path, args.verbose)
         
         if valid:
-            print(f"  ✓ {name}")
+            print(f"  [PASS] {name}")
             passed += 1
         else:
-            print(f"  ✗ {name}")
+            print(f"  [FAIL] {name}")
             failed += 1
             all_issues.append((name, errors))
             if args.verbose:
@@ -209,13 +209,13 @@ def main():
     print(f"Results: {passed} passed, {failed} failed")
     
     if all_issues:
-        print(f"\n⚠️  Issues found in {len(all_issues)} notebooks:")
+        print(f"\nIssues found in {len(all_issues)} notebooks:")
         for name, errors in all_issues:
             print(f"\n  {name}:")
             for error in errors:
                 print(f"    - {error}")
     else:
-        print("\n✅ All notebooks validated successfully!")
+        print("\nAll notebooks validated successfully!")
     
     return 0 if failed == 0 else 1
 
