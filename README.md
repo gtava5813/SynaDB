@@ -1,7 +1,7 @@
 # SynaDB
 
 <p align="center">
-  <img src="assets/logo.svg" alt="SynaDB Logo" width="150"/>
+  <img src="assets/full-logo.png" alt="SynaDB Logo" width="300"/>
 </p>
 
 [![CI](https://github.com/gtava5813/SynaDB/actions/workflows/ci.yml/badge.svg)](https://github.com/gtava5813/SynaDB/actions/workflows/ci.yml)
