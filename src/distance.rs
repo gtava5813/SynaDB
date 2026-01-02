@@ -127,7 +127,7 @@ impl DistanceMetric {
             DistanceMetric::DotProduct => dot_product_distance(a, b),
         }
     }
-    
+
     /// Convert from u8 representation
     pub fn from_u8(value: u8) -> Self {
         match value {
@@ -137,7 +137,7 @@ impl DistanceMetric {
             _ => DistanceMetric::Cosine, // Default
         }
     }
-    
+
     /// Convert to u8 representation
     pub fn to_u8(&self) -> u8 {
         match self {

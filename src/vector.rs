@@ -412,9 +412,9 @@ impl VectorStore {
         }
 
         // Checkpoint if interval elapsed and we have dirty changes
-        if self.index_dirty 
+        if self.index_dirty
             && self.checkpoint_interval.as_secs() > 0
-            && self.last_checkpoint.elapsed() >= self.checkpoint_interval 
+            && self.last_checkpoint.elapsed() >= self.checkpoint_interval
         {
             self.checkpoint_index()?;
         }
@@ -423,7 +423,7 @@ impl VectorStore {
     }
 
     /// Inserts multiple vectors in a single batch operation.
-    /// 
+    ///
     /// This is significantly faster than calling `insert()` in a loop because:
     /// - Single lock acquisition for all inserts
     /// - Deferred index building until after all vectors are inserted
@@ -498,9 +498,9 @@ impl VectorStore {
         // for maximum write throughput. Call build_index() to rebuild after bulk inserts.
 
         // Checkpoint if needed
-        if self.index_dirty 
+        if self.index_dirty
             && self.checkpoint_interval.as_secs() > 0
-            && self.last_checkpoint.elapsed() >= self.checkpoint_interval 
+            && self.last_checkpoint.elapsed() >= self.checkpoint_interval
         {
             self.checkpoint_index()?;
         }
@@ -509,7 +509,7 @@ impl VectorStore {
     }
 
     /// Inserts multiple vectors with option to skip index updates.
-    /// 
+    ///
     /// This is the fastest way to bulk-load vectors. When `update_index` is false,
     /// vectors are written to storage but not added to the HNSW index. Call
     /// `build_index()` after all inserts to rebuild the index.
@@ -526,18 +526,23 @@ impl VectorStore {
     /// use synadb::vector::{VectorStore, VectorConfig};
     ///
     /// let mut store = VectorStore::new("vectors.db", VectorConfig::default()).unwrap();
-    /// 
+    ///
     /// // Bulk load without index updates (150K+/sec)
     /// let keys = vec!["doc1", "doc2"];
     /// let v1 = vec![0.1f32; 768];
     /// let v2 = vec![0.2f32; 768];
     /// let vectors: Vec<&[f32]> = vec![&v1, &v2];
     /// store.insert_batch_fast(&keys, &vectors, false).unwrap();
-    /// 
+    ///
     /// // Rebuild index once at the end
     /// store.build_index().unwrap();
     /// ```
-    pub fn insert_batch_fast(&mut self, keys: &[&str], vectors: &[&[f32]], update_index: bool) -> Result<usize> {
+    pub fn insert_batch_fast(
+        &mut self,
+        keys: &[&str],
+        vectors: &[&[f32]],
+        update_index: bool,
+    ) -> Result<usize> {
         if keys.len() != vectors.len() {
             return Err(SynaError::ShapeMismatch {
                 data_size: vectors.len(),
@@ -637,13 +642,10 @@ impl VectorStore {
         for l in (0..=start_level).rev() {
             // Use HNSW search to find neighbors at this level - O(log N)!
             let candidates = index.search_layer(vector, ep, ef_construction, l);
-            
+
             // Select M best neighbors
             let max_neighbors = if l == 0 { m } else { m_max };
-            let neighbors: Vec<(usize, f32)> = candidates
-                .into_iter()
-                .take(max_neighbors)
-                .collect();
+            let neighbors: Vec<(usize, f32)> = candidates.into_iter().take(max_neighbors).collect();
 
             // Update entry point for next level
             if !neighbors.is_empty() {
@@ -659,12 +661,10 @@ impl VectorStore {
             for (neighbor_id, dist) in neighbors {
                 if l < index.nodes[neighbor_id].neighbors.len() {
                     index.nodes[neighbor_id].neighbors[l].push((node_id, dist));
-                    
+
                     // Prune if too many neighbors
                     if index.nodes[neighbor_id].neighbors[l].len() > max_neighbors {
-                        index.nodes[neighbor_id].neighbors[l].sort_by(|a, b| {
-                            a.1.total_cmp(&b.1)
-                        });
+                        index.nodes[neighbor_id].neighbors[l].sort_by(|a, b| a.1.total_cmp(&b.1));
                         index.nodes[neighbor_id].neighbors[l].truncate(max_neighbors);
                     }
                 }
@@ -956,9 +956,11 @@ impl VectorStore {
     /// * `SynaError::Io` - If writing the index file fails
     /// * `SynaError::CorruptedIndex` - If no index exists to save
     pub fn save_index(&self) -> Result<()> {
-        let index = self.hnsw_index.as_ref()
+        let index = self
+            .hnsw_index
+            .as_ref()
             .ok_or_else(|| SynaError::CorruptedIndex("No HNSW index to save".to_string()))?;
-        
+
         let hnsw_path = Self::hnsw_index_path(&self.db_path);
         index.save(&hnsw_path)?;
         Ok(())
@@ -1004,7 +1006,9 @@ impl VectorStore {
                 let mut neighbors = Vec::new();
 
                 // Find closest nodes at this level
-                let mut distances: Vec<(usize, f32)> = index.nodes.iter()
+                let mut distances: Vec<(usize, f32)> = index
+                    .nodes
+                    .iter()
                     .enumerate()
                     .filter(|(id, n)| *id != node_id && n.neighbors.len() > l)
                     .map(|(id, n)| (id, index.metric().distance(vector, &n.vector)))
@@ -1013,11 +1017,11 @@ impl VectorStore {
 
                 for (neighbor_id, dist) in distances.into_iter().take(max_neighbors) {
                     neighbors.push((neighbor_id, dist));
-                    
+
                     // Add bidirectional connection
                     if l < index.nodes[neighbor_id].neighbors.len() {
                         index.nodes[neighbor_id].neighbors[l].push((node_id, dist));
-                        
+
                         // Prune neighbor's connections if exceeding limit
                         if index.nodes[neighbor_id].neighbors[l].len() > max_neighbors {
                             index.nodes[neighbor_id].neighbors[l]

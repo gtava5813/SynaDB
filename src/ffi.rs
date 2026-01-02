@@ -1629,9 +1629,7 @@ pub extern "C" fn SYNA_vector_store_insert_batch(
         };
 
         // Split into individual vectors
-        let vectors: Vec<&[f32]> = data_slice
-            .chunks(dimensions as usize)
-            .collect();
+        let vectors: Vec<&[f32]> = data_slice.chunks(dimensions as usize).collect();
 
         // Get the vector store from registry
         let mut registry = VECTOR_STORE_REGISTRY.lock();
@@ -1712,9 +1710,7 @@ pub extern "C" fn SYNA_vector_store_insert_batch_fast(
             unsafe { std::slice::from_raw_parts(data, total_floats) }
         };
 
-        let vectors: Vec<&[f32]> = data_slice
-            .chunks(dimensions as usize)
-            .collect();
+        let vectors: Vec<&[f32]> = data_slice.chunks(dimensions as usize).collect();
 
         let mut registry = VECTOR_STORE_REGISTRY.lock();
         match registry.get_mut(&canonical_path) {
@@ -2023,12 +2019,10 @@ pub extern "C" fn SYNA_vector_store_flush(path: *const c_char) -> i32 {
         // Get store from registry
         let mut registry = VECTOR_STORE_REGISTRY.lock();
         match registry.get_mut(&canonical_path) {
-            Some(store) => {
-                match store.flush() {
-                    Ok(_) => ERR_SUCCESS,
-                    Err(_) => ERR_GENERIC,
-                }
-            }
+            Some(store) => match store.flush() {
+                Ok(_) => ERR_SUCCESS,
+                Err(_) => ERR_GENERIC,
+            },
             None => crate::error::ERR_DB_NOT_FOUND,
         }
     })
@@ -3031,8 +3025,8 @@ pub extern "C" fn SYNA_mmap_vector_store_search(
                         })
                         .collect();
 
-                    let json = serde_json::to_string(&json_results)
-                        .unwrap_or_else(|_| "[]".to_string());
+                    let json =
+                        serde_json::to_string(&json_results).unwrap_or_else(|_| "[]".to_string());
 
                     unsafe { *out_len = json.len() };
                     match CString::new(json) {
@@ -3229,9 +3223,17 @@ pub extern "C" fn SYNA_gwi_new(
 
         let config = GwiConfig {
             dimensions,
-            branching_factor: if branching_factor == 0 { 16 } else { branching_factor },
+            branching_factor: if branching_factor == 0 {
+                16
+            } else {
+                branching_factor
+            },
             num_levels: if num_levels == 0 { 3 } else { num_levels },
-            initial_capacity: if initial_capacity == 0 { 10_000 } else { initial_capacity },
+            initial_capacity: if initial_capacity == 0 {
+                10_000
+            } else {
+                initial_capacity
+            },
             ..Default::default()
         };
 
@@ -3279,10 +3281,8 @@ pub extern "C" fn SYNA_gwi_initialize(
 
         let total_floats = num_vectors * dimensions as usize;
         let data_slice = unsafe { std::slice::from_raw_parts(vectors, total_floats) };
-        
-        let sample_vectors: Vec<&[f32]> = data_slice
-            .chunks(dimensions as usize)
-            .collect();
+
+        let sample_vectors: Vec<&[f32]> = data_slice.chunks(dimensions as usize).collect();
 
         let mut reg = GWI_REGISTRY.lock();
         match reg.get_mut(path_str) {
@@ -3486,7 +3486,7 @@ pub extern "C" fn SYNA_gwi_search_nprobe(
                             })
                         })
                         .collect();
-                    
+
                     let json_str = serde_json::to_string(&json_results).unwrap_or_default();
                     let c_str = CString::new(json_str).unwrap_or_default();
                     unsafe {
