@@ -16,7 +16,7 @@
 use std::ffi::CStr;
 use std::os::raw::c_char;
 
-use crate::engine::{close_db, free_tensor, open_db, with_db};
+use crate::engine::{close_db, free_tensor, open_db, open_db_with_config, with_db, DbConfig};
 use crate::error::{
     ERR_GENERIC, ERR_INTERNAL_PANIC, ERR_INVALID_PATH, ERR_KEY_NOT_FOUND, ERR_SUCCESS,
     ERR_TYPE_MISMATCH,
@@ -55,6 +55,54 @@ pub extern "C" fn SYNA_open(path: *const c_char) -> i32 {
 
         // Open the database
         match open_db(path_str) {
+            Ok(_) => ERR_SUCCESS,
+            Err(_) => ERR_GENERIC,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Opens a database with sync_on_write disabled for high-throughput writes.
+///
+/// This is optimized for bulk ingestion scenarios where durability can be
+/// traded for speed. Data is still written to disk but not fsynced after
+/// each write, achieving 100K+ ops/sec instead of ~100 ops/sec.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the database file
+/// * `sync_on_write` - 1 for sync after each write (durable), 0 for no sync (fast)
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Database opened successfully or was already open
+/// * `0` (ERR_GENERIC) - Generic error during database open
+/// * `-2` (ERR_INVALID_PATH) - Path is null or invalid UTF-8
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+///
+/// # Safety
+/// * `path` must be a valid null-terminated C string or null
+#[no_mangle]
+pub extern "C" fn SYNA_open_with_config(path: *const c_char, sync_on_write: i32) -> i32 {
+    std::panic::catch_unwind(|| {
+        // Check for null pointer
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        // Convert C string to Rust string
+        let c_str = unsafe { CStr::from_ptr(path) };
+        let path_str = match c_str.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        // Create config with sync_on_write setting
+        let config = DbConfig {
+            sync_on_write: sync_on_write != 0,
+            ..DbConfig::default()
+        };
+
+        // Open the database with config
+        match open_db_with_config(path_str, config) {
             Ok(_) => ERR_SUCCESS,
             Err(_) => ERR_GENERIC,
         }
@@ -305,6 +353,74 @@ pub extern "C" fn SYNA_put_bytes(
         // Call with_db to append the value
         match with_db(path_str, |db| db.append(key_str, Atom::Bytes(bytes))) {
             Ok(offset) => offset as i64,
+            Err(crate::error::SynaError::NotFound(_)) => crate::error::ERR_DB_NOT_FOUND as i64,
+            Err(_) => ERR_GENERIC as i64,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC as i64)
+}
+
+/// Writes multiple float values to the database in a single batch operation.
+///
+/// This is optimized for high-throughput ingestion scenarios. All values are
+/// written under the same key, building up a history that can be extracted
+/// as a tensor with `SYNA_get_history_tensor()`.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the database file
+/// * `key` - Null-terminated C string containing the key
+/// * `values` - Pointer to array of f64 values
+/// * `count` - Number of values in the array
+///
+/// # Returns
+/// * Positive value - Number of values written
+/// * `-1` (ERR_DB_NOT_FOUND) - Database not found in registry
+/// * `-2` (ERR_INVALID_PATH) - Path, key, or values is null or invalid UTF-8
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+///
+/// # Safety
+/// * `path` and `key` must be valid null-terminated C strings or null
+/// * `values` must be a valid pointer to at least `count` f64 values, or null if count is 0
+///
+/// # Performance
+/// This function is significantly faster than calling `SYNA_put_float()` in a loop:
+/// - Single FFI boundary crossing
+/// - Single mutex lock for all writes
+/// - Single fsync at the end (if sync_on_write is enabled)
+#[no_mangle]
+pub extern "C" fn SYNA_put_floats_batch(
+    path: *const c_char,
+    key: *const c_char,
+    values: *const f64,
+    count: usize,
+) -> i64 {
+    std::panic::catch_unwind(|| {
+        // Validate pointers
+        if path.is_null() || key.is_null() || (values.is_null() && count > 0) {
+            return ERR_INVALID_PATH as i64;
+        }
+
+        // Convert C strings to Rust strings
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH as i64,
+        };
+
+        let key_str = match unsafe { CStr::from_ptr(key) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH as i64,
+        };
+
+        // Create slice from raw pointer
+        let slice = if count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(values, count) }
+        };
+
+        // Call with_db to batch append
+        match with_db(path_str, |db| db.append_floats_batch(key_str, slice)) {
+            Ok(n) => n as i64,
             Err(crate::error::SynaError::NotFound(_)) => crate::error::ERR_DB_NOT_FOUND as i64,
             Err(_) => ERR_GENERIC as i64,
         }
@@ -1290,6 +1406,78 @@ pub extern "C" fn SYNA_vector_store_new(path: *const c_char, dimensions: u16, me
     .unwrap_or(ERR_INTERNAL_PANIC)
 }
 
+/// Creates a new vector store with sync_on_write configuration.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the database file
+/// * `dimensions` - Number of dimensions for vectors (64-4096)
+/// * `metric` - Distance metric: 0=Cosine, 1=Euclidean, 2=DotProduct
+/// * `sync_on_write` - 1 for sync after each write (durable), 0 for no sync (fast)
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Vector store created successfully
+/// * `0` (ERR_GENERIC) - Generic error during creation
+/// * `-2` (ERR_INVALID_PATH) - Path is null or invalid UTF-8
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+///
+/// # Safety
+/// * `path` must be a valid null-terminated C string or null
+#[no_mangle]
+pub extern "C" fn SYNA_vector_store_new_with_config(
+    path: *const c_char,
+    dimensions: u16,
+    metric: i32,
+    sync_on_write: i32,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        // Check for null pointer
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        // Convert C string to Rust string
+        let c_str = unsafe { CStr::from_ptr(path) };
+        let path_str = match c_str.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        // Convert metric integer to DistanceMetric enum
+        let distance_metric = match metric {
+            0 => DistanceMetric::Cosine,
+            1 => DistanceMetric::Euclidean,
+            2 => DistanceMetric::DotProduct,
+            _ => DistanceMetric::Cosine,
+        };
+
+        // Create config with sync_on_write setting
+        let config = VectorConfig {
+            dimensions,
+            metric: distance_metric,
+            sync_on_write: sync_on_write != 0,
+            ..Default::default()
+        };
+
+        // Canonicalize path for consistent registry keys
+        let canonical_path = match canonicalize_vector_path(path_str) {
+            Some(p) => p,
+            None => return ERR_INVALID_PATH,
+        };
+
+        // Create the vector store
+        match VectorStore::new(path_str, config) {
+            Ok(store) => {
+                // Register in global registry with canonicalized path
+                let mut registry = VECTOR_STORE_REGISTRY.lock();
+                registry.insert(canonical_path, store);
+                ERR_SUCCESS
+            }
+            Err(_) => ERR_GENERIC,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
 /// Inserts a vector into the store.
 ///
 /// # Arguments
@@ -1352,6 +1540,186 @@ pub extern "C" fn SYNA_vector_store_insert(
         match registry.get_mut(&canonical_path) {
             Some(store) => match store.insert(key_str, &vector) {
                 Ok(_) => ERR_SUCCESS,
+                Err(_) => ERR_GENERIC,
+            },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Inserts multiple vectors in a single batch operation.
+///
+/// This is significantly faster than calling `SYNA_vector_store_insert()` in a loop:
+/// - Single FFI boundary crossing for all vectors
+/// - Deferred index building until after all vectors are inserted
+/// - Reduced lock contention
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the database file
+/// * `keys` - Array of null-terminated C strings (keys for each vector)
+/// * `data` - Pointer to contiguous f32 array containing all vectors (row-major)
+/// * `dimensions` - Number of dimensions per vector
+/// * `count` - Number of vectors to insert
+///
+/// # Returns
+/// * Non-negative value - Number of vectors successfully inserted
+/// * `-1` (ERR_DB_NOT_FOUND) - Vector store not found in registry
+/// * `-2` (ERR_INVALID_PATH) - Path, keys, or data is null or invalid
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+///
+/// # Safety
+/// * `path` must be a valid null-terminated C string
+/// * `keys` must be a valid pointer to `count` null-terminated C strings
+/// * `data` must be a valid pointer to `count * dimensions` f32 values
+///
+/// # Example (C)
+/// ```c
+/// const char* keys[] = {"doc1", "doc2", "doc3"};
+/// float data[3 * 768] = { ... };  // 3 vectors of 768 dimensions
+/// int32_t inserted = SYNA_vector_store_insert_batch("vectors.db", keys, data, 768, 3);
+/// ```
+///
+/// _Requirements: 8.1_
+#[no_mangle]
+pub extern "C" fn SYNA_vector_store_insert_batch(
+    path: *const c_char,
+    keys: *const *const c_char,
+    data: *const f32,
+    dimensions: u16,
+    count: usize,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        // Validate pointers
+        if path.is_null() || keys.is_null() || (data.is_null() && count > 0 && dimensions > 0) {
+            return ERR_INVALID_PATH;
+        }
+
+        // Convert path
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        // Canonicalize path
+        let canonical_path = match canonicalize_vector_path(path_str) {
+            Some(p) => p,
+            None => return ERR_INVALID_PATH,
+        };
+
+        // Convert keys array
+        let keys_slice = unsafe { std::slice::from_raw_parts(keys, count) };
+        let mut key_strings: Vec<&str> = Vec::with_capacity(count);
+        for key_ptr in keys_slice {
+            if key_ptr.is_null() {
+                return ERR_INVALID_PATH;
+            }
+            match unsafe { CStr::from_ptr(*key_ptr) }.to_str() {
+                Ok(s) => key_strings.push(s),
+                Err(_) => return ERR_INVALID_PATH,
+            }
+        }
+
+        // Create vector slices from contiguous data
+        let total_floats = count * dimensions as usize;
+        let data_slice = if total_floats == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(data, total_floats) }
+        };
+
+        // Split into individual vectors
+        let vectors: Vec<&[f32]> = data_slice
+            .chunks(dimensions as usize)
+            .collect();
+
+        // Get the vector store from registry
+        let mut registry = VECTOR_STORE_REGISTRY.lock();
+        match registry.get_mut(&canonical_path) {
+            Some(store) => match store.insert_batch(&key_strings, &vectors) {
+                Ok(n) => n as i32,
+                Err(_) => ERR_GENERIC,
+            },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Inserts multiple vectors without updating the index (maximum write speed).
+///
+/// This is the fastest way to bulk-load vectors. Vectors are written to storage
+/// but NOT added to the HNSW index. Call `SYNA_vector_store_build_index()` after
+/// all inserts to build the index.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the database file
+/// * `keys` - Array of null-terminated C strings (keys for each vector)
+/// * `data` - Pointer to contiguous f32 array containing all vectors (row-major)
+/// * `dimensions` - Number of dimensions per vector
+/// * `count` - Number of vectors to insert
+///
+/// # Returns
+/// * Non-negative value - Number of vectors successfully inserted
+/// * `-1` (ERR_DB_NOT_FOUND) - Vector store not found in registry
+/// * `-2` (ERR_INVALID_PATH) - Path, keys, or data is null or invalid
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+///
+/// # Performance
+/// This function achieves 100K+ inserts/sec by skipping index updates.
+/// After bulk loading, call `SYNA_vector_store_build_index()` to enable fast search.
+///
+/// _Requirements: 8.1_
+#[no_mangle]
+pub extern "C" fn SYNA_vector_store_insert_batch_fast(
+    path: *const c_char,
+    keys: *const *const c_char,
+    data: *const f32,
+    dimensions: u16,
+    count: usize,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() || keys.is_null() || (data.is_null() && count > 0 && dimensions > 0) {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let canonical_path = match canonicalize_vector_path(path_str) {
+            Some(p) => p,
+            None => return ERR_INVALID_PATH,
+        };
+
+        let keys_slice = unsafe { std::slice::from_raw_parts(keys, count) };
+        let mut key_strings: Vec<&str> = Vec::with_capacity(count);
+        for key_ptr in keys_slice {
+            if key_ptr.is_null() {
+                return ERR_INVALID_PATH;
+            }
+            match unsafe { CStr::from_ptr(*key_ptr) }.to_str() {
+                Ok(s) => key_strings.push(s),
+                Err(_) => return ERR_INVALID_PATH,
+            }
+        }
+
+        let total_floats = count * dimensions as usize;
+        let data_slice = if total_floats == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(data, total_floats) }
+        };
+
+        let vectors: Vec<&[f32]> = data_slice
+            .chunks(dimensions as usize)
+            .collect();
+
+        let mut registry = VECTOR_STORE_REGISTRY.lock();
+        match registry.get_mut(&canonical_path) {
+            Some(store) => match store.insert_batch_fast(&key_strings, &vectors, false) {
+                Ok(n) => n as i32,
                 Err(_) => ERR_GENERIC,
             },
             None => crate::error::ERR_DB_NOT_FOUND,
@@ -1452,6 +1820,215 @@ pub extern "C" fn SYNA_vector_store_search(
                 }
                 Err(_) => ERR_GENERIC,
             },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Builds the HNSW index for a vector store.
+///
+/// This function manually triggers HNSW index construction for faster search.
+/// The index is built automatically when vector count exceeds the threshold,
+/// but this function allows explicit control.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the vector store
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Index built successfully
+/// * `0` (ERR_GENERIC) - Generic error during build
+/// * `-1` (ERR_DB_NOT_FOUND) - Vector store not found in registry
+/// * `-2` (ERR_INVALID_PATH) - Path is null or invalid UTF-8
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+///
+/// # Safety
+/// * `path` must be a valid null-terminated C string or null
+///
+/// _Requirements: 8.1_
+#[no_mangle]
+pub extern "C" fn SYNA_vector_store_build_index(path: *const c_char) -> i32 {
+    std::panic::catch_unwind(|| {
+        // Check for null pointer
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        // Convert path to Rust string
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        // Canonicalize path for consistent registry keys
+        let canonical_path = match canonicalize_vector_path(path_str) {
+            Some(p) => p,
+            None => return ERR_INVALID_PATH,
+        };
+
+        // Get the vector store from registry
+        let mut registry = VECTOR_STORE_REGISTRY.lock();
+        match registry.get_mut(&canonical_path) {
+            Some(store) => match store.build_index() {
+                Ok(()) => crate::error::ERR_SUCCESS,
+                Err(_) => ERR_GENERIC,
+            },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Returns whether a vector store has an HNSW index built.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the vector store
+///
+/// # Returns
+/// * `1` - Index is built
+/// * `0` - Index is not built
+/// * `-1` (ERR_DB_NOT_FOUND) - Vector store not found in registry
+/// * `-2` (ERR_INVALID_PATH) - Path is null or invalid UTF-8
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+///
+/// # Safety
+/// * `path` must be a valid null-terminated C string or null
+///
+/// _Requirements: 8.1_
+#[no_mangle]
+pub extern "C" fn SYNA_vector_store_has_index(path: *const c_char) -> i32 {
+    std::panic::catch_unwind(|| {
+        // Check for null pointer
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        // Convert path to Rust string
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        // Canonicalize path for consistent registry keys
+        let canonical_path = match canonicalize_vector_path(path_str) {
+            Some(p) => p,
+            None => return ERR_INVALID_PATH,
+        };
+
+        // Get the vector store from registry
+        let registry = VECTOR_STORE_REGISTRY.lock();
+        match registry.get(&canonical_path) {
+            Some(store) => {
+                if store.has_index() {
+                    1
+                } else {
+                    0
+                }
+            }
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Closes a vector store and saves any pending changes.
+///
+/// This function removes the vector store from the global registry and
+/// triggers the Drop implementation, which saves any dirty index to disk.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the database file
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Store closed successfully
+/// * `-1` (ERR_DB_NOT_FOUND) - Store not found in registry
+/// * `-2` (ERR_INVALID_PATH) - Path is null or invalid UTF-8
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+///
+/// # Safety
+/// * `path` must be a valid null-terminated C string or null
+///
+/// _Requirements: 8.1_
+#[no_mangle]
+pub extern "C" fn SYNA_vector_store_close(path: *const c_char) -> i32 {
+    std::panic::catch_unwind(|| {
+        // Check for null pointer
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        // Convert C string to Rust string
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        // Canonicalize path for consistent lookup
+        let canonical_path = match std::fs::canonicalize(path_str) {
+            Ok(p) => p.to_string_lossy().to_string(),
+            Err(_) => path_str.to_string(),
+        };
+
+        // Remove from registry (this triggers Drop which saves the index)
+        let mut registry = VECTOR_STORE_REGISTRY.lock();
+        match registry.remove(&canonical_path) {
+            Some(_store) => {
+                // Store is dropped here, triggering index save
+                ERR_SUCCESS
+            }
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Flushes any pending changes to disk without closing the store.
+///
+/// This saves the HNSW index if it has unsaved changes.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the database file
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Flush successful
+/// * `-1` (ERR_DB_NOT_FOUND) - Store not found in registry
+/// * `-2` (ERR_INVALID_PATH) - Path is null or invalid UTF-8
+/// * `0` (ERR_GENERIC) - Flush failed
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+///
+/// # Safety
+/// * `path` must be a valid null-terminated C string or null
+///
+/// _Requirements: 8.1_
+#[no_mangle]
+pub extern "C" fn SYNA_vector_store_flush(path: *const c_char) -> i32 {
+    std::panic::catch_unwind(|| {
+        // Check for null pointer
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        // Convert C string to Rust string
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        // Canonicalize path for consistent lookup
+        let canonical_path = match std::fs::canonicalize(path_str) {
+            Ok(p) => p.to_string_lossy().to_string(),
+            Err(_) => path_str.to_string(),
+        };
+
+        // Get store from registry
+        let mut registry = VECTOR_STORE_REGISTRY.lock();
+        match registry.get_mut(&canonical_path) {
+            Some(store) => {
+                match store.flush() {
+                    Ok(_) => ERR_SUCCESS,
+                    Err(_) => ERR_GENERIC,
+                }
+            }
             None => crate::error::ERR_DB_NOT_FOUND,
         }
     })
@@ -2208,4 +2785,818 @@ pub extern "C" fn SYNA_exp_end_run(path: *const c_char, run_id: *const c_char, s
         }
     })
     .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+// =============================================================================
+// MmapVectorStore FFI Functions (Ultra-High-Throughput)
+// =============================================================================
+
+use crate::mmap_vector::{MmapVectorConfig, MmapVectorStore};
+
+/// Thread-safe global registry for managing open MmapVectorStore instances.
+static MMAP_VECTOR_REGISTRY: Lazy<Mutex<HashMap<String, MmapVectorStore>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+/// Creates or opens a memory-mapped vector store at the given path.
+///
+/// This is an alternative to `SYNA_vector_store_new()` that uses memory-mapped I/O
+/// for ultra-high-throughput writes (500K-1M vectors/sec).
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the mmap file
+/// * `dimensions` - Number of dimensions (64-8192)
+/// * `metric` - Distance metric: 0=Cosine, 1=Euclidean, 2=DotProduct
+/// * `initial_capacity` - Pre-allocated capacity in number of vectors
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Store opened successfully
+/// * `0` (ERR_GENERIC) - Generic error during open
+/// * `-2` (ERR_INVALID_PATH) - Path is null or invalid UTF-8
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_mmap_vector_store_new(
+    path: *const c_char,
+    dimensions: u16,
+    metric: i32,
+    initial_capacity: usize,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let distance_metric = match metric {
+            0 => crate::distance::DistanceMetric::Cosine,
+            1 => crate::distance::DistanceMetric::Euclidean,
+            2 => crate::distance::DistanceMetric::DotProduct,
+            _ => crate::distance::DistanceMetric::Cosine,
+        };
+
+        let config = MmapVectorConfig {
+            dimensions,
+            metric: distance_metric,
+            initial_capacity,
+            ..Default::default()
+        };
+
+        match MmapVectorStore::new(path_str, config) {
+            Ok(store) => {
+                let mut reg = MMAP_VECTOR_REGISTRY.lock();
+                reg.insert(path_str.to_string(), store);
+                ERR_SUCCESS
+            }
+            Err(_) => ERR_GENERIC,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Inserts a vector into the mmap vector store.
+///
+/// This is an ultra-fast operation (no syscalls, just memcpy).
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the store
+/// * `key` - Null-terminated C string containing the vector key
+/// * `vector` - Pointer to the vector data (f32 array)
+/// * `dimensions` - Number of dimensions in the vector
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Vector inserted successfully
+/// * `0` (ERR_GENERIC) - Generic error
+/// * `-1` (ERR_DB_NOT_FOUND) - Store not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid arguments
+/// * `-6` (ERR_TYPE_MISMATCH) - Dimension mismatch
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_mmap_vector_store_insert(
+    path: *const c_char,
+    key: *const c_char,
+    vector: *const f32,
+    dimensions: u16,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() || key.is_null() || vector.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let key_str = match unsafe { CStr::from_ptr(key) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let vec_slice = unsafe { std::slice::from_raw_parts(vector, dimensions as usize) };
+
+        let mut reg = MMAP_VECTOR_REGISTRY.lock();
+        match reg.get_mut(path_str) {
+            Some(store) => match store.insert(key_str, vec_slice) {
+                Ok(_) => ERR_SUCCESS,
+                Err(crate::error::SynaError::DimensionMismatch { .. }) => ERR_TYPE_MISMATCH,
+                Err(_) => ERR_GENERIC,
+            },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Inserts multiple vectors in a batch (maximum throughput).
+///
+/// This achieves 500K-1M vectors/sec by writing directly to memory.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the store
+/// * `keys` - Array of null-terminated C strings (vector keys)
+/// * `vectors` - Contiguous array of vector data (count * dimensions floats)
+/// * `dimensions` - Number of dimensions per vector
+/// * `count` - Number of vectors to insert
+///
+/// # Returns
+/// * Non-negative value - Number of vectors inserted
+/// * `-1` (ERR_DB_NOT_FOUND) - Store not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid arguments
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_mmap_vector_store_insert_batch(
+    path: *const c_char,
+    keys: *const *const c_char,
+    vectors: *const f32,
+    dimensions: u16,
+    count: usize,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() || keys.is_null() || vectors.is_null() || count == 0 {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        // Convert keys
+        let key_ptrs = unsafe { std::slice::from_raw_parts(keys, count) };
+        let mut key_strings: Vec<String> = Vec::with_capacity(count);
+        for &key_ptr in key_ptrs {
+            if key_ptr.is_null() {
+                return ERR_INVALID_PATH;
+            }
+            match unsafe { CStr::from_ptr(key_ptr) }.to_str() {
+                Ok(s) => key_strings.push(s.to_string()),
+                Err(_) => return ERR_INVALID_PATH,
+            }
+        }
+        let key_refs: Vec<&str> = key_strings.iter().map(|s| s.as_str()).collect();
+
+        // Convert vectors
+        let dims = dimensions as usize;
+        let all_vectors = unsafe { std::slice::from_raw_parts(vectors, count * dims) };
+        let vec_refs: Vec<&[f32]> = (0..count)
+            .map(|i| &all_vectors[i * dims..(i + 1) * dims])
+            .collect();
+
+        let mut reg = MMAP_VECTOR_REGISTRY.lock();
+        match reg.get_mut(path_str) {
+            Some(store) => match store.insert_batch(&key_refs, &vec_refs) {
+                Ok(inserted) => inserted as i32,
+                Err(_) => ERR_GENERIC,
+            },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Searches for the k nearest neighbors in the mmap vector store.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the store
+/// * `query` - Pointer to the query vector (f32 array)
+/// * `dimensions` - Number of dimensions in the query
+/// * `k` - Number of results to return
+/// * `out_json` - Pointer to write the JSON results string
+/// * `out_len` - Pointer to write the JSON string length
+///
+/// # Returns
+/// * Non-negative value - Number of results found
+/// * `-1` (ERR_DB_NOT_FOUND) - Store not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid arguments
+/// * `-6` (ERR_TYPE_MISMATCH) - Dimension mismatch
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_mmap_vector_store_search(
+    path: *const c_char,
+    query: *const f32,
+    dimensions: u16,
+    k: usize,
+    out_json: *mut *mut c_char,
+    out_len: *mut usize,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() || query.is_null() || out_json.is_null() || out_len.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let query_slice = unsafe { std::slice::from_raw_parts(query, dimensions as usize) };
+
+        let reg = MMAP_VECTOR_REGISTRY.lock();
+        match reg.get(path_str) {
+            Some(store) => match store.search(query_slice, k) {
+                Ok(results) => {
+                    let count = results.len() as i32;
+
+                    // Convert results to JSON
+                    let json_results: Vec<serde_json::Value> = results
+                        .iter()
+                        .map(|r| {
+                            serde_json::json!({
+                                "key": r.key,
+                                "score": r.score,
+                            })
+                        })
+                        .collect();
+
+                    let json = serde_json::to_string(&json_results)
+                        .unwrap_or_else(|_| "[]".to_string());
+
+                    unsafe { *out_len = json.len() };
+                    match CString::new(json) {
+                        Ok(c_string) => {
+                            unsafe { *out_json = c_string.into_raw() };
+                            count
+                        }
+                        Err(_) => ERR_GENERIC,
+                    }
+                }
+                Err(crate::error::SynaError::DimensionMismatch { .. }) => ERR_TYPE_MISMATCH,
+                Err(_) => ERR_GENERIC,
+            },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Builds the HNSW index for the mmap vector store.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the store
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Index built successfully
+/// * `0` (ERR_GENERIC) - Generic error
+/// * `-1` (ERR_DB_NOT_FOUND) - Store not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_mmap_vector_store_build_index(path: *const c_char) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let mut reg = MMAP_VECTOR_REGISTRY.lock();
+        match reg.get_mut(path_str) {
+            Some(store) => match store.build_index() {
+                Ok(_) => ERR_SUCCESS,
+                Err(_) => ERR_GENERIC,
+            },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Flushes the mmap vector store to disk.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the store
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Flushed successfully
+/// * `0` (ERR_GENERIC) - Generic error
+/// * `-1` (ERR_DB_NOT_FOUND) - Store not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_mmap_vector_store_flush(path: *const c_char) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let mut reg = MMAP_VECTOR_REGISTRY.lock();
+        match reg.get_mut(path_str) {
+            Some(store) => match store.flush() {
+                Ok(_) => ERR_SUCCESS,
+                Err(_) => ERR_GENERIC,
+            },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Closes the mmap vector store and removes it from the registry.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the store
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Closed successfully
+/// * `-1` (ERR_DB_NOT_FOUND) - Store not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_mmap_vector_store_close(path: *const c_char) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let mut reg = MMAP_VECTOR_REGISTRY.lock();
+        match reg.remove(path_str) {
+            Some(_store) => {
+                // Store is dropped here, which triggers checkpoint
+                ERR_SUCCESS
+            }
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Returns the number of vectors in the mmap vector store.
+///
+/// # Arguments
+/// * `path` - Null-terminated C string containing the path to the store
+///
+/// # Returns
+/// * Non-negative value - Number of vectors
+/// * `-1` (ERR_DB_NOT_FOUND) - Store not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_mmap_vector_store_len(path: *const c_char) -> i64 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return ERR_INVALID_PATH as i64;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH as i64,
+        };
+
+        let reg = MMAP_VECTOR_REGISTRY.lock();
+        match reg.get(path_str) {
+            Some(store) => store.len() as i64,
+            None => crate::error::ERR_DB_NOT_FOUND as i64,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC as i64)
+}
+
+// =============================================================================
+// Gravity Well Index (GWI) FFI Functions
+// =============================================================================
+
+use crate::gwi::{GravityWellIndex, GwiConfig};
+
+/// Thread-safe global registry for managing open GravityWellIndex instances.
+static GWI_REGISTRY: Lazy<Mutex<HashMap<String, GravityWellIndex>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+/// Create a new Gravity Well Index
+///
+/// # Arguments
+/// * `path` - Path to the index file
+/// * `dimensions` - Vector dimensions (64-8192)
+/// * `branching_factor` - Branching factor at each level (default: 16)
+/// * `num_levels` - Number of hierarchy levels (default: 3)
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Index created successfully
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_gwi_new(
+    path: *const c_char,
+    dimensions: u16,
+    branching_factor: u16,
+    num_levels: u8,
+    initial_capacity: usize,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let config = GwiConfig {
+            dimensions,
+            branching_factor: if branching_factor == 0 { 16 } else { branching_factor },
+            num_levels: if num_levels == 0 { 3 } else { num_levels },
+            initial_capacity: if initial_capacity == 0 { 10_000 } else { initial_capacity },
+            ..Default::default()
+        };
+
+        match GravityWellIndex::new(path_str, config) {
+            Ok(index) => {
+                let mut reg = GWI_REGISTRY.lock();
+                reg.insert(path_str.to_string(), index);
+                ERR_SUCCESS
+            }
+            Err(_) => ERR_GENERIC,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Initialize GWI attractors from sample vectors
+///
+/// # Arguments
+/// * `path` - Path to the index file
+/// * `vectors` - Pointer to contiguous f32 vector data
+/// * `num_vectors` - Number of sample vectors
+/// * `dimensions` - Dimensions per vector
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Attractors initialized
+/// * `-1` (ERR_DB_NOT_FOUND) - Index not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_gwi_initialize(
+    path: *const c_char,
+    vectors: *const f32,
+    num_vectors: usize,
+    dimensions: u16,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() || vectors.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let total_floats = num_vectors * dimensions as usize;
+        let data_slice = unsafe { std::slice::from_raw_parts(vectors, total_floats) };
+        
+        let sample_vectors: Vec<&[f32]> = data_slice
+            .chunks(dimensions as usize)
+            .collect();
+
+        let mut reg = GWI_REGISTRY.lock();
+        match reg.get_mut(path_str) {
+            Some(index) => match index.initialize_attractors(&sample_vectors) {
+                Ok(()) => ERR_SUCCESS,
+                Err(_) => ERR_GENERIC,
+            },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Insert a vector into the GWI
+///
+/// # Arguments
+/// * `path` - Path to the index file
+/// * `key` - Null-terminated key string
+/// * `vector` - Pointer to f32 vector data
+/// * `dimensions` - Vector dimensions
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Vector inserted
+/// * `-1` (ERR_DB_NOT_FOUND) - Index not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid path/key
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_gwi_insert(
+    path: *const c_char,
+    key: *const c_char,
+    vector: *const f32,
+    dimensions: u16,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() || key.is_null() || vector.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let key_str = match unsafe { CStr::from_ptr(key) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let vector_slice = unsafe { std::slice::from_raw_parts(vector, dimensions as usize) };
+
+        let mut reg = GWI_REGISTRY.lock();
+        match reg.get_mut(path_str) {
+            Some(index) => match index.insert(key_str, vector_slice) {
+                Ok(()) => ERR_SUCCESS,
+                Err(_) => ERR_GENERIC,
+            },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Batch insert vectors into the GWI
+///
+/// # Arguments
+/// * `path` - Path to the index file
+/// * `keys` - Array of null-terminated key strings
+/// * `vectors` - Pointer to contiguous f32 vector data
+/// * `dimensions` - Dimensions per vector
+/// * `count` - Number of vectors to insert
+///
+/// # Returns
+/// * Non-negative - Number of vectors inserted
+/// * `-1` (ERR_DB_NOT_FOUND) - Index not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_gwi_insert_batch(
+    path: *const c_char,
+    keys: *const *const c_char,
+    vectors: *const f32,
+    dimensions: u16,
+    count: usize,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() || keys.is_null() || (vectors.is_null() && count > 0) {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let keys_slice = unsafe { std::slice::from_raw_parts(keys, count) };
+        let mut key_strings: Vec<&str> = Vec::with_capacity(count);
+        for key_ptr in keys_slice {
+            if key_ptr.is_null() {
+                return ERR_INVALID_PATH;
+            }
+            match unsafe { CStr::from_ptr(*key_ptr) }.to_str() {
+                Ok(s) => key_strings.push(s),
+                Err(_) => return ERR_INVALID_PATH,
+            }
+        }
+
+        let total_floats = count * dimensions as usize;
+        let data_slice = unsafe { std::slice::from_raw_parts(vectors, total_floats) };
+        let vector_refs: Vec<&[f32]> = data_slice.chunks(dimensions as usize).collect();
+
+        let mut reg = GWI_REGISTRY.lock();
+        match reg.get_mut(path_str) {
+            Some(index) => match index.insert_batch(&key_strings, &vector_refs) {
+                Ok(n) => n as i32,
+                Err(_) => ERR_GENERIC,
+            },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Search for k nearest neighbors in the GWI
+///
+/// # Arguments
+/// * `path` - Path to the index file
+/// * `query` - Pointer to f32 query vector
+/// * `dimensions` - Query vector dimensions
+/// * `k` - Number of neighbors to return
+/// * `out_json` - Pointer to write JSON result string
+///
+/// # Returns
+/// * Non-negative - Number of results found
+/// * `-1` (ERR_DB_NOT_FOUND) - Index not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_gwi_search(
+    path: *const c_char,
+    query: *const f32,
+    dimensions: u16,
+    k: usize,
+    out_json: *mut *mut c_char,
+) -> i32 {
+    // Default nprobe
+    SYNA_gwi_search_nprobe(path, query, dimensions, k, 3, out_json)
+}
+
+/// Search for k nearest neighbors with custom nprobe
+///
+/// Higher nprobe = better recall but slower search.
+/// - nprobe=3: Fast, ~5-15% recall
+/// - nprobe=10: Balanced, ~30-50% recall
+/// - nprobe=30: High quality, ~70-90% recall
+/// - nprobe=100: Near-exact, ~95%+ recall
+///
+/// # Arguments
+/// * `path` - Path to the index file
+/// * `query` - Query vector
+/// * `dimensions` - Number of dimensions
+/// * `k` - Number of results to return
+/// * `nprobe` - Number of clusters to probe
+/// * `out_json` - Output JSON string with results
+///
+/// # Returns
+/// * Number of results on success
+/// * `-1` (ERR_DB_NOT_FOUND) - Index not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_gwi_search_nprobe(
+    path: *const c_char,
+    query: *const f32,
+    dimensions: u16,
+    k: usize,
+    nprobe: usize,
+    out_json: *mut *mut c_char,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() || query.is_null() || out_json.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let query_slice = unsafe { std::slice::from_raw_parts(query, dimensions as usize) };
+
+        let reg = GWI_REGISTRY.lock();
+        match reg.get(path_str) {
+            Some(index) => match index.search_with_nprobe(query_slice, k, nprobe) {
+                Ok(results) => {
+                    let json_results: Vec<serde_json::Value> = results
+                        .iter()
+                        .map(|r| {
+                            serde_json::json!({
+                                "key": r.key,
+                                "score": r.score,
+                            })
+                        })
+                        .collect();
+                    
+                    let json_str = serde_json::to_string(&json_results).unwrap_or_default();
+                    let c_str = CString::new(json_str).unwrap_or_default();
+                    unsafe {
+                        *out_json = c_str.into_raw();
+                    }
+                    results.len() as i32
+                }
+                Err(_) => ERR_GENERIC,
+            },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Flush GWI changes to disk
+///
+/// # Arguments
+/// * `path` - Path to the index file
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Flushed successfully
+/// * `-1` (ERR_DB_NOT_FOUND) - Index not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_gwi_flush(path: *const c_char) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let reg = GWI_REGISTRY.lock();
+        match reg.get(path_str) {
+            Some(index) => match index.flush() {
+                Ok(()) => ERR_SUCCESS,
+                Err(_) => ERR_GENERIC,
+            },
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Close a GWI and remove from registry
+///
+/// # Arguments
+/// * `path` - Path to the index file
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Closed successfully
+/// * `-1` (ERR_DB_NOT_FOUND) - Index not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_gwi_close(path: *const c_char) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let mut reg = GWI_REGISTRY.lock();
+        match reg.remove(path_str) {
+            Some(mut index) => {
+                let _ = index.close();
+                ERR_SUCCESS
+            }
+            None => crate::error::ERR_DB_NOT_FOUND,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Get number of vectors in the GWI
+///
+/// # Arguments
+/// * `path` - Path to the index file
+///
+/// # Returns
+/// * Non-negative - Number of vectors
+/// * `-1` (ERR_DB_NOT_FOUND) - Index not found
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_gwi_len(path: *const c_char) -> i64 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return ERR_INVALID_PATH as i64;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH as i64,
+        };
+
+        let reg = GWI_REGISTRY.lock();
+        match reg.get(path_str) {
+            Some(index) => index.len() as i64,
+            None => crate::error::ERR_DB_NOT_FOUND as i64,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC as i64)
 }

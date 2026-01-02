@@ -356,6 +356,14 @@ impl HnswIndex {
         self.max_level
     }
 
+    /// Set the maximum level in the graph.
+    /// Used when adding nodes with higher levels than the current max.
+    pub fn set_max_level(&mut self, level: usize) {
+        if level > self.max_level {
+            self.max_level = level;
+        }
+    }
+
     /// Check if a key exists in the index.
     pub fn contains_key(&self, key: &str) -> bool {
         self.key_to_id.contains_key(key)
@@ -479,7 +487,7 @@ impl PartialOrd for MinHeapEntry {
 impl Ord for MinHeapEntry {
     fn cmp(&self, other: &Self) -> Ordering {
         // Reverse ordering: smaller distance = higher priority (for min-heap via BinaryHeap)
-        other.0.partial_cmp(&self.0).unwrap_or(Ordering::Equal)
+        other.0.total_cmp(&self.0)
     }
 }
 
@@ -504,7 +512,7 @@ impl PartialOrd for MaxHeapEntry {
 impl Ord for MaxHeapEntry {
     fn cmp(&self, other: &Self) -> Ordering {
         // Normal ordering: larger distance = higher priority (for max-heap)
-        self.0.partial_cmp(&other.0).unwrap_or(Ordering::Equal)
+        self.0.total_cmp(&other.0)
     }
 }
 
@@ -576,7 +584,7 @@ impl HnswIndex {
     /// # Returns
     ///
     /// A vector of (node_id, distance) pairs, sorted by distance (closest first).
-    fn search_layer(
+    pub fn search_layer(
         &self,
         query: &[f32],
         entry_point: usize,
@@ -635,7 +643,7 @@ impl HnswIndex {
             .into_iter()
             .map(|MaxHeapEntry(d, id)| (id, d))
             .collect();
-        result_vec.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+        result_vec.sort_by(|a, b| a.1.total_cmp(&b.1));
         result_vec
     }
 

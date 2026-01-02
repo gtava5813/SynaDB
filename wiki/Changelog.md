@@ -4,6 +4,179 @@ This document contains the complete release history for SynaDB.
 
 ---
 
+## v1.0.4 - MmapVectorStore & GWI
+
+**Released:** January 2026  
+**PyPI:** [synadb 1.0.4](https://pypi.org/project/synadb/)  
+**Crates.io:** [synadb 1.0.4](https://crates.io/crates/synadb)
+
+### Highlights
+
+- **MmapVectorStore** - Ultra-high-throughput vector storage (490K vectors/sec)
+-  **Gravity Well Index (GWI)** - Novel append-only vector indexing algorithm
+-  **Extended Dimensions** - Support for 384-7168 dimensional embeddings
+-  **Critical Fixes** - HNSW auto-build, index persistence, sync_on_write
+
+### New Features
+
+#### MmapVectorStore
+
+Memory-mapped vector storage for maximum throughput:
+
+```python
+from synadb import MmapVectorStore
+
+store = MmapVectorStore("vectors.mmap", dimensions=768, initial_capacity=100_000)
+store.insert_batch(keys, vectors)  # 490K vectors/sec
+store.build_index()
+results = store.search(query, k=10)  # 0.6ms
+```
+
+**Benchmark Results (10,000 vectors):**
+
+| Model | Dims | Write/sec | Search | Storage |
+|-------|------|-----------|--------|---------|
+| MiniLM | 384 | 766,642 | 0.3ms | 18.8MB |
+| BERT | 768 | 489,733 | 0.6ms | 34.9MB |
+| OpenAI ada-002 | 1536 | 278,369 | 1.4ms | 67.2MB |
+| DeepSeek-V3 | 7168 | 64,103 | 5.7ms | 303.5MB |
+
+**Trade-offs vs VectorStore:**
+
+| Aspect | VectorStore | MmapVectorStore |
+|--------|-------------|-----------------|
+| Write speed | ~67K/sec | ~490K/sec |
+| Durability | Per-write | Checkpoint |
+| Capacity | Dynamic | Pre-allocated |
+
+#### Gravity Well Index (GWI)
+
+A novel vector indexing algorithm designed for append-only, mmap-friendly architecture:
+
+```python
+from synadb import GravityWellIndex
+
+gwi = GravityWellIndex("vectors.gwi", dimensions=768)
+gwi.initialize(sample_vectors)  # Initialize attractors from sample
+gwi.insert_batch(keys, vectors)
+results = gwi.search(query, k=10, nprobe=50)  # 98% recall
+```
+
+**Performance vs HNSW:**
+
+| Dataset | GWI Build | HNSW Build | Speedup |
+|---------|-----------|------------|---------|
+| 10K × 384 | 1.0s | 8.8s | 8.6x |
+| 10K × 768 | 2.1s | 18.4s | 8.9x |
+| 50K × 384 | 1.5s | 272s | 186x |
+| 50K × 768 | 3.0s | 504s | 169x |
+
+**Recall vs nprobe:**
+
+| nprobe | Recall@10 | Latency |
+|--------|-----------|---------|
+| 3 | ~50% | 0.23ms |
+| 10 | ~70% | 0.37ms |
+| 30 | ~90% | 0.59ms |
+| 50 | ~98% | 0.68ms |
+| 100 | ~100% | 0.86ms |
+
+**When to use GWI vs HNSW:**
+- **GWI:** Index build time critical, streaming/real-time data, append-only required
+- **HNSW:** Search latency critical, index built once and queried many times
+
+### Bug Fixes
+
+#### HNSW Recall Bug (Critical)
+
+**Issue:** Both VectorStore and MmapVectorStore had 0-20% recall on 10K+ clustered vectors.
+
+**Root Cause:** Entry point and `max_level` not updated when adding nodes with higher levels. In HNSW, the entry point must always be the node with the highest level.
+
+**Fix:** 
+- Added `set_max_level()` method to `HnswIndex`
+- Correctly update both entry point AND max_level in `add_node_to_index()`
+- Fixed in both `VectorStore` and `MmapVectorStore`
+
+**Files Changed:**
+- `src/hnsw.rs` - Added `set_max_level()` method
+- `src/vector.rs` - Fixed `add_node_to_index()`
+- `src/mmap_vector.rs` - Fixed `add_node_to_index()` and `insert_to_hnsw_incremental()`
+
+| Component | Before | After |
+|-----------|--------|-------|
+| MmapVectorStore | 0% recall | 100% recall |
+| VectorStore | 20% recall | 100% recall |
+
+#### HNSW Auto-Build Fix (Critical)
+
+**Issue:** HNSW index was never automatically built during inserts, causing all searches to fall back to O(N) brute-force (11+ seconds per query on 59K vectors).
+
+**Fix:** Added auto-build logic in `insert()` that triggers index building when vector count exceeds `index_threshold`.
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Search (59K vectors) | 11,000ms | <1ms |
+
+#### HNSW Index Persistence
+
+**Issue:** HNSW index was not saved/loaded on close/open, requiring rebuild on every reopen.
+
+**Fix:** 
+- Auto-load existing `.hnsw` index files on open
+- Auto-save index after `build_index()`
+- Added `save_index()` and `flush()` methods
+
+#### VectorStore Close/Flush
+
+**Issue:** FFI global registry prevented proper cleanup, index never saved.
+
+**Fix:** Added explicit `close()` and `flush()` FFI functions with Python context manager support.
+
+```python
+with VectorStore("vectors.db", dimensions=768) as store:
+    # ... operations ...
+# Automatically saved on exit
+```
+
+#### sync_on_write Configuration
+
+**Issue:** Default `sync_on_write=True` limited throughput to ~18-100 ops/sec.
+
+**Fix:** Exposed `sync_on_write` parameter in both SynaDB and VectorStore.
+
+```python
+# High-throughput mode (456x faster)
+store = VectorStore("vectors.db", dimensions=768, sync_on_write=False)
+```
+
+| Setting | Throughput |
+|---------|------------|
+| `sync_on_write=True` | 19 ops/sec |
+| `sync_on_write=False` | 8,675 ops/sec |
+
+### New Files
+
+| File | Description |
+|------|-------------|
+| `src/mmap_vector.rs` | Rust MmapVectorStore implementation |
+| `src/gwi.rs` | Gravity Well Index implementation |
+| `demos/python/synadb/mmap_vector.py` | Python MmapVectorStore wrapper |
+| `demos/python/synadb/gwi.py` | Python GWI wrapper |
+
+### New FFI Functions
+
+| Function | Description |
+|----------|-------------|
+| `SYNA_vector_store_build_index` | Manually build HNSW index |
+| `SYNA_vector_store_has_index` | Check if index exists |
+| `SYNA_vector_store_close` | Close and save index |
+| `SYNA_vector_store_flush` | Save index without closing |
+| `SYNA_vector_store_new_with_config` | Create with sync_on_write option |
+| `SYNA_open_with_config` | Open SynaDB with sync_on_write option |
+
+---
+
 ## v1.0.3 - PyPI Native Library Fix
 
 **Released:** January 2026  
@@ -559,7 +732,7 @@ pip install synadb
 
 ```toml
 [dependencies]
-synadb = "1.0.3"
+synadb = "1.0.4"
 ```
 
 ### Building from Source

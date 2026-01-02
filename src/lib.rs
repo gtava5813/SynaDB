@@ -65,8 +65,10 @@ pub mod experiment;
 pub mod faiss_index;
 pub mod ffi;
 pub mod gpu;
+pub mod gwi;
 pub mod hnsw;
 pub mod mmap;
+pub mod mmap_vector;
 pub mod model_registry;
 pub mod tensor;
 pub mod types;
@@ -85,6 +87,9 @@ pub use tensor::{
 
 // Re-export memory-mapped reader for zero-copy access
 pub use mmap::MmapReader;
+
+// Re-export mmap vector store for ultra-high-throughput writes
+pub use mmap_vector::{MmapSearchResult, MmapVectorConfig, MmapVectorStore};
 
 // Re-export GPU types for direct memory access
 pub use gpu::{GpuContext, GpuTensor};

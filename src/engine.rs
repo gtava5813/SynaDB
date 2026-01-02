@@ -62,6 +62,19 @@ static DB_REGISTRY: Lazy<Mutex<HashMap<String, SynaDB>>> = Lazy::new(|| Mutex::n
 /// * `Ok(())` if the database was opened successfully or was already open
 /// * `Err(SynaError)` if the path is invalid or the database couldn't be opened
 pub fn open_db(path: &str) -> Result<()> {
+    open_db_with_config(path, DbConfig::default())
+}
+
+/// Opens a database with custom configuration and registers it in the global registry.
+///
+/// # Arguments
+/// * `path` - Path to the database file
+/// * `config` - Database configuration options
+///
+/// # Returns
+/// * `Ok(())` if the database was opened successfully or was already open
+/// * `Err(SynaError)` if the path is invalid or the database couldn't be opened
+pub fn open_db_with_config(path: &str, config: DbConfig) -> Result<()> {
     // Canonicalize path to absolute for consistent registry keys
     let canonical_path = canonicalize_path(path)?;
 
@@ -72,8 +85,8 @@ pub fn open_db(path: &str) -> Result<()> {
         return Ok(());
     }
 
-    // Create new SynaDB instance
-    let db = SynaDB::new(path)?;
+    // Create new SynaDB instance with config
+    let db = SynaDB::with_config(path, config)?;
 
     // Insert into registry
     registry.insert(canonical_path, db);
@@ -442,6 +455,113 @@ impl SynaDB {
         self.previous_values.insert(key.to_string(), value);
 
         Ok(offset)
+    }
+
+    /// Appends multiple float values to the database in a single batch operation.
+    ///
+    /// This is optimized for high-throughput ingestion scenarios like sensor data.
+    /// All values are written under the same key, building up a history that can
+    /// be extracted as a tensor with `get_history_tensor()`.
+    ///
+    /// # Arguments
+    /// * `key` - A non-empty UTF-8 string (max 65535 bytes)
+    /// * `values` - Slice of f64 values to append
+    ///
+    /// # Returns
+    /// * `Ok(usize)` - Number of values written
+    /// * `Err(SynaError)` - If any write fails
+    ///
+    /// # Performance
+    /// This method is significantly faster than calling `append()` in a loop because:
+    /// - Single mutex lock for all writes
+    /// - Single fsync at the end (if sync_on_write is enabled)
+    /// - Reduced FFI overhead when called from Python
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use synadb::SynaDB;
+    ///
+    /// let mut db = SynaDB::new("sensors.db").unwrap();
+    /// let readings = vec![23.5, 23.6, 23.7, 23.8];
+    /// let count = db.append_floats_batch("sensor/temp", &readings).unwrap();
+    /// assert_eq!(count, 4);
+    /// ```
+    pub fn append_floats_batch(&mut self, key: &str, values: &[f64]) -> Result<usize> {
+        // Validate key: must be non-empty
+        if key.is_empty() {
+            return Err(SynaError::EmptyKey);
+        }
+
+        // Validate key: must fit in u16 (max 65535 bytes)
+        if key.len() > u16::MAX as usize {
+            return Err(SynaError::KeyTooLong(key.len()));
+        }
+
+        if values.is_empty() {
+            return Ok(0);
+        }
+
+        let _guard = self.write_lock.lock();
+
+        // Seek to end once
+        self.file.seek(SeekFrom::End(0))?;
+
+        for &value in values {
+            let atom = Atom::Float(value);
+
+            // Check for delta compression opportunity
+            let (value_to_store, mut flags) = if self.config.enable_delta {
+                if let Some(Atom::Float(previous)) = self.previous_values.get(key) {
+                    let delta = encode_delta(value, *previous);
+                    (Atom::Float(delta), IS_DELTA)
+                } else {
+                    (atom.clone(), 0u8)
+                }
+            } else {
+                (atom.clone(), 0u8)
+            };
+
+            // Serialize the value
+            let value_bytes = bincode::serialize(&value_to_store)?;
+
+            // Optionally compress
+            let final_bytes = if self.config.enable_compression && should_compress(&value_bytes) {
+                flags |= IS_COMPRESSED;
+                compress(&value_bytes)
+            } else {
+                value_bytes
+            };
+
+            // Build header
+            let header = LogHeader::new(key.len() as u16, final_bytes.len() as u32, flags);
+
+            // Record offset before writing
+            let offset = self.file_len;
+
+            // Write header + key + value
+            self.file.write_all(&header.to_bytes())?;
+            self.file.write_all(key.as_bytes())?;
+            self.file.write_all(&final_bytes)?;
+
+            // Update indexes
+            self.latest.insert(key.to_string(), offset);
+            self.index.entry(key.to_string()).or_default().push(offset);
+            self.deleted.remove(key);
+
+            // Update cached file length
+            self.file_len += HEADER_SIZE as u64 + key.len() as u64 + final_bytes.len() as u64;
+
+            // Store original value for delta compression
+            self.previous_values.insert(key.to_string(), atom);
+        }
+
+        // Single sync at the end if configured
+        if self.config.sync_on_write {
+            self.file.sync_data()?;
+        }
+
+        Ok(values.len())
     }
 
     /// Retrieves the latest value for a key.

@@ -118,8 +118,8 @@ pub enum SynaError {
     #[error("Key too long: {0} bytes (max 65535)")]
     KeyTooLong(usize),
 
-    /// Invalid vector dimensions (must be 64-4096).
-    #[error("Invalid dimensions: {0} (must be 64-4096)")]
+    /// Invalid vector dimensions (must be 64-8192).
+    #[error("Invalid dimensions: {0} (must be 64-8192)")]
     InvalidDimensions(u16),
 
     /// Vector dimension mismatch.

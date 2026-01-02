@@ -452,6 +452,30 @@ int32_t SYNA_vector_store_search(const char* path, const float* query,
                                   uint16_t dimensions, size_t k, char** out_json);
 
 /**
+ * Closes a vector store and saves any pending changes.
+ * 
+ * This removes the store from the global registry and saves the HNSW
+ * index to disk if it has unsaved changes.
+ * 
+ * @param path  Null-terminated path to the database file
+ * @return      SYNA_SUCCESS on success, error code on failure
+ * 
+ * @note After closing, the store cannot be used until reopened with
+ *       SYNA_vector_store_new().
+ */
+int32_t SYNA_vector_store_close(const char* path);
+
+/**
+ * Flushes any pending changes to disk without closing the store.
+ * 
+ * This saves the HNSW index if it has unsaved changes.
+ * 
+ * @param path  Null-terminated path to the database file
+ * @return      SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_vector_store_flush(const char* path);
+
+/**
  * Frees a JSON string allocated by SYNA_vector_store_search().
  * 
  * @param json  Pointer returned by SYNA_vector_store_search() in out_json
