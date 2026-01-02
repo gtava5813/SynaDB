@@ -94,7 +94,7 @@ proptest! {
         // Insert vectors
         let mut vectors: Vec<(String, Vec<f32>)> = Vec::new();
         for i in 0..n_vectors {
-            let vec: Vec<f32> = (0..64).map(|j| (i as f32 + j as f32 * 0.01)).collect();
+            let vec: Vec<f32> = (0..64).map(|j| i as f32 + j as f32 * 0.01).collect();
             let key = format!("e{}", i);
             store.insert(&key, &vec).unwrap();
             vectors.push((key, vec));

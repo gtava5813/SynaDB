@@ -413,3 +413,183 @@ metrics = tracker.get_metric(run_id: str, metric_name: str) -> List[Tuple[int, f
 | `Completed` | Run finished successfully |
 | `Failed` | Run encountered error |
 | `Killed` | Run manually terminated |
+
+
+---
+
+## MmapVectorStore (Python)
+
+Ultra-high-throughput vector storage using memory-mapped files.
+
+```python
+from synadb import MmapVectorStore
+
+# Create store with pre-allocated capacity
+store = MmapVectorStore(
+    path: str,
+    dimensions: int,
+    initial_capacity: int = 100000,
+    metric: str = "cosine"
+)
+
+# Insert single vector
+store.insert(key: str, vector: np.ndarray) -> None
+
+# Insert batch (490K vectors/sec for 768 dims)
+store.insert_batch(keys: List[str], vectors: np.ndarray) -> None
+
+# Build HNSW index
+store.build_index() -> None
+
+# Search for similar vectors
+store.search(query: np.ndarray, k: int = 10) -> List[SearchResult]
+
+# Get vector by key
+store.get(key: str) -> Optional[np.ndarray]
+
+# Checkpoint to disk
+store.checkpoint() -> None
+
+# Close store
+store.close() -> None
+
+# Properties
+len(store) -> int
+store.dimensions -> int
+```
+
+### Performance Comparison
+
+| Aspect | VectorStore | MmapVectorStore |
+|--------|-------------|-----------------|
+| Write speed | ~67K/sec | ~490K/sec |
+| Durability | Per-write | Checkpoint |
+| Capacity | Dynamic | Pre-allocated |
+
+### Usage Example
+
+```python
+from synadb import MmapVectorStore
+import numpy as np
+
+# Create store for 100K vectors
+store = MmapVectorStore("vectors.mmap", dimensions=768, initial_capacity=100000)
+
+# Batch insert (fastest)
+keys = [f"doc_{i}" for i in range(10000)]
+vectors = np.random.randn(10000, 768).astype(np.float32)
+store.insert_batch(keys, vectors)  # 490K vectors/sec
+
+# Build HNSW index for fast search
+store.build_index()
+
+# Search
+query = np.random.randn(768).astype(np.float32)
+results = store.search(query, k=10)
+
+# Checkpoint to persist
+store.checkpoint()
+store.close()
+```
+
+---
+
+## GravityWellIndex (Python)
+
+Novel append-only vector index with O(N) build time.
+
+```python
+from synadb import GravityWellIndex
+
+# Create index
+gwi = GravityWellIndex(
+    path: str,
+    dimensions: int,
+    num_attractors: int = 256,
+    metric: str = "cosine"
+)
+
+# Initialize attractors from sample vectors (required before insert)
+gwi.initialize(sample_vectors: np.ndarray) -> None
+
+# Insert single vector
+gwi.insert(key: str, vector: np.ndarray) -> None
+
+# Insert batch
+gwi.insert_batch(keys: List[str], vectors: np.ndarray) -> None
+
+# Search with tunable recall
+gwi.search(
+    query: np.ndarray,
+    k: int = 10,
+    nprobe: int = 50  # Higher = better recall, slower
+) -> List[SearchResult]
+
+# Get vector by key
+gwi.get(key: str) -> Optional[np.ndarray]
+
+# Close index
+gwi.close() -> None
+
+# Properties
+len(gwi) -> int
+gwi.dimensions -> int
+```
+
+### Recall vs nprobe
+
+| nprobe | Recall@10 | Latency |
+|--------|-----------|---------|
+| 3 | ~50% | 0.23ms |
+| 10 | ~70% | 0.37ms |
+| 30 | ~90% | 0.59ms |
+| 50 | ~98% | 0.68ms |
+| 100 | ~100% | 0.86ms |
+
+### Build Time Comparison
+
+| Dataset | GWI Build | HNSW Build | Speedup |
+|---------|-----------|------------|---------|
+| 10K × 384 | 1.0s | 8.8s | 8.6x |
+| 10K × 768 | 2.1s | 18.4s | 8.9x |
+| 50K × 384 | 1.5s | 272s | 186x |
+| 50K × 768 | 3.0s | 504s | 169x |
+
+### Usage Example
+
+```python
+from synadb import GravityWellIndex
+import numpy as np
+
+# Create index
+gwi = GravityWellIndex("vectors.gwi", dimensions=768)
+
+# Initialize with sample vectors (use ~1000 representative samples)
+sample = np.random.randn(1000, 768).astype(np.float32)
+gwi.initialize(sample)
+
+# Insert vectors
+keys = [f"doc_{i}" for i in range(50000)]
+vectors = np.random.randn(50000, 768).astype(np.float32)
+gwi.insert_batch(keys, vectors)
+
+# Search with 98% recall
+query = np.random.randn(768).astype(np.float32)
+results = gwi.search(query, k=10, nprobe=50)
+
+for r in results:
+    print(f"{r.key}: {r.score:.4f}")
+
+gwi.close()
+```
+
+### When to Use GWI vs HNSW
+
+| Use Case | Recommended |
+|----------|-------------|
+| Index build time critical | GWI |
+| Streaming/real-time data | GWI |
+| Append-only storage required | GWI |
+| Search latency critical | HNSW |
+| Index built once, queried many times | HNSW |
+| Highest recall required | HNSW |

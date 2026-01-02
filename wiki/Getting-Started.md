@@ -231,17 +231,28 @@ config = DbConfig(
 db = SynaDB("data.db", config=config)
 ```
 
-### 3. Use HNSW for Large Vector Collections
+### 3. Choose the Right Vector Store
 
-For vector stores with >10,000 vectors, HNSW provides O(log N) search:
+SynaDB offers multiple vector storage options:
+
+| Store | Best For | Write Speed | Build Time |
+|-------|----------|-------------|------------|
+| `VectorStore` | General use | 67K/sec | O(N²) HNSW |
+| `MmapVectorStore` | High throughput | 490K/sec | O(N²) HNSW |
+| `GravityWellIndex` | Fast build | 90K/sec | O(N) |
 
 ```python
-from synadb import VectorStore
+from synadb import VectorStore, MmapVectorStore, GravityWellIndex
 
-# HNSW is automatically enabled for large collections
+# General use
 store = VectorStore("vectors.db", dimensions=768)
 
-# For 1M vectors: ~5-10ms search time vs ~100ms brute force
+# High-throughput ingestion
+store = MmapVectorStore("vectors.mmap", dimensions=768, initial_capacity=100000)
+
+# Fast index build (168x faster than HNSW at 50K vectors)
+gwi = GravityWellIndex("vectors.gwi", dimensions=768)
+gwi.initialize(sample_vectors)  # Required for GWI
 ```
 
 ### 4. Tune HNSW Parameters
@@ -277,7 +288,7 @@ engine = TensorEngine("data.db")
 data, shape = engine.get_tensor("sensor/*")
 ```
 
-### 6. Compact Periodically
+### 7. Compact Periodically
 
 After many deletes, compact to reclaim space:
 
@@ -286,7 +297,7 @@ After many deletes, compact to reclaim space:
 db.compact()
 ```
 
-### 7. Use Multiple Databases for Parallelism
+### 8. Use Multiple Databases for Parallelism
 
 For read-heavy workloads, split data across multiple databases:
 

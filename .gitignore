@@ -4,6 +4,11 @@
 **/*.rs.bk
 Cargo.lock
 
+# Database files
+*.db
+databases/*
+!databases/.gitkeep
+
 # IDE
 .idea/
 .vscode/

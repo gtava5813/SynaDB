@@ -19,7 +19,9 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 - **Schema-free** - Store heterogeneous data types without migrations
 - **AI/ML optimized** - Extract time-series data as contiguous tensors for PyTorch/TensorFlow
 - **Vector Store** - Native embedding storage with HNSW index for similarity search
+- **MmapVectorStore** - Ultra-high-throughput vector storage (490K vectors/sec)
 - **HNSW Index** - O(log N) approximate nearest neighbor search
+- **Gravity Well Index** - Novel O(N) build time index (168x faster than HNSW)
 - **Tensor Engine** - Batch tensor operations with chunked storage
 - **Model Registry** - Version models with SHA-256 checksum verification
 - **Experiment Tracking** - Log parameters, metrics, and artifacts
@@ -40,7 +42,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 
 ```toml
 [dependencies]
-synadb = "1.0.3"
+synadb = "1.0.5"
 ```
 
 ### Python
@@ -337,6 +339,76 @@ let mut index = HnswIndex::new(768, DistanceMetric::Cosine, config);
 | `m_max` | 32 | Max connections at higher layers (2×M) |
 | `ef_construction` | 200 | Build quality (100-500 typical) |
 | `ef_search` | 100 | Search quality (50-500 typical) |
+
+### MmapVectorStore
+
+For ultra-high-throughput vector ingestion (490K vectors/sec), use MmapVectorStore:
+
+```python
+from synadb import MmapVectorStore
+import numpy as np
+
+# Create store with pre-allocated capacity
+store = MmapVectorStore("vectors.mmap", dimensions=768, initial_capacity=100000)
+
+# Batch insert - 7x faster than VectorStore
+keys = [f"doc_{i}" for i in range(10000)]
+vectors = np.random.randn(10000, 768).astype(np.float32)
+store.insert_batch(keys, vectors)  # 490K vectors/sec
+
+# Build HNSW index
+store.build_index()
+
+# Search
+results = store.search(query_embedding, k=10)
+
+# Checkpoint to persist (not per-write like VectorStore)
+store.checkpoint()
+store.close()
+```
+
+| Aspect | VectorStore | MmapVectorStore |
+|--------|-------------|-----------------|
+| Write speed | ~67K/sec | ~490K/sec |
+| Durability | Per-write | Checkpoint |
+| Capacity | Dynamic | Pre-allocated |
+
+### Gravity Well Index (GWI)
+
+For scenarios where index build time is critical, GWI provides O(N) build time (168x faster than HNSW at 50K vectors):
+
+```python
+from synadb import GravityWellIndex
+import numpy as np
+
+# Create index
+gwi = GravityWellIndex("vectors.gwi", dimensions=768)
+
+# Initialize with sample vectors (required)
+sample = np.random.randn(1000, 768).astype(np.float32)
+gwi.initialize(sample)
+
+# Insert vectors - O(N) total build time
+keys = [f"doc_{i}" for i in range(50000)]
+vectors = np.random.randn(50000, 768).astype(np.float32)
+gwi.insert_batch(keys, vectors)
+
+# Search with tunable recall (nprobe=50 gives 98% recall)
+results = gwi.search(query_embedding, k=10, nprobe=50)
+```
+
+**GWI vs HNSW Build Time:**
+
+| Dataset | GWI | HNSW | Speedup |
+|---------|-----|------|---------|
+| 10K × 768 | 2.1s | 18.4s | 8.9x |
+| 50K × 768 | 3.0s | 504s | 168x |
+
+**When to use which:**
+- **VectorStore**: General use, good all-around
+- **MmapVectorStore**: High-throughput ingestion, large datasets
+- **GWI**: Build time critical, streaming/real-time data
+- **FAISS**: Billion-scale, GPU acceleration
 
 ## Tensor Engine
 

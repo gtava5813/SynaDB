@@ -30,6 +30,7 @@ pip install synadb[all]       # Everything
 | Feature | Description |
 |---------|-------------|
 | **Vector Store** | Embedding storage with similarity search (cosine, euclidean, dot product) |
+| **MmapVectorStore** | Ultra-high-throughput vector storage (490K vectors/sec) |
 | **HNSW Index** | O(log N) approximate nearest neighbor search for large-scale vectors |
 | **Tensor Engine** | Batch tensor operations for ML data loading |
 | **Model Registry** | Version and stage ML models with checksum verification |
@@ -95,6 +96,57 @@ for r in results:
 - `dot_product` - Maximum inner product search
 
 **Supported Dimensions:** 64-4096 (covers MiniLM, BERT, OpenAI ada-002, etc.)
+
+**High-Throughput Mode:**
+
+```python
+# Disable sync for 456x faster writes (use for bulk ingestion)
+store = VectorStore("vectors.db", dimensions=768, sync_on_write=False)
+
+# Context manager support (auto-saves index on exit)
+with VectorStore("vectors.db", dimensions=768) as store:
+    store.insert("doc1", embedding)
+# Index automatically saved
+```
+
+### MmapVectorStore (Ultra-High-Throughput)
+
+For maximum write throughput (490K vectors/sec):
+
+```python
+from synadb import MmapVectorStore
+import numpy as np
+
+# Pre-allocate capacity for best performance
+store = MmapVectorStore("vectors.mmap", dimensions=768, initial_capacity=100_000)
+
+# Batch insert for maximum throughput
+keys = [f"doc_{i}" for i in range(10000)]
+vectors = np.random.randn(10000, 768).astype(np.float32)
+store.insert_batch(keys, vectors)  # 490K vectors/sec
+
+# Build index for fast search
+store.build_index()
+
+# Search
+results = store.search(query, k=10)  # 0.6ms
+```
+
+**Benchmark Results (10,000 vectors):**
+
+| Model | Dims | Write/sec | Search | Storage |
+|-------|------|-----------|--------|---------|
+| MiniLM | 384 | 766,642 | 0.3ms | 18.8MB |
+| BERT | 768 | 489,733 | 0.6ms | 34.9MB |
+| OpenAI ada-002 | 1536 | 278,369 | 1.4ms | 67.2MB |
+
+**Trade-offs vs VectorStore:**
+
+| Aspect | VectorStore | MmapVectorStore |
+|--------|-------------|-----------------|
+| Write speed | ~67K/sec | ~490K/sec |
+| Durability | Per-write | Checkpoint |
+| Capacity | Dynamic | Pre-allocated |
 
 ### Tensor Engine (ML Data Loading)
 
@@ -437,7 +489,8 @@ SynaDB is optimized for AI/ML workloads:
 
 | Operation | Performance | Notes |
 |-----------|-------------|-------|
-| Vector insert | 100K+ vectors/sec | 768-dim, float32 |
+| Vector insert (VectorStore) | 67K vectors/sec | 768-dim, sync_on_write=False |
+| Vector insert (MmapVectorStore) | 490K vectors/sec | 768-dim, batch insert |
 | Vector search (1M) | <10ms | Top-10, HNSW index |
 | Tensor load | 1+ GB/s | NVMe SSD |
 | Experiment log | <100μs | Single metric |
@@ -485,13 +538,36 @@ db.import_parquet(path, key_prefix="") -> int
 ```python
 from synadb import VectorStore
 
-store = VectorStore(path, dimensions, metric="cosine")
+store = VectorStore(path, dimensions, metric="cosine", sync_on_write=True)
 
 store.insert(key, vector: np.ndarray)
 store.search(query: np.ndarray, k=10) -> List[SearchResult]
 store.get(key) -> Optional[np.ndarray]
 store.delete(key)
 store.build_index()  # Build HNSW for large datasets
+store.flush()  # Save index without closing
+store.close()  # Close and save
+len(store) -> int
+
+# Context manager support
+with VectorStore(path, dimensions) as store:
+    store.insert(key, vector)
+# Auto-saved on exit
+```
+
+### MmapVectorStore
+
+```python
+from synadb import MmapVectorStore
+
+store = MmapVectorStore(path, dimensions, initial_capacity=10000)
+
+store.insert(key, vector: np.ndarray)
+store.insert_batch(keys: List[str], vectors: np.ndarray)  # 490K/sec
+store.search(query: np.ndarray, k=10) -> List[SearchResult]
+store.get(key) -> Optional[np.ndarray]
+store.build_index()
+store.checkpoint()  # Save to disk
 len(store) -> int
 ```
 

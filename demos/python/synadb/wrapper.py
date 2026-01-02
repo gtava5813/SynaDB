@@ -54,18 +54,28 @@ def _find_library() -> str:
         lib_name = "libsynadb.so"
         lib_names = ["libsynadb.so"]
     
+    # Get the workspace root (demos/python/synadb/wrapper.py -> demos/python/synadb -> demos/python -> demos -> root)
+    wrapper_dir = Path(__file__).parent  # synadb/
+    python_dir = wrapper_dir.parent       # demos/python/
+    demos_dir = python_dir.parent         # demos/
+    workspace_root = demos_dir.parent     # root
+    
     # Search paths for each library name variant
     for lib in lib_names:
         search_paths = [
             # Inside installed package (pip install synadb)
-            Path(__file__).parent / lib,
-            # Relative to this file (development)
-            Path(__file__).parent.parent.parent.parent / "target" / "release" / lib_name,
-            Path(__file__).parent.parent.parent.parent / "target" / "debug" / lib_name,
+            wrapper_dir / lib,
+            # Workspace root target directories (development)
+            workspace_root / "target" / "release" / lib_name,
+            workspace_root / "target" / "debug" / lib_name,
             # Current directory
             Path.cwd() / lib,
             Path.cwd() / "target" / "release" / lib_name,
             Path.cwd() / "target" / "debug" / lib_name,
+            # Walk up from cwd looking for target/release
+            Path.cwd().parent / "target" / "release" / lib_name,
+            Path.cwd().parent.parent / "target" / "release" / lib_name,
+            Path.cwd().parent.parent.parent / "target" / "release" / lib_name,
         ]
         
         for path in search_paths:
@@ -157,13 +167,24 @@ class SynaDB:
         
         cls._lib.SYNA_free_bytes.argtypes = [POINTER(c_uint8), c_size_t]
         cls._lib.SYNA_free_bytes.restype = None
+        
+        # New: open with config for sync_on_write control
+        cls._lib.SYNA_open_with_config.argtypes = [c_char_p, c_int32]
+        cls._lib.SYNA_open_with_config.restype = c_int32
+        
+        # New: batch write for high-throughput ingestion
+        cls._lib.SYNA_put_floats_batch.argtypes = [c_char_p, c_char_p, POINTER(c_double), c_size_t]
+        cls._lib.SYNA_put_floats_batch.restype = c_int64
     
-    def __init__(self, path: str):
+    def __init__(self, path: str, sync_on_write: bool = True):
         """
         Open or create a database at the given path.
         
         Args:
             path: Path to the database file
+            sync_on_write: If True (default), sync to disk after each write for
+                durability. Set to False for high-throughput scenarios (100K+ ops/sec)
+                at the risk of data loss on crash.
             
         Raises:
             SynaError: If the database cannot be opened
@@ -172,7 +193,12 @@ class SynaDB:
         self._path = path.encode('utf-8')
         self._closed = False
         
-        result = self._lib.SYNA_open(self._path)
+        # Use config-based open if sync_on_write is False
+        if sync_on_write:
+            result = self._lib.SYNA_open(self._path)
+        else:
+            result = self._lib.SYNA_open_with_config(self._path, 0)  # 0 = no sync
+        
         if result != 1:
             raise SynaError(result, f"Failed to open database: {path}")
     
@@ -219,6 +245,50 @@ class SynaDB:
         if result < 0:
             raise SynaError(int(result))
         return result
+    
+    def put_floats_batch(self, key: str, values: np.ndarray) -> int:
+        """
+        Write multiple float values in a single batch operation.
+        
+        This is optimized for high-throughput ingestion scenarios like sensor data.
+        All values are written under the same key, building up a history that can
+        be extracted as a tensor with `get_history_tensor()`.
+        
+        Args:
+            key: The key (non-empty string, max 65535 bytes)
+            values: numpy array of float values to store
+            
+        Returns:
+            Number of values written
+            
+        Raises:
+            SynaError: If the write fails
+            
+        Performance:
+            This method is significantly faster than calling `put_float()` in a loop:
+            - Single FFI boundary crossing
+            - Single mutex lock for all writes
+            - Single fsync at the end (if sync_on_write is enabled)
+            
+        Example:
+            >>> db = SynaDB("sensors.db", sync_on_write=False)
+            >>> readings = np.array([23.5, 23.6, 23.7, 23.8])
+            >>> count = db.put_floats_batch("sensor/temp", readings)
+            >>> print(count)  # 4
+        """
+        self._check_open()
+        # Ensure contiguous float64 array
+        arr = np.ascontiguousarray(values, dtype=np.float64)
+        ptr = arr.ctypes.data_as(POINTER(c_double))
+        result = self._lib.SYNA_put_floats_batch(
+            self._path,
+            key.encode('utf-8'),
+            ptr,
+            len(arr)
+        )
+        if result < 0:
+            raise SynaError(int(result))
+        return int(result)
     
     def put_int(self, key: str, value: int) -> int:
         """

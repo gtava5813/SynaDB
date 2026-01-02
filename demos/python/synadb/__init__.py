@@ -124,6 +124,8 @@ For data export/import:
 from .wrapper import SynaDB, SynaError
 from .experience import ExperienceCollector, Transition, SessionContext
 from .vector import VectorStore, SearchResult
+from .mmap_vector import MmapVectorStore, MmapSearchResult
+from .gwi import GravityWellIndex, GwiSearchResult
 from .tensor import TensorEngine
 from .models import ModelRegistry, ModelVersion, ModelStage
 from .experiment import Experiment, Run, RunStatus
@@ -340,6 +342,10 @@ __all__ = [
     "SessionContext",
     "VectorStore",
     "SearchResult",
+    "MmapVectorStore",
+    "MmapSearchResult",
+    "GravityWellIndex",
+    "GwiSearchResult",
     "TensorEngine",
     "ModelRegistry",
     "ModelVersion",

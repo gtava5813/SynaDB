@@ -8,7 +8,7 @@
 //!
 //! # Features
 //!
-//! - Store vectors with dimensions from 64 to 4096
+//! - Store vectors with dimensions from 64 to 8192
 //! - Brute-force k-nearest neighbor search for small datasets
 //! - HNSW index for fast approximate nearest neighbor search on large datasets
 //! - Support for cosine, euclidean, and dot product distance metrics
@@ -39,7 +39,9 @@
 //! let results = store.search(&query, 5).unwrap();
 //! ```
 
+use std::collections::HashSet;
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 use crate::distance::DistanceMetric;
 use crate::engine::SynaDB;
@@ -63,12 +65,14 @@ use crate::types::Atom;
 ///     key_prefix: "embeddings/".to_string(),
 ///     index_threshold: 10000,
 ///     backend: IndexBackend::default(),
+///     sync_on_write: true,
+///     checkpoint_interval_secs: 30,
 /// };
 /// ```
 #[derive(Debug, Clone)]
 pub struct VectorConfig {
-    /// Number of dimensions (64-4096).
-    /// Common values: 384 (MiniLM), 768 (BERT), 1536 (OpenAI ada-002).
+    /// Number of dimensions (64-8192).
+    /// Common values: 384 (MiniLM), 768 (BERT), 1536 (OpenAI ada-002), 7168 (DeepSeek-V3).
     pub dimensions: u16,
     /// Distance metric for similarity search.
     /// Lower distance = more similar for all metrics.
@@ -85,6 +89,14 @@ pub struct VectorConfig {
     ///
     /// **Requirements:** 1.5
     pub backend: IndexBackend,
+    /// Sync to disk after every write operation.
+    /// When `true` (default), each write calls `fsync()` for durability.
+    /// Set to `false` for higher throughput at the risk of data loss on crash.
+    pub sync_on_write: bool,
+    /// Interval in seconds between automatic index checkpoints.
+    /// Set to 0 to disable automatic checkpoints (save only on close).
+    /// Default: 30 seconds
+    pub checkpoint_interval_secs: u64,
 }
 
 impl Default for VectorConfig {
@@ -95,6 +107,8 @@ impl Default for VectorConfig {
             key_prefix: "vec/".to_string(),
             index_threshold: 10000,
             backend: IndexBackend::default(),
+            sync_on_write: true,
+            checkpoint_interval_secs: 30,
         }
     }
 }
@@ -172,6 +186,8 @@ pub struct SearchResult {
 /// - FAISS index for billion-scale search and GPU acceleration (requires 'faiss' feature)
 /// - Key prefixing for namespace isolation
 /// - Automatic index building when vector count exceeds threshold
+/// - O(1) key existence checking via HashSet
+/// - Checkpoint-based index persistence for high throughput
 ///
 /// # Example
 ///
@@ -195,10 +211,14 @@ pub struct SearchResult {
 pub struct VectorStore {
     /// Underlying database instance.
     db: SynaDB,
+    /// Path to the database file (used for index file paths).
+    db_path: std::path::PathBuf,
     /// Configuration for this vector store.
     config: VectorConfig,
-    /// Cached vector keys for search (includes prefix).
-    vector_keys: Vec<String>,
+    /// Cached vector keys for search (includes prefix) - O(1) lookup via HashSet.
+    vector_keys: HashSet<String>,
+    /// Ordered list of keys for iteration (maintains insertion order for brute-force search).
+    vector_keys_ordered: Vec<String>,
     /// HNSW index for fast approximate nearest neighbor search.
     /// Built automatically when vector count exceeds `config.index_threshold`.
     hnsw_index: Option<HnswIndex>,
@@ -206,6 +226,12 @@ pub struct VectorStore {
     /// Used when `config.backend` is `IndexBackend::Faiss`.
     #[cfg(feature = "faiss")]
     faiss_index: Option<crate::faiss_index::FaissIndex>,
+    /// Whether the index has unsaved changes.
+    index_dirty: bool,
+    /// Last time the index was checkpointed.
+    last_checkpoint: Instant,
+    /// Checkpoint interval from config.
+    checkpoint_interval: Duration,
 }
 
 impl VectorStore {
@@ -239,19 +265,54 @@ impl VectorStore {
     ///
     /// **Requirements:** 1.5
     pub fn new<P: AsRef<Path>>(path: P, config: VectorConfig) -> Result<Self> {
-        // Validate dimensions
-        if config.dimensions < 64 || config.dimensions > 4096 {
+        // Validate dimensions (64-8192, supports up to DeepSeek-V3's 7168)
+        if config.dimensions < 64 || config.dimensions > 8192 {
             return Err(SynaError::InvalidDimensions(config.dimensions));
         }
 
-        let db = SynaDB::new(path)?;
+        // Store the path for index file operations
+        let db_path = path.as_ref().to_path_buf();
 
-        // Load existing vector keys from the database
-        let vector_keys = db
+        // Create database with sync_on_write config
+        let db_config = crate::engine::DbConfig {
+            sync_on_write: config.sync_on_write,
+            ..Default::default()
+        };
+        let db = SynaDB::with_config(&db_path, db_config)?;
+
+        // Load existing vector keys from the database into both HashSet and Vec
+        let vector_keys_ordered: Vec<String> = db
             .keys()
             .into_iter()
             .filter(|k| k.starts_with(&config.key_prefix))
             .collect();
+        let vector_keys: HashSet<String> = vector_keys_ordered.iter().cloned().collect();
+
+        // Try to load existing HNSW index if backend supports it
+        let hnsw_index = match &config.backend {
+            IndexBackend::Hnsw(_) | IndexBackend::None => {
+                let hnsw_path = Self::hnsw_index_path(&db_path);
+                if hnsw_path.exists() {
+                    // Try to load existing index, validating dimensions and metric
+                    match HnswIndex::load_validated(&hnsw_path, config.dimensions, config.metric) {
+                        Ok(index) => {
+                            // Verify index has expected number of vectors
+                            if index.len() == vector_keys.len() {
+                                Some(index)
+                            } else {
+                                // Index is stale, will rebuild if needed
+                                None
+                            }
+                        }
+                        Err(_) => None, // Index corrupted or incompatible, will rebuild
+                    }
+                } else {
+                    None
+                }
+            }
+            #[cfg(feature = "faiss")]
+            IndexBackend::Faiss(_) => None, // FAISS manages its own index
+        };
 
         // Initialize FAISS index if configured (feature-gated)
         #[cfg(feature = "faiss")]
@@ -264,14 +325,33 @@ impl VectorStore {
             _ => None,
         };
 
+        // Set up checkpoint interval
+        let checkpoint_interval = Duration::from_secs(config.checkpoint_interval_secs);
+
         Ok(Self {
             db,
+            db_path,
             config,
             vector_keys,
-            hnsw_index: None,
+            vector_keys_ordered,
+            hnsw_index,
             #[cfg(feature = "faiss")]
             faiss_index,
+            index_dirty: false,
+            last_checkpoint: Instant::now(),
+            checkpoint_interval,
         })
+    }
+
+    /// Returns the path to the HNSW index file for a given database path.
+    fn hnsw_index_path(db_path: &Path) -> std::path::PathBuf {
+        let mut hnsw_path = db_path.to_path_buf();
+        let extension = match hnsw_path.extension() {
+            Some(ext) => format!("{}.hnsw", ext.to_string_lossy()),
+            None => "hnsw".to_string(),
+        };
+        hnsw_path.set_extension(extension);
+        hnsw_path
     }
 
     /// Inserts a vector with the given key.
@@ -309,11 +389,308 @@ impl VectorStore {
 
         self.db.append(&full_key, atom)?;
 
-        // Update cache if this is a new key
-        if !self.vector_keys.contains(&full_key) {
-            self.vector_keys.push(full_key);
+        // O(1) key existence check via HashSet
+        let is_new_key = self.vector_keys.insert(full_key.clone());
+        if is_new_key {
+            self.vector_keys_ordered.push(full_key.clone());
         }
 
+        // If we have an HNSW index, add the new vector incrementally using search-based insertion
+        if self.hnsw_index.is_some() && is_new_key {
+            // Use true incremental insert with O(log N) neighbor finding
+            self.insert_to_hnsw_incremental(&full_key, vector);
+            self.index_dirty = true;
+        } else if self.hnsw_index.is_none() {
+            // Check if we should build the index (auto-build when threshold reached)
+            // Only build for HNSW backend when threshold is configured
+            if matches!(self.config.backend, IndexBackend::Hnsw(_))
+                && self.config.index_threshold > 0
+                && self.vector_keys.len() >= self.config.index_threshold
+            {
+                self.build_index()?;
+            }
+        }
+
+        // Checkpoint if interval elapsed and we have dirty changes
+        if self.index_dirty 
+            && self.checkpoint_interval.as_secs() > 0
+            && self.last_checkpoint.elapsed() >= self.checkpoint_interval 
+        {
+            self.checkpoint_index()?;
+        }
+
+        Ok(())
+    }
+
+    /// Inserts multiple vectors in a single batch operation.
+    /// 
+    /// This is significantly faster than calling `insert()` in a loop because:
+    /// - Single lock acquisition for all inserts
+    /// - Deferred index building until after all vectors are inserted
+    /// - Reduced FFI overhead when called from Python
+    ///
+    /// # Arguments
+    ///
+    /// * `keys` - Slice of key strings
+    /// * `vectors` - Slice of vector slices (each must match configured dimensions)
+    ///
+    /// # Returns
+    ///
+    /// Number of vectors successfully inserted.
+    ///
+    /// # Errors
+    ///
+    /// * `SynaError::DimensionMismatch` - If any vector length doesn't match configured dimensions
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use synadb::vector::{VectorStore, VectorConfig};
+    ///
+    /// let mut store = VectorStore::new("vectors.db", VectorConfig::default()).unwrap();
+    /// let keys = vec!["doc1", "doc2", "doc3"];
+    /// let embeddings: Vec<Vec<f32>> = vec![vec![0.1f32; 768]; 3];
+    /// let refs: Vec<&[f32]> = embeddings.iter().map(|v| v.as_slice()).collect();
+    /// let count = store.insert_batch(&keys, &refs).unwrap();
+    /// ```
+    pub fn insert_batch(&mut self, keys: &[&str], vectors: &[&[f32]]) -> Result<usize> {
+        if keys.len() != vectors.len() {
+            return Err(SynaError::ShapeMismatch {
+                data_size: vectors.len(),
+                expected_size: keys.len(),
+            });
+        }
+
+        let mut inserted = 0;
+        let should_build_index = self.hnsw_index.is_none()
+            && matches!(self.config.backend, IndexBackend::Hnsw(_))
+            && self.config.index_threshold > 0;
+
+        // Phase 1: Insert all vectors to storage (fast, sequential I/O)
+        for (key, vector) in keys.iter().zip(vectors.iter()) {
+            // Validate dimensions
+            if vector.len() != self.config.dimensions as usize {
+                return Err(SynaError::DimensionMismatch {
+                    expected: self.config.dimensions,
+                    got: vector.len() as u16,
+                });
+            }
+
+            let full_key = format!("{}{}", self.config.key_prefix, key);
+            let atom = Atom::Vector(vector.to_vec(), self.config.dimensions);
+
+            self.db.append(&full_key, atom)?;
+
+            // O(1) key existence check via HashSet
+            let is_new_key = self.vector_keys.insert(full_key.clone());
+            if is_new_key {
+                self.vector_keys_ordered.push(full_key.clone());
+                inserted += 1;
+            }
+        }
+
+        // Phase 2: Build or update index after all inserts
+        if should_build_index && self.vector_keys.len() >= self.config.index_threshold {
+            // Build index once after batch insert
+            self.build_index()?;
+        }
+        // Note: When index exists, we skip incremental updates in batch mode
+        // for maximum write throughput. Call build_index() to rebuild after bulk inserts.
+
+        // Checkpoint if needed
+        if self.index_dirty 
+            && self.checkpoint_interval.as_secs() > 0
+            && self.last_checkpoint.elapsed() >= self.checkpoint_interval 
+        {
+            self.checkpoint_index()?;
+        }
+
+        Ok(inserted)
+    }
+
+    /// Inserts multiple vectors with option to skip index updates.
+    /// 
+    /// This is the fastest way to bulk-load vectors. When `update_index` is false,
+    /// vectors are written to storage but not added to the HNSW index. Call
+    /// `build_index()` after all inserts to rebuild the index.
+    ///
+    /// # Arguments
+    ///
+    /// * `keys` - Slice of key strings
+    /// * `vectors` - Slice of vector slices
+    /// * `update_index` - If false, skip index updates for maximum write speed
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use synadb::vector::{VectorStore, VectorConfig};
+    ///
+    /// let mut store = VectorStore::new("vectors.db", VectorConfig::default()).unwrap();
+    /// 
+    /// // Bulk load without index updates (150K+/sec)
+    /// let keys = vec!["doc1", "doc2"];
+    /// let v1 = vec![0.1f32; 768];
+    /// let v2 = vec![0.2f32; 768];
+    /// let vectors: Vec<&[f32]> = vec![&v1, &v2];
+    /// store.insert_batch_fast(&keys, &vectors, false).unwrap();
+    /// 
+    /// // Rebuild index once at the end
+    /// store.build_index().unwrap();
+    /// ```
+    pub fn insert_batch_fast(&mut self, keys: &[&str], vectors: &[&[f32]], update_index: bool) -> Result<usize> {
+        if keys.len() != vectors.len() {
+            return Err(SynaError::ShapeMismatch {
+                data_size: vectors.len(),
+                expected_size: keys.len(),
+            });
+        }
+
+        let mut inserted = 0;
+
+        // Phase 1: Insert all vectors to storage (fast, sequential I/O)
+        for (key, vector) in keys.iter().zip(vectors.iter()) {
+            if vector.len() != self.config.dimensions as usize {
+                return Err(SynaError::DimensionMismatch {
+                    expected: self.config.dimensions,
+                    got: vector.len() as u16,
+                });
+            }
+
+            let full_key = format!("{}{}", self.config.key_prefix, key);
+            let atom = Atom::Vector(vector.to_vec(), self.config.dimensions);
+
+            self.db.append(&full_key, atom)?;
+
+            let is_new_key = self.vector_keys.insert(full_key.clone());
+            if is_new_key {
+                self.vector_keys_ordered.push(full_key);
+                inserted += 1;
+            }
+        }
+
+        // Phase 2: Optionally update index
+        if update_index {
+            let should_build = self.hnsw_index.is_none()
+                && matches!(self.config.backend, IndexBackend::Hnsw(_))
+                && self.config.index_threshold > 0
+                && self.vector_keys.len() >= self.config.index_threshold;
+
+            if should_build {
+                self.build_index()?;
+            }
+        }
+
+        Ok(inserted)
+    }
+
+    /// Inserts a vector into the HNSW index using search-based neighbor finding.
+    /// This is O(log N) instead of O(N) because it uses the HNSW search to find neighbors.
+    fn insert_to_hnsw_incremental(&mut self, key: &str, vector: &[f32]) {
+        use crate::hnsw::HnswNode;
+
+        let index = match self.hnsw_index.as_mut() {
+            Some(idx) => idx,
+            None => return,
+        };
+
+        // Skip if key already exists in index
+        if index.key_to_id.contains_key(key) {
+            return;
+        }
+
+        // Generate a random level for this node
+        let level = index.random_level();
+
+        // Create the node
+        let node = HnswNode::new(key.to_string(), vector.to_vec(), level);
+        let node_id = index.nodes.len();
+
+        // Add to index structures
+        index.nodes.push(node);
+        index.key_to_id.insert(key.to_string(), node_id);
+
+        // If this is the first node, just set it as entry point
+        if node_id == 0 {
+            index.entry_point = Some(node_id);
+            return;
+        }
+
+        // Get HNSW config
+        let m = index.config().m;
+        let m_max = index.config().m_max;
+        let ef_construction = index.config().ef_construction;
+
+        // Start from entry point
+        let mut ep = index.entry_point.unwrap_or(0);
+
+        // Descend from top level to level+1, finding closest node at each level
+        let current_max_level = index.max_level();
+        for lc in ((level + 1)..=current_max_level).rev() {
+            let results = index.search_layer(vector, ep, 1, lc);
+            if !results.is_empty() {
+                ep = results[0].0;
+            }
+        }
+
+        // For each level from min(level, max_level) down to 0, find and connect neighbors
+        let start_level = level.min(current_max_level);
+        for l in (0..=start_level).rev() {
+            // Use HNSW search to find neighbors at this level - O(log N)!
+            let candidates = index.search_layer(vector, ep, ef_construction, l);
+            
+            // Select M best neighbors
+            let max_neighbors = if l == 0 { m } else { m_max };
+            let neighbors: Vec<(usize, f32)> = candidates
+                .into_iter()
+                .take(max_neighbors)
+                .collect();
+
+            // Update entry point for next level
+            if !neighbors.is_empty() {
+                ep = neighbors[0].0;
+            }
+
+            // Add connections to this node
+            if l < index.nodes[node_id].neighbors.len() {
+                index.nodes[node_id].neighbors[l] = neighbors.clone();
+            }
+
+            // Add bidirectional connections
+            for (neighbor_id, dist) in neighbors {
+                if l < index.nodes[neighbor_id].neighbors.len() {
+                    index.nodes[neighbor_id].neighbors[l].push((node_id, dist));
+                    
+                    // Prune if too many neighbors
+                    if index.nodes[neighbor_id].neighbors[l].len() > max_neighbors {
+                        index.nodes[neighbor_id].neighbors[l].sort_by(|a, b| {
+                            a.1.total_cmp(&b.1)
+                        });
+                        index.nodes[neighbor_id].neighbors[l].truncate(max_neighbors);
+                    }
+                }
+            }
+        }
+
+        // Update entry point if this node has a higher level
+        if level > current_max_level || index.entry_point.is_none() {
+            index.entry_point = Some(node_id);
+        }
+    }
+
+    /// Checkpoints the HNSW index to disk.
+    /// Called automatically based on checkpoint_interval, or manually.
+    pub fn checkpoint_index(&mut self) -> Result<()> {
+        if !self.index_dirty {
+            return Ok(());
+        }
+
+        if let Some(ref index) = self.hnsw_index {
+            let hnsw_path = Self::hnsw_index_path(&self.db_path);
+            index.save(&hnsw_path)?;
+        }
+
+        self.index_dirty = false;
+        self.last_checkpoint = Instant::now();
         Ok(())
     }
 
@@ -395,8 +772,8 @@ impl VectorStore {
     fn search_brute_force(&mut self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
         let mut results: Vec<SearchResult> = Vec::new();
 
-        // Clone keys to avoid borrow issues
-        let keys = self.vector_keys.clone();
+        // Use ordered keys for iteration
+        let keys = self.vector_keys_ordered.clone();
 
         for full_key in &keys {
             if let Some(Atom::Vector(vec, _)) = self.db.get(full_key)? {
@@ -525,6 +902,8 @@ impl VectorStore {
     /// This is called automatically when the vector count exceeds `index_threshold`
     /// during insert, but can also be called manually to force index building.
     ///
+    /// The index is automatically saved to a `.hnsw` sidecar file for persistence.
+    ///
     /// # Errors
     ///
     /// * `SynaError::Io` - If reading vectors from the database fails
@@ -547,34 +926,60 @@ impl VectorStore {
             HnswConfig::default(),
         );
 
-        // Clone keys to avoid borrow issues
-        let keys = self.vector_keys.clone();
+        // Use ordered keys for consistent index building
+        let keys = self.vector_keys_ordered.clone();
 
         for full_key in &keys {
             if let Some(Atom::Vector(vec, _)) = self.db.get(full_key)? {
-                // Add node to HNSW index manually since insert() isn't implemented yet
-                // This creates a node but doesn't build the graph connections
-                // The search will still work but won't be as efficient
+                // Add node to HNSW index with proper graph connections
                 self.add_node_to_index(&mut index, full_key, &vec);
             }
         }
 
+        // Save index to disk for persistence
+        let hnsw_path = Self::hnsw_index_path(&self.db_path);
+        index.save(&hnsw_path)?;
+
         self.hnsw_index = Some(index);
+        self.index_dirty = false;
+        self.last_checkpoint = Instant::now();
         Ok(())
     }
 
-    /// Helper to add a node to the HNSW index.
+    /// Saves the current HNSW index to disk.
     ///
-    /// Note: This is a simplified version that adds nodes without full HNSW
-    /// graph construction. When task 6.2 (HNSW insert) is complete, this
-    /// should be replaced with proper index.insert() calls.
+    /// This is called automatically after `build_index()`, but can be called
+    /// manually to persist incremental changes.
+    ///
+    /// # Errors
+    ///
+    /// * `SynaError::Io` - If writing the index file fails
+    /// * `SynaError::CorruptedIndex` - If no index exists to save
+    pub fn save_index(&self) -> Result<()> {
+        let index = self.hnsw_index.as_ref()
+            .ok_or_else(|| SynaError::CorruptedIndex("No HNSW index to save".to_string()))?;
+        
+        let hnsw_path = Self::hnsw_index_path(&self.db_path);
+        index.save(&hnsw_path)?;
+        Ok(())
+    }
+
+    /// Helper to add a node to the HNSW index during build_index().
+    ///
+    /// This builds proper HNSW graph connections with multiple levels
+    /// for efficient O(log N) search.
     fn add_node_to_index(&self, index: &mut HnswIndex, key: &str, vector: &[f32]) {
         use crate::hnsw::HnswNode;
 
-        // Generate a random level for this node
-        let level = 0; // For now, all nodes at level 0 until insert is implemented
+        // Skip if key already exists
+        if index.key_to_id.contains_key(key) {
+            return;
+        }
 
-        // Create the node
+        // Generate a random level for this node (exponential distribution)
+        let level = index.random_level();
+
+        // Create the node with neighbor lists for each level
         let node = HnswNode::new(key.to_string(), vector.to_vec(), level);
         let node_id = index.nodes.len();
 
@@ -582,30 +987,50 @@ impl VectorStore {
         index.nodes.push(node);
         index.key_to_id.insert(key.to_string(), node_id);
 
-        // Set entry point if this is the first node
-        if index.entry_point.is_none() {
+        // Update entry point if this is the first node or has higher level
+        let current_max_level = index.max_level();
+        if index.entry_point.is_none() || level > current_max_level {
             index.entry_point = Some(node_id);
+            index.set_max_level(level);
         }
 
-        // Connect to existing nodes at level 0 (simple approach)
-        // This creates a basic graph structure for search to work
+        // Connect to existing nodes at each level this node exists at
         if node_id > 0 {
             let m = index.config().m;
-            let mut neighbors = Vec::new();
+            let m_max = index.config().m_max;
 
-            // Find closest nodes to connect to (up to M neighbors)
-            let mut distances: Vec<(usize, f32)> = (0..node_id)
-                .map(|id| (id, index.metric().distance(vector, &index.nodes[id].vector)))
-                .collect();
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+            for l in 0..=level {
+                let max_neighbors = if l == 0 { m } else { m_max };
+                let mut neighbors = Vec::new();
 
-            for (neighbor_id, dist) in distances.into_iter().take(m) {
-                neighbors.push((neighbor_id, dist));
-                // Add bidirectional connection
-                index.nodes[neighbor_id].neighbors[0].push((node_id, dist));
+                // Find closest nodes at this level
+                let mut distances: Vec<(usize, f32)> = index.nodes.iter()
+                    .enumerate()
+                    .filter(|(id, n)| *id != node_id && n.neighbors.len() > l)
+                    .map(|(id, n)| (id, index.metric().distance(vector, &n.vector)))
+                    .collect();
+                distances.sort_by(|a, b| a.1.total_cmp(&b.1));
+
+                for (neighbor_id, dist) in distances.into_iter().take(max_neighbors) {
+                    neighbors.push((neighbor_id, dist));
+                    
+                    // Add bidirectional connection
+                    if l < index.nodes[neighbor_id].neighbors.len() {
+                        index.nodes[neighbor_id].neighbors[l].push((node_id, dist));
+                        
+                        // Prune neighbor's connections if exceeding limit
+                        if index.nodes[neighbor_id].neighbors[l].len() > max_neighbors {
+                            index.nodes[neighbor_id].neighbors[l]
+                                .sort_by(|a, b| a.1.total_cmp(&b.1));
+                            index.nodes[neighbor_id].neighbors[l].truncate(max_neighbors);
+                        }
+                    }
+                }
+
+                if l < index.nodes[node_id].neighbors.len() {
+                    index.nodes[node_id].neighbors[l] = neighbors;
+                }
             }
-
-            index.nodes[node_id].neighbors[0] = neighbors;
         }
     }
 
@@ -650,7 +1075,8 @@ impl VectorStore {
     pub fn delete(&mut self, key: &str) -> Result<()> {
         let full_key = format!("{}{}", self.config.key_prefix, key);
         self.db.delete(&full_key)?;
-        self.vector_keys.retain(|k| k != &full_key);
+        self.vector_keys.remove(&full_key);
+        self.vector_keys_ordered.retain(|k| k != &full_key);
         Ok(())
     }
 
@@ -664,6 +1090,11 @@ impl VectorStore {
         self.vector_keys.is_empty()
     }
 
+    /// Returns whether the index has unsaved changes.
+    pub fn is_dirty(&self) -> bool {
+        self.index_dirty
+    }
+
     /// Returns the configured dimensions.
     pub fn dimensions(&self) -> u16 {
         self.config.dimensions
@@ -672,6 +1103,23 @@ impl VectorStore {
     /// Returns the configured distance metric.
     pub fn metric(&self) -> DistanceMetric {
         self.config.metric
+    }
+
+    /// Flushes any pending changes to disk.
+    /// This is called automatically when the VectorStore is dropped.
+    pub fn flush(&mut self) -> Result<()> {
+        self.checkpoint_index()
+    }
+}
+
+impl Drop for VectorStore {
+    fn drop(&mut self) {
+        // Save index if dirty
+        if self.index_dirty {
+            if let Err(e) = self.checkpoint_index() {
+                eprintln!("Warning: Failed to save HNSW index on drop: {}", e);
+            }
+        }
     }
 }
 
@@ -746,9 +1194,9 @@ mod tests {
         };
         assert!(VectorStore::new(&db_path, config).is_err());
 
-        // Invalid dimensions (too large)
+        // Invalid dimensions (too large - above 8192 limit)
         let config = VectorConfig {
-            dimensions: 5000,
+            dimensions: 9000,
             ..Default::default()
         };
         assert!(VectorStore::new(&db_path, config).is_err());
@@ -794,7 +1242,7 @@ mod tests {
         let config = VectorConfig {
             dimensions: 64,
             metric: DistanceMetric::Euclidean,
-            index_threshold: 5, // Low threshold for testing
+            index_threshold: 0, // Disable auto-build for this test
             ..Default::default()
         };
 
@@ -806,13 +1254,44 @@ mod tests {
             store.insert(&format!("v{}", i), &vec).unwrap();
         }
 
-        // Initially no index
+        // No index because auto-build is disabled (threshold = 0)
         assert!(!store.has_index());
 
         // Build index manually
         store.build_index().unwrap();
 
         // Now we have an index
+        assert!(store.has_index());
+    }
+
+    #[test]
+    fn test_hnsw_integration_auto_build() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let config = VectorConfig {
+            dimensions: 64,
+            metric: DistanceMetric::Euclidean,
+            index_threshold: 5, // Auto-build after 5 vectors
+            ..Default::default()
+        };
+
+        let mut store = VectorStore::new(&db_path, config).unwrap();
+
+        // Insert 4 vectors - below threshold
+        for i in 0..4 {
+            let vec: Vec<f32> = (0..64).map(|j| (i * 64 + j) as f32 * 0.001).collect();
+            store.insert(&format!("v{}", i), &vec).unwrap();
+        }
+
+        // No index yet (below threshold)
+        assert!(!store.has_index());
+
+        // Insert 5th vector - triggers auto-build
+        let vec: Vec<f32> = (0..64).map(|j| (4 * 64 + j) as f32 * 0.001).collect();
+        store.insert("v4", &vec).unwrap();
+
+        // Now we have an index (auto-built at threshold)
         assert!(store.has_index());
     }
 
