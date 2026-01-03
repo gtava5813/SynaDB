@@ -4,9 +4,96 @@ This guide helps you upgrade SynaDB between major versions.
 
 ## Table of Contents
 
+- [Upgrading from v1.0.x to v1.0.6](#upgrading-from-v10x-to-v106)
 - [Upgrading from v0.5.x to v1.0.0](#upgrading-from-v05x-to-v100)
 - [Upgrading from v0.2.x to v0.5.x](#upgrading-from-v02x-to-v05x)
 - [Upgrading from v0.1.x to v0.2.x](#upgrading-from-v01x-to-v02x)
+
+---
+
+## Upgrading from v1.0.x to v1.0.6
+
+### Overview
+
+v1.0.4 through v1.0.6 are incremental releases that add high-performance vector storage options and critical bug fixes.
+
+### New Features
+
+| Version | Feature | Description |
+|---------|---------|-------------|
+| v1.0.4 | MmapVectorStore | Ultra-high-throughput vector storage (490K vectors/sec) |
+| v1.0.4 | Gravity Well Index (GWI) | Novel O(N) build time index, 168x faster than HNSW |
+| v1.0.4 | HNSW Recall Fix | Critical bug fix - recall improved from 0-20% to 100% |
+| v1.0.4 | sync_on_write | Configurable sync for 456x throughput improvement |
+| v1.0.5 | Cascade Index | Three-stage hybrid index (LSH + bucket tree + graph) - Experimental |
+| v1.0.6 | GWI Persistence Fix | Critical bug fix for GWI data persistence |
+| v1.0.6 | CascadeIndex Import Fix | Fixed Python import error |
+
+### API Additions
+
+#### Python
+
+```python
+# New in v1.0.4
+from synadb import MmapVectorStore, GravityWellIndex
+
+# MmapVectorStore - Ultra-high-throughput
+store = MmapVectorStore("vectors.mmap", dimensions=768, initial_capacity=100000)
+store.insert_batch(keys, vectors)  # 490K vectors/sec
+store.build_index()
+results = store.search(query, k=10)
+
+# GravityWellIndex - Fast build time
+gwi = GravityWellIndex("vectors.gwi", dimensions=768)
+gwi.initialize(sample_vectors)  # Required: initialize attractors
+gwi.insert_batch(keys, vectors)
+results = gwi.search(query, k=10, nprobe=50)  # 98% recall
+
+# New in v1.0.5 (Experimental)
+from synadb import CascadeIndex
+
+cascade = CascadeIndex("vectors.cascade", dimensions=768, preset="large")
+cascade.insert_batch(keys, vectors)
+results = cascade.search(query, k=10)
+```
+
+### Migration Steps
+
+1. **Update your dependencies:**
+
+   ```bash
+   # Python
+   pip install --upgrade synadb>=1.0.6
+   
+   # Rust
+   cargo update -p synadb
+   ```
+
+2. **No breaking changes:**
+   - All v1.0.0 APIs remain compatible
+   - Existing databases work without modification
+
+3. **Optional: Use new vector stores:**
+   - For high-throughput ingestion, consider `MmapVectorStore`
+   - For fast index building, consider `GravityWellIndex`
+   - For tunable recall/latency, consider `CascadeIndex` (Experimental)
+
+### Performance Comparison
+
+| Store | Write Speed | Build Time | Search p50 |
+|-------|-------------|------------|------------|
+| VectorStore | 67K/sec | O(N²) HNSW | <1ms |
+| MmapVectorStore | 490K/sec | O(N²) HNSW | <1ms |
+| GravityWellIndex | 90K/sec | O(N) | 0.4ms |
+| CascadeIndex | 80K/sec | O(N) | 0.5ms |
+
+### Bug Fixes to Be Aware Of
+
+#### HNSW Recall (v1.0.4)
+If you experienced poor search results with VectorStore or MmapVectorStore on clustered data, upgrade to v1.0.4+ for the fix.
+
+#### GWI Persistence (v1.0.6)
+If you used GravityWellIndex in v1.0.4 or v1.0.5 and experienced data loss on reopen, upgrade to v1.0.6 for the fix.
 
 ---
 
@@ -339,6 +426,10 @@ store.build_index()  # Creates new .hnsw file
 
 | Version | Release Date | Highlights |
 |---------|--------------|------------|
+| v1.0.6 | Jan 2026 | GWI persistence fix, CascadeIndex import fix, documentation updates |
+| v1.0.5 | Jan 2026 | Cascade Index (Experimental) |
+| v1.0.4 | Jan 2026 | MmapVectorStore, GWI, HNSW recall fix, sync_on_write |
+| v1.0.3 | Jan 2026 | PyPI native library bundling fix |
 | v1.0.0 | Jan 2026 | Production release, integrations, tools, new license |
 | v0.5.0 | Dec 2025 | HNSW, Tensor Engine, Model Registry, Experiments |
 | v0.2.0 | Dec 8, 2025 | Vector Store |

@@ -593,3 +593,110 @@ gwi.close()
 | Search latency critical | HNSW |
 | Index built once, queried many times | HNSW |
 | Highest recall required | HNSW |
+
+---
+
+## CascadeIndex (Python)
+
+Three-stage hybrid vector index combining LSH, adaptive bucket trees, and sparse graphs.
+
+```python
+from synadb import CascadeIndex
+
+# Create with preset configuration
+index = CascadeIndex(
+    path: str,
+    dimensions: int,
+    preset: str = "small"  # "small", "large", "high_recall", "fast_search"
+)
+
+# Or custom configuration
+index = CascadeIndex(
+    path: str,
+    dimensions: int,
+    num_hyperplanes: int = 12,    # LSH hyperplanes
+    bucket_capacity: int = 64,     # Max vectors per bucket before split
+    nprobe: int = 4,               # Buckets to probe during search
+    graph_neighbors: int = 16,     # Neighbors in sparse graph
+    metric: str = "cosine"
+)
+
+# Insert single vector
+index.insert(key: str, vector: np.ndarray) -> None
+
+# Insert batch
+index.insert_batch(keys: List[str], vectors: np.ndarray) -> None
+
+# Search for similar vectors
+index.search(query: np.ndarray, k: int = 10) -> List[SearchResult]
+
+# Get vector by key
+index.get(key: str) -> Optional[np.ndarray]
+
+# Save index to disk
+index.save() -> None
+
+# Close index
+index.close() -> None
+
+# Properties
+len(index) -> int
+index.dimensions -> int
+```
+
+### Configuration Presets
+
+| Preset | num_hyperplanes | bucket_capacity | nprobe | graph_neighbors | Use Case |
+|--------|-----------------|-----------------|--------|-----------------|----------|
+| `small` | 12 | 64 | 4 | 16 | <100K vectors |
+| `large` | 16 | 128 | 8 | 24 | 1M+ vectors |
+| `high_recall` | 20 | 256 | 16 | 32 | Accuracy critical |
+| `fast_search` | 8 | 32 | 2 | 8 | Latency critical |
+
+### Architecture
+
+The Cascade Index uses a three-stage approach:
+
+1. **LSH Layer** - Hyperplane-based locality-sensitive hashing partitions vectors into buckets. Multi-probe queries nearby buckets for better recall.
+
+2. **Bucket Tree** - Adaptive binary tree that splits buckets when they exceed capacity. Maintains balanced distribution as data grows.
+
+3. **Sparse Graph** - Local neighbor connections for final ranking refinement. Improves recall without full graph traversal.
+
+### Usage Example
+
+```python
+from synadb import CascadeIndex
+import numpy as np
+
+# Create index with large dataset preset
+index = CascadeIndex("vectors.cascade", dimensions=768, preset="large")
+
+# Insert vectors
+keys = [f"doc_{i}" for i in range(100000)]
+vectors = np.random.randn(100000, 768).astype(np.float32)
+index.insert_batch(keys, vectors)
+
+# Search
+query = np.random.randn(768).astype(np.float32)
+results = index.search(query, k=10)
+
+for r in results:
+    print(f"{r.key}: {r.score:.4f}")
+
+# Save and close
+index.save()
+index.close()
+```
+
+### When to Use Cascade Index
+
+| Use Case | Recommended Index |
+|----------|-------------------|
+| Balanced build/search performance | Cascade |
+| Tunable recall/latency trade-off | Cascade |
+| Medium datasets (100K-10M) | Cascade |
+| Maximum throughput | MmapVectorStore |
+| Fastest build time | GWI |
+| Lowest search latency | HNSW |
+| Billion-scale | FAISS |

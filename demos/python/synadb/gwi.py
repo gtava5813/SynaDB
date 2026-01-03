@@ -95,17 +95,25 @@ class GravityWellIndex:
         self._closed = False
         self._initialized = False
         
-        # Create the index
-        result = self._lib.SYNA_gwi_new(
-            self._path.encode("utf-8"),
-            ctypes.c_uint16(dimensions),
-            ctypes.c_uint16(branching_factor),
-            ctypes.c_uint8(num_levels),
-            ctypes.c_size_t(initial_capacity),
-        )
-        
-        if result != 1:
-            raise RuntimeError(f"Failed to create GravityWellIndex: error code {result}")
+        # Check if file exists - open existing or create new
+        if os.path.exists(self._path) and os.path.getsize(self._path) > 0:
+            # Open existing index
+            result = self._lib.SYNA_gwi_open(self._path.encode("utf-8"))
+            if result != 1:
+                raise RuntimeError(f"Failed to open existing GravityWellIndex: error code {result}")
+            # Existing index is already initialized
+            self._initialized = True
+        else:
+            # Create new index
+            result = self._lib.SYNA_gwi_new(
+                self._path.encode("utf-8"),
+                ctypes.c_uint16(dimensions),
+                ctypes.c_uint16(branching_factor),
+                ctypes.c_uint8(num_levels),
+                ctypes.c_size_t(initial_capacity),
+            )
+            if result != 1:
+                raise RuntimeError(f"Failed to create GravityWellIndex: error code {result}")
 
     def _load_library(self):
         """Load the native library."""
@@ -146,6 +154,10 @@ class GravityWellIndex:
             ctypes.c_uint8, ctypes.c_size_t
         ]
         lib.SYNA_gwi_new.restype = ctypes.c_int32
+        
+        # SYNA_gwi_open
+        lib.SYNA_gwi_open.argtypes = [ctypes.c_char_p]
+        lib.SYNA_gwi_open.restype = ctypes.c_int32
         
         # SYNA_gwi_initialize
         lib.SYNA_gwi_initialize.argtypes = [

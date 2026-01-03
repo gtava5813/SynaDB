@@ -23,9 +23,16 @@ SynaDB is an embedded, log-structured, columnar-mapped database engine written i
 
 ## Current Version
 
-**v1.0.3** - Latest Release (January 2026)
-- Fixed: `pip install synadb` now works on all platforms (Linux, macOS x86/ARM, Windows)
-- All native libraries bundled in PyPI package
+**v1.0.6** - Latest Release (January 2026)
+- Fixed: GravityWellIndex persistence bug - data now correctly persists across close/reopen
+- Fixed: CascadeIndex Python import error
+- Updated: Comprehensive Rust documentation
+
+**v1.0.4-v1.0.5** - Performance Releases
+- MmapVectorStore - Ultra-high-throughput vector storage (490K vectors/sec)
+- Gravity Well Index (GWI) - O(N) build time, 168x faster than HNSW
+- Cascade Index - Three-stage hybrid index (Experimental)
+- HNSW recall fix - improved from 0-20% to 100%
 
 **v1.0.0** - Production Release
 - Append-only log storage with schema-free data types

@@ -22,6 +22,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 - **MmapVectorStore** - Ultra-high-throughput vector storage (490K vectors/sec)
 - **HNSW Index** - O(log N) approximate nearest neighbor search
 - **Gravity Well Index** - Novel O(N) build time index (168x faster than HNSW)
+- **Cascade Index** - Three-stage hybrid index (LSH + bucket tree + graph) (Experimental)
 - **Tensor Engine** - Batch tensor operations with chunked storage
 - **Model Registry** - Version models with SHA-256 checksum verification
 - **Experiment Tracking** - Log parameters, metrics, and artifacts
@@ -42,7 +43,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 
 ```toml
 [dependencies]
-synadb = "1.0.5"
+synadb = "1.0.6"
 ```
 
 ### Python
@@ -408,11 +409,56 @@ results = gwi.search(query_embedding, k=10, nprobe=50)
 - **VectorStore**: General use, good all-around
 - **MmapVectorStore**: High-throughput ingestion, large datasets
 - **GWI**: Build time critical, streaming/real-time data
+- **Cascade**: Balanced build/search, tunable recall
 - **FAISS**: Billion-scale, GPU acceleration
+
+### Cascade Index (Experimental)
+
+For balanced performance with tunable recall/latency trade-off:
+
+```python
+from synadb import CascadeIndex
+import numpy as np
+
+# Create with preset configuration
+index = CascadeIndex("vectors.cascade", dimensions=768, preset="large")
+
+# Or custom configuration
+index = CascadeIndex("vectors.cascade", dimensions=768,
+                     num_hyperplanes=16, bucket_capacity=128, nprobe=8)
+
+# Insert vectors - no initialization required
+keys = [f"doc_{i}" for i in range(50000)]
+vectors = np.random.randn(50000, 768).astype(np.float32)
+index.insert_batch(keys, vectors)
+
+# Search
+results = index.search(query_embedding, k=10)
+
+# Save and close
+index.save()
+index.close()
+```
+
+**Configuration Presets:**
+
+| Preset | Use Case | Build Speed | Search Speed | Recall |
+|--------|----------|-------------|--------------|--------|
+| `small` | <100K vectors | Fast | Fast | 95%+ |
+| `large` | 1M+ vectors | Medium | Fast | 95%+ |
+| `high_recall` | Accuracy critical | Slow | Medium | 99%+ |
+| `fast_search` | Latency critical | Fast | Very Fast | 90%+ |
+
+**Architecture:**
+1. **LSH Layer** - Hyperplane-based locality-sensitive hashing with multi-probe
+2. **Bucket Tree** - Adaptive splitting when buckets exceed threshold
+3. **Sparse Graph** - Local neighbor connections for search refinement
 
 ## Tensor Engine
 
-The TensorEngine provides efficient batch operations for ML data loading:
+The TensorEngine provides efficient batch operations for ML data loading.
+
+**Key Semantics:** When storing tensors, the first parameter is a **key prefix**, not a full key. Elements are stored with auto-generated keys like `{prefix}0000`, `{prefix}0001`, etc. When loading, use glob patterns like `{prefix}*` to retrieve all elements.
 
 ```python
 from synadb import TensorEngine
@@ -421,15 +467,19 @@ import numpy as np
 # Create tensor engine
 engine = TensorEngine("training_data.db")
 
-# Store training data
+# Store training data (prefix "train/" generates keys: train/0000, train/0001, ...)
 X_train = np.random.randn(10000, 784).astype(np.float32)
-engine.put_tensor("train/", X_train)
+engine.put_tensor("train/", X_train)  # Note: prefix ends with /
 
-# Load as tensor (pattern matching)
+# Load as tensor (pattern matching with glob)
 X = engine.get_tensor("train/*", dtype=np.float32)
 
 # Load with specific shape
 X = engine.get_tensor("train/*", shape=(10000, 784), dtype=np.float32)
+
+# For large tensors, use chunked storage (more efficient)
+engine.put_tensor_chunked("model/weights/", large_tensor, chunk_size=10000)
+X = engine.get_tensor_chunked("model/weights/chunk_*", dtype=np.float32)
 
 # Stream in batches for training
 for batch in engine.stream("train/*", batch_size=32):
@@ -893,7 +943,35 @@ Access the dashboard at `http://localhost:8501`.
 
 See [STUDIO_DOCS.md](demos/python/synadb/STUDIO_DOCS.md) for full documentation.
 
-## Architecture
+## Architecture Philosophy
+
+SynaDB uses a **modular architecture** where each component is a specialized class optimized for its specific workload:
+
+| Component | Purpose | Use Case |
+|-----------|---------|----------|
+| `SynaDB` | Core key-value store with history | Time-series, config, metadata |
+| `VectorStore` | Embedding storage with HNSW search | RAG, semantic search |
+| `MmapVectorStore` | High-throughput vector ingestion | Bulk embedding pipelines |
+| `GravityWellIndex` | Fast-build vector index | Streaming/real-time data |
+| `CascadeIndex` | Hybrid three-stage index | Balanced build/search (Experimental) |
+| `TensorEngine` | Batch tensor operations | ML data loading |
+| `ModelRegistry` | Model versioning with checksums | Model management |
+| `Experiment` | Experiment tracking | MLOps workflows |
+
+**Why modular?** This design follows the Unix philosophy of "do one thing well":
+
+- **Independent usage** - Use only what you need
+- **Isolation** - Each component manages its own storage file
+- **Performance** - Optimized for specific workloads
+- **Composability** - Combine components as needed
+
+**Typed API:** SynaDB uses typed methods (`put_float`, `put_int`, `put_text`) rather than a generic `set()` for:
+
+- **Type safety** - Prevents accidental type mismatches
+- **Performance** - No runtime type detection overhead
+- **FFI compatibility** - Maps directly to C-ABI functions
+
+## Storage Architecture
 
 Syna uses an append-only log structure inspired by the "physics of time" principle:
 

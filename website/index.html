@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SynaDB — An AI-native embedded database</title>
+    <title>SynaDB - AI-native embedded database</title>
     <meta name="description"
         content="An AI-native embedded database. Zero config, single file, built for ML workloads.">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -42,7 +42,7 @@
     <main>
         <section class="hero">
             <div class="hero-content">
-                <img src="full-logo-no-bg.png" alt="SynaDB" class="hero-logo">
+                <img src="logo-no-bg.png" alt="SynaDB" class="hero-logo">
                 <h1>An AI-native embedded database</h1>
                 <p class="hero-subtitle">Zero config. Single file. Built for ML workloads.</p>
                 <div class="hero-actions">
@@ -63,30 +63,67 @@
             <div class="feature-grid">
                 <div class="feature-card reveal">
                     <h3>Vector Search</h3>
-                    <p>Native HNSW index for similarity search. Optional FAISS backend for billion-scale deployments.
-                    </p>
+                    <p>Native HNSW index for similarity search. Optional FAISS backend for billion-scale deployments.</p>
                 </div>
-                <div class="feature-card reveal" style="transition-delay: 100ms">
+                <div class="feature-card reveal">
+                    <h3>MmapVectorStore</h3>
+                    <p>Ultra-high-throughput vector ingestion at 490K vectors/sec. 7x faster than standard VectorStore.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <h3>Gravity Well Index</h3>
+                    <p>Novel O(N) build time index. 168x faster than HNSW for streaming and real-time data.</p>
+                </div>
+
+                <div class="feature-card reveal">
+                    <h3>Cascade Index</h3>
+                    <p>Three-stage hybrid index combining LSH, bucket trees, and sparse graphs. Tunable recall up to 99%.</p>
+                </div>
+                <div class="feature-card reveal">
                     <h3>Experiment Tracking</h3>
                     <p>Log parameters, metrics, and artifacts locally. No external server required.</p>
                 </div>
-                <div class="feature-card reveal" style="transition-delay: 200ms">
+                <div class="feature-card reveal">
                     <h3>Tensor Storage</h3>
                     <p>Store and retrieve tensors directly to NumPy and PyTorch with zero serialization overhead.</p>
                 </div>
 
                 <div class="feature-card reveal">
                     <h3>Model Registry</h3>
-                    <p>Version models with SHA-256 checksums. Promote through development, staging, and production
-                        stages.</p>
+                    <p>Version models with SHA-256 checksums. Promote through development, staging, and production stages.</p>
                 </div>
-                <div class="feature-card reveal" style="transition-delay: 100ms">
+                <div class="feature-card reveal">
+                    <h3>LLM Integrations</h3>
+                    <p>Native support for LangChain, LlamaIndex, and Haystack. Drop-in vector stores and chat history.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <h3>ML Integrations</h3>
+                    <p>PyTorch Dataset/DataLoader and TensorFlow tf.data integration. Distributed training support.</p>
+                </div>
+
+                <div class="feature-card reveal">
+                    <h3>Studio Web UI</h3>
+                    <p>Visual database explorer with 3D embedding clusters, model registry browser, and statistics dashboard.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <h3>CLI Tool</h3>
+                    <p>Command-line interface for database inspection, management, and scripting workflows.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <h3>GPU Direct</h3>
+                    <p>CUDA tensor loading with pinned memory and async streams. Zero-copy GPU memory access.</p>
+                </div>
+
+                <div class="feature-card reveal">
                     <h3>Single File</h3>
                     <p>Your entire database in one portable file. No server process, no configuration files.</p>
                 </div>
-                <div class="feature-card reveal" style="transition-delay: 200ms">
+                <div class="feature-card reveal">
                     <h3>High Performance</h3>
                     <p>Written in Rust. 100K+ writes per second. Sub-millisecond reads with in-memory indexing.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <h3>Cross-Platform</h3>
+                    <p>Native binaries for Linux, macOS (Intel & Apple Silicon), and Windows. C-ABI for any FFI language.</p>
                 </div>
             </div>
         </section>

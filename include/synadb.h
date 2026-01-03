@@ -956,6 +956,131 @@ int32_t SYNA_exp_log_artifact(const char* path, const char* run_id,
  */
 int32_t SYNA_exp_end_run(const char* path, const char* run_id, int32_t status);
 
+/* ============================================================================
+ * Gravity Well Index (GWI) Functions
+ * ============================================================================ */
+
+/**
+ * Creates a new Gravity Well Index at the given path.
+ * 
+ * GWI is a novel append-only vector index with O(N) build time,
+ * 168x faster than HNSW for large datasets.
+ * 
+ * @param path        Null-terminated path to the index file (.gwi)
+ * @param dimensions  Number of dimensions for vectors (64-7168)
+ * @return            SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_gwi_new(const char* path, uint16_t dimensions);
+
+/**
+ * Opens an existing Gravity Well Index from a file.
+ * 
+ * @param path  Null-terminated path to the index file (.gwi)
+ * @return      SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_gwi_open(const char* path);
+
+/**
+ * Initializes the GWI with sample vectors to create attractors.
+ * 
+ * Must be called before inserting vectors. The sample vectors are used
+ * to create "gravity wells" that organize the index structure.
+ * 
+ * @param path        Null-terminated path to the index file
+ * @param vectors     Pointer to f32 array of sample vectors (contiguous)
+ * @param count       Number of sample vectors
+ * @param dimensions  Number of dimensions per vector
+ * @return            SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_gwi_initialize(const char* path, const float* vectors,
+                            size_t count, uint16_t dimensions);
+
+/**
+ * Inserts a single vector into the GWI.
+ * 
+ * @param path        Null-terminated path to the index file
+ * @param key         Null-terminated key string for the vector
+ * @param vector      Pointer to f32 array containing the vector data
+ * @param dimensions  Number of dimensions (must match index configuration)
+ * @return            SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_gwi_insert(const char* path, const char* key,
+                        const float* vector, uint16_t dimensions);
+
+/**
+ * Inserts multiple vectors into the GWI (batch mode).
+ * 
+ * @param path        Null-terminated path to the index file
+ * @param keys        Array of null-terminated key strings
+ * @param vectors     Pointer to f32 array of vectors (contiguous)
+ * @param count       Number of vectors to insert
+ * @param dimensions  Number of dimensions per vector
+ * @return            Number of vectors inserted (>= 0), or error code (< 0)
+ */
+int32_t SYNA_gwi_insert_batch(const char* path, const char* const* keys,
+                              const float* vectors, size_t count,
+                              uint16_t dimensions);
+
+/**
+ * Searches for k nearest neighbors in the GWI.
+ * 
+ * @param path        Null-terminated path to the index file
+ * @param query       Pointer to f32 array containing the query vector
+ * @param dimensions  Number of dimensions in the query vector
+ * @param k           Maximum number of results to return
+ * @param out_json    Pointer to store the JSON result string
+ * @return            Number of results found (>= 0), or error code (< 0)
+ * 
+ * @warning The returned JSON string MUST be freed with SYNA_free_json()
+ */
+int32_t SYNA_gwi_search(const char* path, const float* query,
+                        uint16_t dimensions, size_t k, char** out_json);
+
+/**
+ * Searches with custom nprobe parameter for recall tuning.
+ * 
+ * Higher nprobe values increase recall at the cost of search time.
+ * - nprobe=50: ~98% recall
+ * - nprobe=100: ~100% recall
+ * 
+ * @param path        Null-terminated path to the index file
+ * @param query       Pointer to f32 array containing the query vector
+ * @param dimensions  Number of dimensions in the query vector
+ * @param k           Maximum number of results to return
+ * @param nprobe      Number of attractors to probe (higher = better recall)
+ * @param out_json    Pointer to store the JSON result string
+ * @return            Number of results found (>= 0), or error code (< 0)
+ * 
+ * @warning The returned JSON string MUST be freed with SYNA_free_json()
+ */
+int32_t SYNA_gwi_search_nprobe(const char* path, const float* query,
+                               uint16_t dimensions, size_t k, size_t nprobe,
+                               char** out_json);
+
+/**
+ * Flushes any pending changes to disk.
+ * 
+ * @param path  Null-terminated path to the index file
+ * @return      SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_gwi_flush(const char* path);
+
+/**
+ * Closes the GWI and removes it from the registry.
+ * 
+ * @param path  Null-terminated path to the index file
+ * @return      SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_gwi_close(const char* path);
+
+/**
+ * Returns the number of vectors in the GWI.
+ * 
+ * @param path  Null-terminated path to the index file
+ * @return      Number of vectors (>= 0), or error code (< 0)
+ */
+int64_t SYNA_gwi_len(const char* path);
+
 #ifdef __cplusplus
 }
 #endif

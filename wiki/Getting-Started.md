@@ -14,7 +14,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-synadb = "1.0.3"
+synadb = "1.0.6"
 ```
 
 ### Building from Source
@@ -240,9 +240,10 @@ SynaDB offers multiple vector storage options:
 | `VectorStore` | General use | 67K/sec | O(N²) HNSW |
 | `MmapVectorStore` | High throughput | 490K/sec | O(N²) HNSW |
 | `GravityWellIndex` | Fast build | 90K/sec | O(N) |
+| `CascadeIndex` | Tunable recall (Experimental) | 80K/sec | O(N) |
 
 ```python
-from synadb import VectorStore, MmapVectorStore, GravityWellIndex
+from synadb import VectorStore, MmapVectorStore, GravityWellIndex, CascadeIndex
 
 # General use
 store = VectorStore("vectors.db", dimensions=768)
@@ -253,6 +254,9 @@ store = MmapVectorStore("vectors.mmap", dimensions=768, initial_capacity=100000)
 # Fast index build (168x faster than HNSW at 50K vectors)
 gwi = GravityWellIndex("vectors.gwi", dimensions=768)
 gwi.initialize(sample_vectors)  # Required for GWI
+
+# Tunable recall/latency (Experimental)
+cascade = CascadeIndex("vectors.cascade", dimensions=768, preset="large")
 ```
 
 ### 4. Tune HNSW Parameters

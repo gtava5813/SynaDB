@@ -8,6 +8,25 @@
 
 SynaDB is an embedded database designed for AI/ML workloads. It combines the simplicity of SQLite with native support for vectors, tensors, model versioning, and experiment tracking.
 
+## Architecture Philosophy
+
+SynaDB uses a **modular architecture** where each component is a specialized class:
+
+| Component | Purpose | Use Case |
+|-----------|---------|----------|
+| `SynaDB` | Core key-value store with history | Time-series, config, metadata |
+| `VectorStore` | Embedding storage with HNSW search | RAG, semantic search |
+| `MmapVectorStore` | High-throughput vector ingestion | Bulk embedding pipelines |
+| `GravityWellIndex` | Fast-build vector index | Streaming/real-time data |
+| `CascadeIndex` | Hybrid three-stage index | Balanced build/search (Experimental) |
+| `TensorEngine` | Batch tensor operations | ML data loading |
+| `ModelRegistry` | Model versioning with checksums | Model management |
+| `Experiment` | Experiment tracking | MLOps workflows |
+
+**Why modular?** Each component can be used independently or together, manages its own storage file, and is optimized for its specific workload.
+
+**Typed API:** SynaDB uses typed methods (`put_float`, `put_int`, `put_text`) rather than a generic `set()` for type safety, performance, and FFI compatibility.
+
 ## Installation
 
 ```bash
@@ -32,6 +51,8 @@ pip install synadb[all]       # Everything
 | **Vector Store** | Embedding storage with similarity search (cosine, euclidean, dot product) |
 | **MmapVectorStore** | Ultra-high-throughput vector storage (490K vectors/sec) |
 | **HNSW Index** | O(log N) approximate nearest neighbor search for large-scale vectors |
+| **Gravity Well Index** | O(N) build time index, 168x faster than HNSW at 50K vectors |
+| **Cascade Index** | Three-stage hybrid index (LSH + bucket tree + graph) with tunable recall (Experimental) |
 | **Tensor Engine** | Batch tensor operations for ML data loading |
 | **Model Registry** | Version and stage ML models with checksum verification |
 | **Experiment Tracking** | Log parameters, metrics, and artifacts |
@@ -148,7 +169,97 @@ results = store.search(query, k=10)  # 0.6ms
 | Durability | Per-write | Checkpoint |
 | Capacity | Dynamic | Pre-allocated |
 
+### Gravity Well Index (Fastest Build Time)
+
+For scenarios where index build time is critical (168x faster than HNSW):
+
+```python
+from synadb import GravityWellIndex
+import numpy as np
+
+# Initialize with sample vectors (required for attractor placement)
+sample_vectors = np.random.randn(1000, 768).astype(np.float32)
+gwi = GravityWellIndex("vectors.gwi", dimensions=768)
+gwi.initialize(sample_vectors)
+
+# Insert vectors (O(N) build time)
+keys = [f"doc_{i}" for i in range(50000)]
+vectors = np.random.randn(50000, 768).astype(np.float32)
+gwi.insert_batch(keys, vectors)  # 46K vectors/sec
+
+# Search with configurable recall
+results = gwi.search(query, k=10, nprobe=50)  # 98% recall, 0.5ms
+results = gwi.search(query, k=10, nprobe=100)  # 100% recall, 0.8ms
+```
+
+**GWI vs HNSW Build Time (50K vectors):**
+
+| Model | GWI Build | HNSW Build | Speedup |
+|-------|-----------|------------|---------|
+| MiniLM (384d) | 1.5s | 272s | 186x |
+| BERT (768d) | 3.0s | 504s | 168x |
+
+**When to use GWI:**
+- Index build time is critical
+- Data is streaming/real-time
+- Append-only storage required
+
+**When to use HNSW:**
+- Search latency is critical
+- Index built once, queried many times
+- Highest recall required
+
+### Cascade Index (Experimental)
+
+For balanced performance across build time, search speed, and recall:
+
+```python
+from synadb import CascadeIndex
+import numpy as np
+
+# Create with preset configuration
+index = CascadeIndex("vectors.cascade", dimensions=768, preset="large")
+
+# Or custom configuration
+index = CascadeIndex("vectors.cascade", dimensions=768,
+                     num_hyperplanes=16, bucket_capacity=128, nprobe=8)
+
+# Insert vectors
+keys = [f"doc_{i}" for i in range(50000)]
+vectors = np.random.randn(50000, 768).astype(np.float32)
+index.insert_batch(keys, vectors)
+
+# Search
+query = np.random.randn(768).astype(np.float32)
+results = index.search(query, k=10)
+
+# Save and close
+index.save()
+index.close()
+```
+
+**Configuration Presets:**
+
+| Preset | Use Case | Build Speed | Search Speed | Recall |
+|--------|----------|-------------|--------------|--------|
+| `small` | <100K vectors | Fast | Fast | 95%+ |
+| `large` | 1M+ vectors | Medium | Fast | 95%+ |
+| `high_recall` | Accuracy critical | Slow | Medium | 99%+ |
+| `fast_search` | Latency critical | Fast | Very Fast | 90%+ |
+
+**Architecture:**
+1. **LSH Layer** - Hyperplane-based locality-sensitive hashing with multi-probe
+2. **Bucket Tree** - Adaptive splitting when buckets exceed threshold
+3. **Sparse Graph** - Local neighbor refinement for final ranking
+
+**When to use Cascade Index:**
+- Need balanced build time and search speed
+- Want tunable recall/latency trade-off
+- Working with medium to large datasets (100K-10M vectors)
+
 ### Tensor Engine (ML Data Loading)
+
+**Key Semantics:** When storing tensors, the first parameter is a **key prefix**, not a full key. Elements are stored with auto-generated keys. When loading, use glob patterns to retrieve all elements.
 
 ```python
 from synadb import TensorEngine
@@ -156,12 +267,20 @@ import numpy as np
 
 engine = TensorEngine("training.db")
 
-# Store training data
+# Store training data (prefix generates keys: train/X/0000, train/X/0001, ...)
 X_train = np.random.randn(10000, 784).astype(np.float32)
-engine.put_tensor_chunked("train/X", X_train)
+engine.put_tensor("train/X/", X_train)  # Note: prefix ends with /
 
-# Load as tensor
-X, shape = engine.get_tensor_chunked("train/X")
+# Load as tensor (pattern matching with glob)
+X = engine.get_tensor("train/X/*", dtype=np.float32, shape=(10000, 784))
+
+# For large tensors, use chunked storage (more efficient)
+engine.put_tensor_chunked("train/large/", large_tensor, chunk_size=10000)
+X = engine.get_tensor_chunked("train/large/chunk_*")
+
+# Stream in batches for training
+for batch in engine.stream("train/X/*", batch_size=32):
+    model.train_step(batch)
 ```
 
 ### Model Registry
@@ -171,16 +290,20 @@ from synadb import ModelRegistry
 
 registry = ModelRegistry("models.db")
 
-# Save model with metadata
+# Save model with metadata (auto-versions, returns ModelVersion)
 model_bytes = open("model.pt", "rb").read()
-version = registry.save_model("classifier", model_bytes, {"accuracy": "0.95"})
+version = registry.save("classifier", model_bytes, {"accuracy": "0.95"})
 print(f"Saved v{version.version}, checksum: {version.checksum}")
 
 # Load with automatic checksum verification
-data, info = registry.load_model("classifier")
+model = registry.load("classifier")  # Latest version
+model = registry.load("classifier", version=1)  # Specific version
 
 # Promote to production
-registry.set_stage("classifier", version.version, "Production")
+registry.promote("classifier", version.version, "production")
+
+# Get production model directly
+prod_model = registry.get_production_model("classifier")
 ```
 
 ### Experiment Tracking
@@ -571,6 +694,43 @@ store.checkpoint()  # Save to disk
 len(store) -> int
 ```
 
+### GravityWellIndex
+
+```python
+from synadb import GravityWellIndex
+
+gwi = GravityWellIndex(path, dimensions)
+
+gwi.initialize(sample_vectors: np.ndarray)  # Required before insert
+gwi.insert(key, vector: np.ndarray)
+gwi.insert_batch(keys: List[str], vectors: np.ndarray)  # 46K/sec
+gwi.search(query: np.ndarray, k=10, nprobe=50) -> List[SearchResult]
+gwi.get(key) -> Optional[np.ndarray]
+gwi.save()
+len(gwi) -> int
+```
+
+### CascadeIndex (Experimental)
+
+```python
+from synadb import CascadeIndex
+
+# Create with preset
+index = CascadeIndex(path, dimensions, preset="large")
+
+# Or custom config
+index = CascadeIndex(path, dimensions, num_hyperplanes=16, 
+                     bucket_capacity=128, nprobe=8)
+
+index.insert(key, vector: np.ndarray)
+index.insert_batch(keys: List[str], vectors: np.ndarray)
+index.search(query: np.ndarray, k=10) -> List[SearchResult]
+index.get(key) -> Optional[np.ndarray]
+index.save()
+index.close()
+len(index) -> int
+```
+
 ### TensorEngine
 
 ```python
@@ -578,10 +738,25 @@ from synadb import TensorEngine
 
 engine = TensorEngine(path)
 
-data, shape = engine.get_tensor(pattern, dtype)
-count = engine.put_tensor(prefix, data, shape, dtype)
-chunks = engine.put_tensor_chunked(name, data, shape, dtype)
-data, shape = engine.get_tensor_chunked(name)
+# Store tensor (prefix generates auto-keys: prefix/0000, prefix/0001, ...)
+count = engine.put_tensor(prefix, tensor: np.ndarray) -> int
+chunks = engine.put_tensor_chunked(prefix, tensor: np.ndarray, chunk_size=1000) -> int
+
+# Load tensor (pattern uses glob matching)
+data = engine.get_tensor(pattern, shape=None, dtype=np.float32) -> np.ndarray
+data = engine.get_tensor_chunked(pattern, dtype=np.float32, shape=None) -> np.ndarray
+
+# Framework integration
+tensor = engine.get_tensor_torch(pattern, shape=None, device="cpu") -> torch.Tensor
+tensor = engine.get_tensor_tf(pattern, shape=None) -> tf.Tensor
+
+# Streaming
+for batch in engine.stream(pattern, batch_size=32, dtype=np.float32):
+    ...
+
+# Utilities
+keys = engine.keys(pattern="*") -> List[str]
+count = engine.delete(pattern) -> int
 ```
 
 ### ModelRegistry
@@ -591,11 +766,13 @@ from synadb import ModelRegistry
 
 registry = ModelRegistry(path)
 
-version = registry.save_model(name, data, metadata) -> ModelVersion
-data, info = registry.load_model(name, version=None)
-versions = registry.list_versions(name) -> List[ModelVersion]
-registry.set_stage(name, version, stage)
-prod = registry.get_production(name) -> Optional[ModelVersion]
+version = registry.save(name, model, metadata) -> ModelVersion  # Auto-versions
+model = registry.load(name, version=None)  # Latest if version=None
+versions = registry.list(name) -> List[ModelVersion]
+registry.promote(name, version, stage)  # "development", "staging", "production", "archived"
+prod = registry.get_production_model(name) -> Optional[Any]
+info = registry.get_version(name, version) -> Optional[ModelVersion]
+registry.delete(name, version=None)  # Delete specific or all versions
 ```
 
 ### Experiment
@@ -610,6 +787,7 @@ with exp.start_run(tags=[]) as run:
     run.log_param(key, value)
     run.log_params({key: value, ...})
     run.log_metric(key, value, step=None)
+    run.log_metrics({key: value, ...}, step=None)
     run.log_artifact(name, data)
     # Run ends automatically
 

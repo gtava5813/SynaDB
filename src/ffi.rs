@@ -3249,6 +3249,39 @@ pub extern "C" fn SYNA_gwi_new(
     .unwrap_or(ERR_INTERNAL_PANIC)
 }
 
+/// Open an existing Gravity Well Index
+///
+/// # Arguments
+/// * `path` - Path to the existing index file
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Index opened successfully
+/// * `-2` (ERR_INVALID_PATH) - Invalid path or file doesn't exist
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic occurred
+#[no_mangle]
+pub extern "C" fn SYNA_gwi_open(path: *const c_char) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        match GravityWellIndex::open(path_str) {
+            Ok(index) => {
+                let mut reg = GWI_REGISTRY.lock();
+                reg.insert(path_str.to_string(), index);
+                ERR_SUCCESS
+            }
+            Err(_) => ERR_INVALID_PATH,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
 /// Initialize GWI attractors from sample vectors
 ///
 /// # Arguments
@@ -3599,4 +3632,314 @@ pub extern "C" fn SYNA_gwi_len(path: *const c_char) -> i64 {
         }
     })
     .unwrap_or(ERR_INTERNAL_PANIC as i64)
+}
+
+// =============================================================================
+// Cascade Index FFI Functions
+// =============================================================================
+
+use crate::cascade::{CascadeConfig, CascadeIndex};
+
+/// Global registry for Cascade Index instances
+static CASCADE_REGISTRY: Lazy<Mutex<HashMap<String, CascadeIndex>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+/// Creates a new Cascade Index.
+///
+/// # Arguments
+/// * `path` - Path to the index file
+/// * `dimensions` - Vector dimensions (64-8192)
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Index created successfully
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic
+#[no_mangle]
+pub extern "C" fn SYNA_cascade_new(path: *const c_char, dimensions: u16) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let c_str = unsafe { CStr::from_ptr(path) };
+        let path_str = match c_str.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let config = CascadeConfig {
+            dimensions,
+            ..Default::default()
+        };
+
+        match CascadeIndex::new(path_str, config) {
+            Ok(index) => {
+                let mut registry = CASCADE_REGISTRY.lock();
+                registry.insert(path_str.to_string(), index);
+                ERR_SUCCESS
+            }
+            Err(_) => ERR_GENERIC,
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Inserts a vector into the Cascade Index.
+///
+/// # Arguments
+/// * `path` - Path to the index
+/// * `key` - Key for the vector
+/// * `vector` - Pointer to vector data
+/// * `dimensions` - Vector dimensions
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Vector inserted
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic
+#[no_mangle]
+pub extern "C" fn SYNA_cascade_insert(
+    path: *const c_char,
+    key: *const c_char,
+    vector: *const f32,
+    dimensions: u16,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() || key.is_null() || vector.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let key_str = match unsafe { CStr::from_ptr(key) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let vec_slice = unsafe { std::slice::from_raw_parts(vector, dimensions as usize) };
+
+        let mut registry = CASCADE_REGISTRY.lock();
+        if let Some(index) = registry.get_mut(path_str) {
+            match index.insert(key_str, vec_slice) {
+                Ok(_) => ERR_SUCCESS,
+                Err(_) => ERR_GENERIC,
+            }
+        } else {
+            ERR_GENERIC
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Inserts multiple vectors into the Cascade Index.
+///
+/// # Arguments
+/// * `path` - Path to the index
+/// * `keys` - Array of key pointers
+/// * `vectors` - Pointer to flattened vector data
+/// * `dimensions` - Vector dimensions
+/// * `count` - Number of vectors
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Vectors inserted
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic
+#[no_mangle]
+pub extern "C" fn SYNA_cascade_insert_batch(
+    path: *const c_char,
+    keys: *const *const c_char,
+    vectors: *const f32,
+    dimensions: u16,
+    count: usize,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() || keys.is_null() || vectors.is_null() || count == 0 {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let dims = dimensions as usize;
+        let mut registry = CASCADE_REGISTRY.lock();
+
+        if let Some(index) = registry.get_mut(path_str) {
+            for i in 0..count {
+                let key_ptr = unsafe { *keys.add(i) };
+                if key_ptr.is_null() {
+                    continue;
+                }
+
+                let key_str = match unsafe { CStr::from_ptr(key_ptr) }.to_str() {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+
+                let vec_start = i * dims;
+                let vec_slice = unsafe { std::slice::from_raw_parts(vectors.add(vec_start), dims) };
+
+                if index.insert(key_str, vec_slice).is_err() {
+                    return ERR_GENERIC;
+                }
+            }
+            ERR_SUCCESS
+        } else {
+            ERR_GENERIC
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Searches the Cascade Index for nearest neighbors.
+///
+/// # Arguments
+/// * `path` - Path to the index
+/// * `query` - Query vector
+/// * `dimensions` - Vector dimensions
+/// * `k` - Number of results
+/// * `out_json` - Output JSON string pointer
+///
+/// # Returns
+/// * `1` (ERR_SUCCESS) - Search completed
+/// * `-2` (ERR_INVALID_PATH) - Invalid path
+/// * `-100` (ERR_INTERNAL_PANIC) - Internal panic
+#[no_mangle]
+pub extern "C" fn SYNA_cascade_search(
+    path: *const c_char,
+    query: *const f32,
+    dimensions: u16,
+    k: usize,
+    out_json: *mut *mut c_char,
+) -> i32 {
+    // Use good defaults matching CascadeConfig::default()
+    SYNA_cascade_search_params(path, query, dimensions, k, 16, 80, out_json)
+}
+
+/// Searches with custom parameters.
+#[no_mangle]
+pub extern "C" fn SYNA_cascade_search_params(
+    path: *const c_char,
+    query: *const f32,
+    dimensions: u16,
+    k: usize,
+    num_probes: usize,
+    ef_search: usize,
+    out_json: *mut *mut c_char,
+) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() || query.is_null() || out_json.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let query_slice = unsafe { std::slice::from_raw_parts(query, dimensions as usize) };
+
+        let registry = CASCADE_REGISTRY.lock();
+        if let Some(index) = registry.get(path_str) {
+            match index.search_with_params(query_slice, k, num_probes, ef_search) {
+                Ok(results) => {
+                    let json_results: Vec<serde_json::Value> = results
+                        .iter()
+                        .map(|r| {
+                            serde_json::json!({
+                                "key": r.key,
+                                "score": r.score
+                            })
+                        })
+                        .collect();
+
+                    let json_str = serde_json::to_string(&json_results).unwrap_or_default();
+                    let c_string = std::ffi::CString::new(json_str).unwrap_or_default();
+                    unsafe {
+                        *out_json = c_string.into_raw();
+                    }
+                    ERR_SUCCESS
+                }
+                Err(_) => ERR_GENERIC,
+            }
+        } else {
+            ERR_GENERIC
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Flushes the Cascade Index to disk.
+#[no_mangle]
+pub extern "C" fn SYNA_cascade_flush(path: *const c_char) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let registry = CASCADE_REGISTRY.lock();
+        if let Some(index) = registry.get(path_str) {
+            match index.flush() {
+                Ok(_) => ERR_SUCCESS,
+                Err(_) => ERR_GENERIC,
+            }
+        } else {
+            ERR_GENERIC
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Closes the Cascade Index.
+#[no_mangle]
+pub extern "C" fn SYNA_cascade_close(path: *const c_char) -> i32 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return ERR_INVALID_PATH;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return ERR_INVALID_PATH,
+        };
+
+        let mut registry = CASCADE_REGISTRY.lock();
+        if registry.remove(path_str).is_some() {
+            ERR_SUCCESS
+        } else {
+            ERR_GENERIC
+        }
+    })
+    .unwrap_or(ERR_INTERNAL_PANIC)
+}
+
+/// Returns the number of vectors in the Cascade Index.
+#[no_mangle]
+pub extern "C" fn SYNA_cascade_len(path: *const c_char) -> i64 {
+    std::panic::catch_unwind(|| {
+        if path.is_null() {
+            return -1;
+        }
+
+        let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return -1,
+        };
+
+        let registry = CASCADE_REGISTRY.lock();
+        if let Some(index) = registry.get(path_str) {
+            index.len() as i64
+        } else {
+            -1
+        }
+    })
+    .unwrap_or(-1)
 }

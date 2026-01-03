@@ -17,6 +17,7 @@ mod reproducibility;
 mod vector_bench;
 mod tensor_bench;
 mod faiss_bench;
+mod cascade_bench;
 
 pub use config::*;
 pub use report::*;
@@ -158,6 +159,41 @@ enum Commands {
         /// Run full benchmark suite (100K and 1M vectors)
         #[arg(long, default_value = "false")]
         full: bool,
+    },
+    
+    /// Run Cascade Index benchmarks (LSH + bucket tree + graph)
+    Cascade {
+        /// Vector dimensions
+        #[arg(long, default_value = "768")]
+        dimensions: u32,
+        
+        /// Number of vectors to insert
+        #[arg(long, default_value = "10000")]
+        num_vectors: usize,
+        
+        /// Number of search queries
+        #[arg(long, default_value = "100")]
+        num_queries: usize,
+        
+        /// Number of nearest neighbors to retrieve
+        #[arg(long, default_value = "10")]
+        k: usize,
+        
+        /// Configuration preset: small, large, high_recall, fast_search
+        #[arg(long, default_value = "large")]
+        preset: String,
+        
+        /// Run quick benchmark (10K vectors, 3 dimensions)
+        #[arg(long, default_value = "false")]
+        quick: bool,
+        
+        /// Run full benchmark suite (10K, 50K, 100K × 7 dimensions)
+        #[arg(long, default_value = "false")]
+        full: bool,
+        
+        /// Use mmap-optimized implementation (faster search, lower recall)
+        #[arg(long, default_value = "false")]
+        mmap: bool,
     },
     
     /// Run all benchmarks and generate report
@@ -533,9 +569,87 @@ fn main() {
                 results.push(faiss_bench::to_benchmark_result(result, &faiss_config));
             }
             
+            // Add Cascade Index benchmarks
+            println!("\n=== Running Cascade Index Benchmarks ===");
+            let cascade_results = cascade_bench::run_quick_cascade_benchmark();
+            let cascade_config = cascade_bench::CascadeBenchConfig::default();
+            for result in &cascade_results {
+                results.push(cascade_bench::to_benchmark_result(result, &cascade_config));
+            }
+            
             report::generate_report(&results, &output);
             
             println!("\nReport generated in {}/", output);
+        }
+        
+        Commands::Cascade { dimensions, num_vectors, num_queries, k, preset, quick, full, mmap } => {
+            println!("Running Cascade Index benchmarks...");
+            if mmap {
+                println!("  Mode: Mmap (optimized, faster search)");
+            } else {
+                println!("  Mode: Default (original, higher recall)");
+            }
+            
+            if full {
+                // Run full benchmark suite across all dimensions and sizes
+                let results = cascade_bench::run_full_cascade_benchmark();
+                cascade_bench::print_results_table(&results);
+                
+                // Print per-size comparison tables
+                for &size in cascade_bench::DATASET_SIZES {
+                    cascade_bench::print_dimension_comparison(&results, size);
+                }
+                
+                println!("\n=== Cascade Index Benchmark Complete ===");
+                println!("Total configurations tested: {}", results.len());
+            } else if quick {
+                // Run quick benchmark
+                let results = cascade_bench::run_quick_cascade_benchmark();
+                cascade_bench::print_results_table(&results);
+            } else {
+                // Run specific configuration
+                let config = cascade_bench::CascadeBenchConfig {
+                    dimensions,
+                    num_vectors,
+                    num_queries,
+                    k,
+                    warmup_queries: 10,
+                    preset,
+                    use_mmap: mmap,
+                };
+                
+                println!("  Dimensions: {}", dimensions);
+                println!("  Vectors: {}", num_vectors);
+                println!("  Queries: {}", num_queries);
+                println!("  K: {}", k);
+                println!("  Preset: {}", config.preset);
+                
+                let result = cascade_bench::run_cascade_insert_benchmark(&config);
+                
+                println!("\n=== Cascade Index Results ===");
+                println!("  Write throughput: {:.0} vectors/sec", result.write_throughput);
+                println!("  Index build time: {:.2}s", result.index_build_time_secs);
+                println!("  Search latency p50: {:.2}ms", result.search_latency_p50_ms);
+                println!("  Search latency p95: {:.2}ms", result.search_latency_p95_ms);
+                println!("  Search latency p99: {:.2}ms", result.search_latency_p99_ms);
+                println!("  Queries/sec: {:.0}", result.queries_per_sec);
+                println!("  Storage: {:.2}MB", result.storage_mb);
+                println!("  Recall@{}: {:.1}%", k, result.recall_at_k * 100.0);
+                
+                // Check targets
+                println!("\n=== Performance Target Check ===");
+                if result.search_latency_p50_ms < 10.0 {
+                    println!("  ✓ Search latency target met: p50 < 10ms ({:.2}ms)", result.search_latency_p50_ms);
+                } else {
+                    println!("  ✗ Search latency target NOT met: p50 >= 10ms ({:.2}ms)", result.search_latency_p50_ms);
+                }
+                
+                if result.recall_at_k >= 0.90 {
+                    println!("  ✓ Recall target met: >= 90% ({:.1}%)", result.recall_at_k * 100.0);
+                } else {
+                    println!("  ✗ Recall target NOT met: < 90% ({:.1}%)", result.recall_at_k * 100.0);
+                }
+            }
         }
     }
 }

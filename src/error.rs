@@ -131,6 +131,23 @@ pub enum SynaError {
         got: u16,
     },
 
+    /// Vector dimension mismatch (usize version).
+    #[error("Dimension mismatch: expected {expected}, got {got}")]
+    DimensionMismatchUsize {
+        /// Expected number of dimensions
+        expected: usize,
+        /// Actual number of dimensions provided
+        got: usize,
+    },
+
+    /// Invalid input provided.
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+
+    /// I/O error with custom message.
+    #[error("IO error: {0}")]
+    IoError(String),
+
     /// Corrupted HNSW index file.
     #[error("Corrupted HNSW index: {0}")]
     CorruptedIndex(String),

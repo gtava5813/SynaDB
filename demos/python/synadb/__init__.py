@@ -126,6 +126,7 @@ from .experience import ExperienceCollector, Transition, SessionContext
 from .vector import VectorStore, SearchResult
 from .mmap_vector import MmapVectorStore, MmapSearchResult
 from .gwi import GravityWellIndex, GwiSearchResult
+from .cascade import CascadeIndex, SearchResult as CascadeSearchResult
 from .tensor import TensorEngine
 from .models import ModelRegistry, ModelVersion, ModelStage
 from .experiment import Experiment, Run, RunStatus
@@ -134,7 +135,7 @@ from .studio import launch as launch_studio, FLASK_AVAILABLE
 # Import integrations submodule
 from . import integrations
 
-__version__ = "1.0.3"
+__version__ = "1.0.6"
 
 
 # Lazy imports for integrations
@@ -346,6 +347,8 @@ __all__ = [
     "MmapSearchResult",
     "GravityWellIndex",
     "GwiSearchResult",
+    "CascadeIndex",
+    "CascadeSearchResult",
     "TensorEngine",
     "ModelRegistry",
     "ModelVersion",

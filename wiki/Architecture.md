@@ -1,5 +1,35 @@
 # SynaDB Architecture
 
+## Architecture Philosophy
+
+SynaDB uses a **modular architecture** where each component is a specialized class optimized for its specific workload:
+
+| Component | Purpose | Use Case |
+|-----------|---------|----------|
+| `SynaDB` | Core key-value store with history | Time-series, config, metadata |
+| `VectorStore` | Embedding storage with HNSW search | RAG, semantic search |
+| `MmapVectorStore` | High-throughput vector ingestion | Bulk embedding pipelines |
+| `GravityWellIndex` | Fast-build vector index (O(N) build) | Streaming/real-time data |
+| `CascadeIndex` | Hybrid three-stage index (Experimental) | Balanced build/search |
+| `TensorEngine` | Batch tensor operations | ML data loading |
+| `ModelRegistry` | Model versioning with checksums | Model management |
+| `ExperimentTracker` | Experiment tracking | MLOps workflows |
+
+**Why modular?** This design follows the Unix philosophy of "do one thing well":
+
+- **Independent usage** - Use only what you need
+- **Isolation** - Each component manages its own storage file
+- **Performance** - Optimized for specific workloads
+- **Composability** - Combine components as needed
+
+**Typed API:** SynaDB uses typed methods (`put_float`, `put_int`, `put_text`) rather than a generic `set()` for:
+
+- **Type safety** - Prevents accidental type mismatches
+- **Performance** - No runtime type detection overhead
+- **FFI compatibility** - Maps directly to C-ABI functions
+
+---
+
 ## The Physics of SynaDB
 
 > "Most people think a database is a black box - a magic safe where you put things in and pray they come out again. But we're not magicians, we're mechanics! We want to know how the gears turn."
@@ -318,12 +348,32 @@ Benchmarks run on Intel Core i9-14900KF (32 cores), 64 GB RAM, Windows 11.
 3. **History scans**: Full history retrieval is O(n) in entries
 4. **Compaction**: Rewrites entire file, blocking writes
 
+### Vector Index Options
+
+SynaDB provides multiple vector index implementations for different use cases:
+
+| Index | Build Time | Search Time | Recall | Best For |
+|-------|------------|-------------|--------|----------|
+| `VectorStore` (HNSW) | O(N log N) | O(log N) | 95%+ | General use, balanced performance |
+| `MmapVectorStore` | O(N log N) | O(log N) | 95%+ | High-throughput ingestion (490K/sec) |
+| `GravityWellIndex` | O(N) | O(N/k) | 98%+ | Fast build, streaming data |
+| `CascadeIndex` | O(N) | Sub-linear | 95%+ | Tunable recall/latency (Experimental) |
+| FAISS (optional) | Varies | Varies | Varies | Billion-scale, GPU acceleration |
+
+**When to use which:**
+- **VectorStore**: Default choice, good all-around performance
+- **MmapVectorStore**: Bulk ingestion pipelines, pre-allocated capacity
+- **GravityWellIndex**: Build time critical, 168x faster than HNSW at 50K vectors
+- **CascadeIndex**: Need tunable recall/latency trade-off
+- **FAISS**: Billion-scale datasets, GPU acceleration needed
+
 ### Vector Search Performance
 
 | Index Type | Complexity | 10K vectors | 100K vectors | 1M vectors |
 |------------|------------|-------------|--------------|------------|
 | Brute force | O(n) | ~1 ms | ~10 ms | ~100 ms |
 | HNSW | O(log n) | <1 ms | ~2 ms | ~5-10 ms |
+| GWI (nprobe=50) | O(n/k) | ~0.5 ms | ~2 ms | ~10 ms |
 
 HNSW parameters affect recall vs. speed tradeoff:
 
@@ -332,6 +382,14 @@ HNSW parameters affect recall vs. speed tradeoff:
 | `m` | 8 | 64 | More connections = better recall, more memory |
 | `ef_construction` | 100 | 500 | Higher = better index quality, slower build |
 | `ef_search` | 50 | 500 | Higher = better recall, slower search |
+
+### GWI vs HNSW Build Time
+
+| Dataset | GWI Build | HNSW Build | Speedup |
+|---------|-----------|------------|---------|
+| 10K × 768 | 2.1s | 18.4s | 8.9x |
+| 50K × 768 | 3.0s | 504s | 168x |
+| 100K × 384 | 2.9s | 1141s | 388x |
 
 ### FAISS vs HNSW Comparison
 
@@ -347,6 +405,7 @@ SynaDB includes benchmarks comparing its native HNSW index against FAISS indexes
 - **HNSW** provides the best balance of speed and recall for most use cases
 - **FAISS-Flat** offers exact search (100% recall) but O(n) complexity
 - **FAISS-IVF** is faster than HNSW for very large datasets (>10M vectors)
+- **GWI** is best when index build time is critical
 
 Run the comparison benchmark:
 

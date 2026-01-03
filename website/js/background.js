@@ -16,10 +16,10 @@ class LogEntry {
         this.opacity = 0;
         this.targetOpacity = 0.6;
         
-        // Colors
-        this.colorHeader = 'rgba(100, 100, 120, 1)';
-        this.colorKey = 'rgba(0, 212, 170, 1)'; // Accent Teal
-        this.colorValue = 'rgba(74, 144, 217, 1)'; // Primary Blue
+        // Colors - darker for lighter backgrounds
+        this.colorHeader = 'rgba(40, 40, 50, 1)';
+        this.colorKey = 'rgba(0, 160, 130, 1)'; // Darker Teal
+        this.colorValue = 'rgba(50, 110, 180, 1)'; // Darker Blue
     }
 
     update(speed) {
@@ -50,11 +50,11 @@ class LogEntry {
         ctx.beginPath();
         ctx.moveTo(this.x, y + this.height + 10);
         ctx.lineTo(this.x + this.width, y + this.height + 10);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
         ctx.stroke();
         
         // Index Label below
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.font = '10px "JetBrains Mono"';
         ctx.fillText(`Entry ${this.index}`, this.x, y + this.height + 25);
     }
@@ -63,15 +63,16 @@ class LogEntry {
         const h = this.height;
         
         // Glow
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 15;
         ctx.shadowColor = color;
         
         // Border
         ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
         ctx.strokeRect(x, y, w, h);
         
-        // Slight fill
-        ctx.fillStyle = color.replace('1)', '0.05)');
+        // Slight fill - more opaque for visibility
+        ctx.fillStyle = color.replace('1)', '0.15)');
         ctx.fillRect(x, y, w, h);
         
         // Reset Glow for text
@@ -83,7 +84,7 @@ class LogEntry {
         ctx.fillText(label, x + 10, y + 20);
         
         // Byte size simulation
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.font = '9px "JetBrains Mono"';
         ctx.fillText(`${Math.floor(w/2)}b`, x + 10, y + h - 10);
     }

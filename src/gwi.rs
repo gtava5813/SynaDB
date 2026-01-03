@@ -136,9 +136,10 @@ pub struct GwiSearchResult {
     pub vector: Vec<f32>,
 }
 
-/// File header for GWI format
+/// File header for GWI format (kept for documentation, not used directly)
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 struct GwiHeader {
     magic: [u8; 4],
     version: u32,
@@ -267,29 +268,40 @@ impl GravityWellIndex {
             .open(&path)
             .map_err(|e| SynaError::InvalidPath(e.to_string()))?;
 
-        // Read header
+        // Read header bytes
         let mut header_bytes = [0u8; HEADER_SIZE as usize];
         let mut file_reader = &file;
         file_reader
             .read_exact(&mut header_bytes)
             .map_err(|e| SynaError::InvalidPath(e.to_string()))?;
 
-        let header: GwiHeader =
-            unsafe { std::ptr::read(header_bytes.as_ptr() as *const GwiHeader) };
-
-        // Validate magic
-        if header.magic != GWI_MAGIC {
+        // Parse header fields manually to avoid alignment issues with packed struct
+        let magic: [u8; 4] = header_bytes[0..4].try_into().unwrap();
+        if magic != GWI_MAGIC {
             return Err(SynaError::InvalidPath(
                 "Invalid GWI file format".to_string(),
             ));
         }
 
+        // Read fields using little-endian byte order
+        let _version = u32::from_le_bytes(header_bytes[4..8].try_into().unwrap());
+        let dimensions = u16::from_le_bytes(header_bytes[8..10].try_into().unwrap());
+        let branching_factor = u16::from_le_bytes(header_bytes[10..12].try_into().unwrap());
+        let num_levels = header_bytes[12];
+        let metric = header_bytes[13];
+        // flags at 14, reserved at 15
+        let vector_count = u64::from_le_bytes(header_bytes[16..24].try_into().unwrap());
+        let write_offset = u64::from_le_bytes(header_bytes[24..32].try_into().unwrap());
+        let attractor_table_offset = u64::from_le_bytes(header_bytes[32..40].try_into().unwrap());
+        let _cluster_index_offset = u64::from_le_bytes(header_bytes[40..48].try_into().unwrap());
+        let data_offset = u64::from_le_bytes(header_bytes[48..56].try_into().unwrap());
+
         // Reconstruct config
         let config = GwiConfig {
-            dimensions: header.dimensions,
-            branching_factor: header.branching_factor,
-            num_levels: header.num_levels,
-            metric: DistanceMetric::from_u8(header.metric),
+            dimensions,
+            branching_factor,
+            num_levels,
+            metric: DistanceMetric::from_u8(metric),
             nprobe: DEFAULT_NPROBE,
             initial_capacity: 10_000,
             kmeans_iterations: 10,
@@ -310,10 +322,10 @@ impl GravityWellIndex {
             cluster_info: vec![(0, 0); num_leaves],
             key_to_location: HashMap::new(),
             cluster_keys: vec![Vec::new(); num_leaves],
-            write_offset: header.write_offset,
-            vector_count: header.vector_count,
-            attractors_initialized: header.attractor_table_offset > 0,
-            data_offset: header.data_offset,
+            write_offset,
+            vector_count,
+            attractors_initialized: attractor_table_offset > 0,
+            data_offset,
         };
 
         // Load attractors if initialized
@@ -757,24 +769,32 @@ impl GravityWellIndex {
             .ok_or_else(|| SynaError::InvalidPath("mmap not initialized".to_string()))?;
 
         let dims = self.config.dimensions as usize;
+        let offset = offset as usize;
 
-        unsafe {
-            let ptr = mmap.as_ptr().add(offset as usize);
+        // Read key length (2 bytes, little-endian)
+        let key_len = u16::from_le_bytes([mmap[offset], mmap[offset + 1]]) as usize;
 
-            // Read key length
-            let key_len = std::ptr::read(ptr as *const u16) as usize;
+        // Skip cluster_id (2 bytes at offset+2)
+        // Read key (starts at offset+4)
+        let key_start = offset + 4;
+        let key_bytes = &mmap[key_start..key_start + key_len];
+        let key = String::from_utf8_lossy(key_bytes).to_string();
 
-            // Skip cluster_id (2 bytes)
-            // Read key
-            let key_bytes = std::slice::from_raw_parts(ptr.add(4), key_len);
-            let key = String::from_utf8_lossy(key_bytes).to_string();
-
-            // Read vector
-            let vector_ptr = ptr.add(4 + key_len) as *const f32;
-            let vector: Vec<f32> = std::slice::from_raw_parts(vector_ptr, dims).to_vec();
-
-            Ok((key, vector))
+        // Read vector (starts after key)
+        let vector_start = key_start + key_len;
+        let mut vector = Vec::with_capacity(dims);
+        for i in 0..dims {
+            let byte_offset = vector_start + i * 4;
+            let bytes: [u8; 4] = [
+                mmap[byte_offset],
+                mmap[byte_offset + 1],
+                mmap[byte_offset + 2],
+                mmap[byte_offset + 3],
+            ];
+            vector.push(f32::from_le_bytes(bytes));
         }
+
+        Ok((key, vector))
     }
 
     /// Calculate distance between two vectors
@@ -1040,28 +1060,41 @@ impl GravityWellIndex {
         let num_leaves = self.config.num_leaf_attractors();
         let _cluster_index_size = num_leaves * 16;
 
-        let header = GwiHeader {
-            magic: GWI_MAGIC,
-            version: GWI_VERSION,
-            dimensions: self.config.dimensions,
-            branching_factor: self.config.branching_factor,
-            num_levels: self.config.num_levels,
-            metric: self.config.metric.to_u8(),
-            flags: 0,
-            _reserved1: 0,
-            vector_count: self.vector_count,
-            write_offset: self.write_offset,
-            attractor_table_offset: HEADER_SIZE,
-            cluster_index_offset: HEADER_SIZE + attractor_table_size as u64,
-            data_offset: self.data_offset,
-            _reserved2: [0; 8],
-        };
+        // Build header bytes manually to ensure correct byte order
+        let mut header_bytes = [0u8; HEADER_SIZE as usize];
+
+        // magic (4 bytes)
+        header_bytes[0..4].copy_from_slice(&GWI_MAGIC);
+        // version (4 bytes)
+        header_bytes[4..8].copy_from_slice(&GWI_VERSION.to_le_bytes());
+        // dimensions (2 bytes)
+        header_bytes[8..10].copy_from_slice(&self.config.dimensions.to_le_bytes());
+        // branching_factor (2 bytes)
+        header_bytes[10..12].copy_from_slice(&self.config.branching_factor.to_le_bytes());
+        // num_levels (1 byte)
+        header_bytes[12] = self.config.num_levels;
+        // metric (1 byte)
+        header_bytes[13] = self.config.metric.to_u8();
+        // flags (1 byte)
+        header_bytes[14] = 0;
+        // reserved (1 byte)
+        header_bytes[15] = 0;
+        // vector_count (8 bytes)
+        header_bytes[16..24].copy_from_slice(&self.vector_count.to_le_bytes());
+        // write_offset (8 bytes)
+        header_bytes[24..32].copy_from_slice(&self.write_offset.to_le_bytes());
+        // attractor_table_offset (8 bytes)
+        header_bytes[32..40].copy_from_slice(&HEADER_SIZE.to_le_bytes());
+        // cluster_index_offset (8 bytes)
+        let cluster_offset = HEADER_SIZE + attractor_table_size as u64;
+        header_bytes[40..48].copy_from_slice(&cluster_offset.to_le_bytes());
+        // data_offset (8 bytes)
+        header_bytes[48..56].copy_from_slice(&self.data_offset.to_le_bytes());
+        // reserved (8 bytes) - already zeroed
 
         self.file
             .seek(SeekFrom::Start(0))
             .map_err(|e| SynaError::InvalidPath(e.to_string()))?;
-
-        let header_bytes: [u8; HEADER_SIZE as usize] = unsafe { std::mem::transmute(header) };
 
         self.file
             .write_all(&header_bytes)
@@ -1119,11 +1152,19 @@ impl GravityWellIndex {
             let mut level_attractors = Vec::with_capacity(level_size);
 
             for _ in 0..level_size {
-                unsafe {
-                    let ptr = mmap.as_ptr().add(offset) as *const f32;
-                    let attractor: Vec<f32> = std::slice::from_raw_parts(ptr, dims).to_vec();
-                    level_attractors.push(attractor);
+                // Read floats byte-by-byte to avoid alignment issues
+                let mut attractor = Vec::with_capacity(dims);
+                for i in 0..dims {
+                    let byte_offset = offset + i * 4;
+                    let bytes: [u8; 4] = [
+                        mmap[byte_offset],
+                        mmap[byte_offset + 1],
+                        mmap[byte_offset + 2],
+                        mmap[byte_offset + 3],
+                    ];
+                    attractor.push(f32::from_le_bytes(bytes));
                 }
+                level_attractors.push(attractor);
                 offset += dims * 4;
             }
 
@@ -1145,39 +1186,37 @@ impl GravityWellIndex {
         }
 
         let dims = self.config.dimensions as usize;
-        let mut offset = self.data_offset;
+        let mut offset = self.data_offset as usize;
+        let write_offset = self.write_offset as usize;
 
-        while offset < self.write_offset {
+        while offset < write_offset {
             let mmap = self
                 .mmap
                 .as_ref()
                 .ok_or_else(|| SynaError::InvalidPath("mmap not initialized".to_string()))?;
 
-            unsafe {
-                let ptr = mmap.as_ptr().add(offset as usize);
+            // Read key length (2 bytes, little-endian)
+            let key_len = u16::from_le_bytes([mmap[offset], mmap[offset + 1]]) as usize;
 
-                // Read key length
-                let key_len = std::ptr::read(ptr as *const u16) as usize;
+            // Read cluster ID (2 bytes, little-endian)
+            let cluster_id = u16::from_le_bytes([mmap[offset + 2], mmap[offset + 3]]) as usize;
 
-                // Read cluster ID
-                let cluster_id = std::ptr::read(ptr.add(2) as *const u16) as usize;
+            // Read key
+            let key_start = offset + 4;
+            let key_bytes = &mmap[key_start..key_start + key_len];
+            let key = String::from_utf8_lossy(key_bytes).to_string();
 
-                // Read key
-                let key_bytes = std::slice::from_raw_parts(ptr.add(4), key_len);
-                let key = String::from_utf8_lossy(key_bytes).to_string();
-
-                // Update index
-                self.key_to_location
-                    .insert(key.clone(), (cluster_id, offset));
-                if cluster_id < self.cluster_keys.len() {
-                    self.cluster_keys[cluster_id].push(key);
-                    self.cluster_info[cluster_id].1 += 1;
-                }
-
-                // Move to next entry
-                let entry_size = 4 + key_len + dims * 4;
-                offset += entry_size as u64;
+            // Update index
+            self.key_to_location
+                .insert(key.clone(), (cluster_id, offset as u64));
+            if cluster_id < self.cluster_keys.len() {
+                self.cluster_keys[cluster_id].push(key);
+                self.cluster_info[cluster_id].1 += 1;
             }
+
+            // Move to next entry
+            let entry_size = 4 + key_len + dims * 4;
+            offset += entry_size;
         }
 
         Ok(())

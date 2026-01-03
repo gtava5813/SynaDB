@@ -4,7 +4,96 @@ This document contains the complete release history for SynaDB.
 
 ---
 
-## v1.0.5 - MmapVectorStore & GWI
+## v1.0.6 - GWI Persistence Fix
+
+**Released:** January 2, 2026  
+**PyPI:** [synadb 1.0.6](https://pypi.org/project/synadb/)  
+**Crates.io:** [synadb 1.0.6](https://crates.io/crates/synadb)
+
+### Highlights
+
+- 🔧 **GWI Persistence Fix** - Critical bug fix for GravityWellIndex data persistence
+- 🔧 **CascadeIndex Import Fix** - Fixed Python import error
+- 📊 **Benchmark Results** - GWI is 388x faster to build than HNSW
+
+### Bug Fixes
+
+#### GWI Persistence Bug (Critical)
+
+**Issue:** GravityWellIndex data was not persisted correctly. After inserting vectors and closing, reopening the same file showed `len(gwi) = 0`.
+
+**Root Cause:**
+1. Missing `SYNA_gwi_open` FFI function - Python couldn't open existing files
+2. Python wrapper always called `SYNA_gwi_new` which truncates existing files
+3. Unsafe memory alignment in mmap reads caused undefined behavior
+
+**Fix:**
+- Added `SYNA_gwi_open` FFI function for opening existing GWI files
+- Python wrapper now detects existing files and opens them instead of truncating
+- Rewrote header serialization using safe byte-by-byte operations
+- Fixed `load_attractors`, `read_entry_at`, `rebuild_key_index` to read floats safely
+
+**Files Changed:**
+- `src/ffi.rs` - Added `SYNA_gwi_open` function
+- `src/gwi.rs` - Fixed header read/write, fixed mmap float reads
+- `demos/python/synadb/gwi.py` - Added open logic, `SYNA_gwi_open` binding
+
+**Verification:**
+```python
+from synadb import GravityWellIndex
+import numpy as np
+
+# Create and populate
+gwi = GravityWellIndex("test.gwi", dimensions=128)
+sample = np.random.randn(100, 128).astype(np.float32)
+gwi.initialize(sample)
+gwi.insert_batch([f"item_{i}" for i in range(1000)], 
+                 np.random.randn(1000, 128).astype(np.float32))
+print(f"Before close: len={len(gwi)}")  # 1000
+gwi.close()
+
+# Reopen - NOW WORKS!
+gwi2 = GravityWellIndex("test.gwi", dimensions=128)
+print(f"After reopen: len={len(gwi2)}")  # 1000 ✓
+```
+
+#### CascadeIndex Import Fix
+
+**Issue:** `from synadb import CascadeIndex` failed with `ImportError: cannot import name '_get_lib'`
+
+**Root Cause:** `cascade.py` referenced non-existent `_get_lib` function from `wrapper.py`
+
+**Fix:** Added local `_load_library()` function to `cascade.py`, consistent with other modules
+
+**Files Changed:**
+- `demos/python/synadb/cascade.py` - Added `_load_library()` function
+
+### New Tests
+
+| Test | Description |
+|------|-------------|
+| `test_gwi_persistence_roundtrip` | Verifies data persists across close/reopen |
+| `test_gwi_search_after_reopen` | Verifies search works after reopen |
+| `test_gwi_empty_persistence` | Verifies empty GWI can be created |
+
+### New FFI Function
+
+| Function | Description |
+|----------|-------------|
+| `SYNA_gwi_open` | Open existing GravityWellIndex file |
+
+### Benchmark Results (Amazon Fine Food Reviews - 100K vectors)
+
+| Metric | GWI | HNSW | Winner |
+|--------|-----|------|--------|
+| Total build | 2.94s | 1141.5s | **GWI (388x faster)** |
+| Search p50 | 0.40ms | 0.89ms | **GWI (2.2x faster)** |
+| Insert rate | 92K/sec | 715K/sec | HNSW |
+| File size | 154.9MB | - | - |
+
+---
+
+## v1.0.5 - MmapVectorStore, GWI & Cascade Index
 
 **Released:** January 2026  
 **PyPI:** [synadb 1.0.5](https://pypi.org/project/synadb/)  
@@ -13,11 +102,94 @@ This document contains the complete release history for SynaDB.
 ### Highlights
 
 - **MmapVectorStore** - Ultra-high-throughput vector storage (490K vectors/sec)
--  **Gravity Well Index (GWI)** - Novel append-only vector indexing algorithm
--  **Extended Dimensions** - Support for 384-7168 dimensional embeddings
--  **Critical Fixes** - HNSW auto-build, index persistence, sync_on_write
+- **Gravity Well Index (GWI)** - Novel append-only vector indexing algorithm
+- **Cascade Index** - O(N) build time index with no initialization required
+- **Extended Dimensions** - Support for 384-7168 dimensional embeddings
+- **Critical Fixes** - HNSW auto-build, index persistence, sync_on_write
 
 ### New Features
+
+#### Cascade Index (NEW)
+
+A novel vector index combining LSH + Adaptive Buckets + Sparse Graph for O(N) build time without requiring initialization samples:
+
+```python
+from synadb import CascadeIndex
+import numpy as np
+
+# Create index - no initialization required!
+index = CascadeIndex("vectors.cascade", dimensions=768)
+
+# Insert vectors
+index.insert("doc1", embedding)
+index.insert_batch(keys, vectors)
+
+# Search with configurable parameters
+results = index.search(query, k=10)
+results = index.search(query, k=10, num_probes=5, ef_search=100)  # Higher recall
+```
+
+**Key Features:**
+- **O(N) build time** - No quadratic neighbor search during construction
+- **No initialization required** - Unlike GWI, no sample vectors needed
+- **Adaptive buckets** - Automatically splits as data grows
+- **Multi-probe LSH** - Smart probing for better recall
+- **Sparse graph refinement** - Graph-based search for high accuracy
+- **Full persistence** - Save/load index to disk
+
+**Configuration Presets:**
+
+```python
+from synadb.cascade import CascadeConfig
+
+# Default (balanced)
+config = CascadeConfig()
+
+# Small datasets (< 10K vectors)
+config = CascadeConfig.small()
+
+# Large datasets (> 100K vectors)
+config = CascadeConfig.large()
+
+# High recall (> 99%)
+config = CascadeConfig.high_recall()
+
+# Fast search
+config = CascadeConfig.fast_search()
+```
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Cascade Index                           │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │                  LSH Layer                           │    │
+│  │  Random hyperplane hashing with multi-probe support  │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                           │                                  │
+│                           ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              Adaptive Bucket Tree                    │    │
+│  │  Auto-splitting buckets for O(1) amortized lookup    │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                           │                                  │
+│                           ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │                 Sparse Graph Layer                   │    │
+│  │  Neighbor connections for search refinement          │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**When to use Cascade vs GWI vs HNSW:**
+
+| Aspect | Cascade | GWI | HNSW |
+|--------|---------|-----|------|
+| Build time | O(N) | O(N) | O(N²) |
+| Initialization | None | Requires samples | None |
+| Adaptability | Adaptive buckets | Fixed attractors | Fixed structure |
+| Best for | General use | Streaming data | Query-heavy |
 
 #### MmapVectorStore
 
@@ -732,7 +904,7 @@ pip install synadb
 
 ```toml
 [dependencies]
-synadb = "1.0.5"
+synadb = "1.0.6"
 ```
 
 ### Building from Source

@@ -40,6 +40,10 @@ build/
 .venv/
 venv/
 ENV/
+.synadb-py-win-env/
+
+# Example data (downloaded from HuggingFace)
+demos/python/examples/data/
 
 # Coverage
 *.gcno
