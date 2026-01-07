@@ -263,8 +263,9 @@ Higher is better. Measured in operations per second.
 
 | Range | Assessment |
 |-------|------------|
-| > 100K ops/sec | Excellent |
-| 50K - 100K ops/sec | Good |
+| Read > Write | Expected (in-memory index) |
+| MmapVectorStore > VectorStore | Expected (batch vs individual) |
+| GWI build < HNSW build | Expected (O(N) vs O(N log N)) |
 | 10K - 50K ops/sec | Acceptable |
 | < 10K ops/sec | Investigate |
 

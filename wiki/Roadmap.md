@@ -54,8 +54,8 @@ The first production-ready release with full AI/ML ecosystem integration.
 Major performance and reliability improvements.
 
 ### New Features
-- ✅ MmapVectorStore - Ultra-high-throughput vector storage (490K vectors/sec)
-- ✅ Gravity Well Index (GWI) - Novel append-only indexing (168x faster build than HNSW)
+- ✅ MmapVectorStore - Ultra-high-throughput vector storage (7x faster than VectorStore)
+- ✅ Gravity Well Index (GWI) - Novel append-only indexing (faster build than HNSW)
 - ✅ HNSW Recall Fix - Fixed critical bug causing 0-20% recall → now 100%
 - ✅ HNSW Auto-Build - Index now auto-builds when threshold exceeded
 - ✅ sync_on_write - Configurable sync for 456x throughput improvement

@@ -285,10 +285,10 @@ On database open:
 
 ### Complexity Analysis
 
-| Operation | Complexity | Target | Notes |
-|-----------|------------|--------|-------|
-| Append | O(1) | 100K+ ops/sec | Sequential I/O |
-| Get (latest) | O(1) | 500K+ ops/sec | Index lookup |
+| Operation | Complexity | Notes |
+|-----------|------------|-------|
+| Append | O(1) | Sequential I/O |
+| Get (latest) | O(1) | Index lookup |
 | Get (history) | O(n) | 1M+ values/sec | Linear scan |
 | Keys list | O(n) | - | Full index scan |
 | Delete | O(1) | Same as append | Tombstone append |
@@ -363,7 +363,7 @@ SynaDB provides multiple vector index implementations for different use cases:
 **When to use which:**
 - **VectorStore**: Default choice, good all-around performance
 - **MmapVectorStore**: Bulk ingestion pipelines, pre-allocated capacity
-- **GravityWellIndex**: Build time critical, 168x faster than HNSW at 50K vectors
+- **GravityWellIndex**: Build time critical, faster than HNSW
 - **CascadeIndex**: Need tunable recall/latency trade-off
 - **FAISS**: Billion-scale datasets, GPU acceleration needed
 

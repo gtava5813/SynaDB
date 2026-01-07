@@ -19,7 +19,7 @@ This folder is served via GitHub Pages. To enable:
 3. Branch: `main`, folder: `/website`
 4. Save
 
-The site will be available at `https://synadb.ai` (with custom domain) or `https://gtava5813.github.io/SynaDB/website/`.
+The site will be available at `https://synadb.ai` (with custom domain).
 
 ## Structure
 

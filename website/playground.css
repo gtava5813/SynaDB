@@ -1,0 +1,883 @@
+/* Playground-specific styles */
+
+.playground-main {
+    padding-top: 64px;
+}
+
+.playground-hero {
+    padding: 6rem 2rem 4rem;
+    text-align: center;
+    background: linear-gradient(180deg, rgba(74, 144, 217, 0.1) 0%, transparent 100%);
+}
+
+.playground-hero h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.playground-hero .hero-subtitle {
+    font-size: 1.5rem;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+}
+
+.playground-hero .hero-description {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+}
+
+/* Claim Validation Section */
+.claim-validation {
+    padding: 4rem 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.scale-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 3rem;
+    flex-wrap: wrap;
+}
+
+.scale-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.scale-btn {
+    padding: 0.75rem 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    color: var(--text);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.scale-btn:hover {
+    border-color: var(--primary);
+}
+
+.scale-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+/* Claims Grid */
+.claims-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+}
+
+.claim-category {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+}
+
+.claim-category h3 {
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--primary);
+}
+
+.claim-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s;
+}
+
+.claim-card:last-child {
+    margin-bottom: 0;
+}
+
+.claim-card:hover {
+    border-color: rgba(74, 144, 217, 0.5);
+}
+
+.claim-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.claim-status {
+    font-size: 1rem;
+}
+
+.claim-status.pass { color: #00d4aa; }
+.claim-status.fail { color: #ff6b6b; }
+.claim-status.pending { color: #ffd93d; }
+
+.claim-header h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.experimental-badge,
+.optional-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.experimental-badge {
+    background: rgba(255, 217, 61, 0.2);
+    color: #ffd93d;
+}
+
+.optional-badge {
+    background: rgba(74, 144, 217, 0.2);
+    color: var(--primary);
+}
+
+.claim-text {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+
+.claim-metrics {
+    margin-bottom: 0.75rem;
+}
+
+.metric {
+    font-size: 0.8rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.metric.highlight {
+    background: rgba(0, 212, 170, 0.15);
+    color: var(--accent);
+}
+
+.run-btn {
+    width: 100%;
+    padding: 0.5rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.run-btn:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.run-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Google Colab Section */
+.colab-section {
+    padding: 4rem 2rem;
+    background: var(--bg-elevated);
+}
+
+.colab-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.colab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.colab-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.colab-icon {
+    width: 32px;
+    height: 32px;
+}
+
+.colab-title h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.colab-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.colab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.colab-btn.primary {
+    background: #F9AB00;
+    color: #000;
+}
+
+.colab-btn.primary:hover {
+    background: #FFC107;
+    transform: translateY(-1px);
+}
+
+.colab-btn.secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.colab-btn.secondary:hover {
+    border-color: var(--text);
+}
+
+.colab-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--border);
+}
+
+.colab-feature {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.colab-feature code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    color: var(--accent);
+}
+
+.feature-icon {
+    font-size: 1rem;
+}
+
+.colab-preview {
+    position: relative;
+    padding: 1.5rem;
+    background: rgba(18, 18, 26, 0.8);
+}
+
+.notebook-preview {
+    opacity: 0.7;
+}
+
+.cell {
+    margin-bottom: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.cell:last-child {
+    margin-bottom: 0;
+}
+
+.cell-type {
+    padding: 0.4rem 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+}
+
+.cell pre {
+    margin: 0;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    overflow-x: auto;
+}
+
+.cell code {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text);
+}
+
+.preview-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.open-colab-btn {
+    padding: 1rem 2rem;
+    background: #F9AB00;
+    color: #000;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.open-colab-btn:hover {
+    background: #FFC107;
+    transform: scale(1.05);
+}
+
+.colab-benchmarks {
+    padding: 1.25rem 1.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.colab-benchmarks h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.colab-benchmarks ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.colab-benchmarks li {
+    font-size: 0.85rem;
+    color: var(--text);
+}
+
+.rust-note {
+    max-width: 900px;
+    margin: 1.5rem auto 0;
+    padding: 1rem 1.5rem;
+    background: rgba(74, 144, 217, 0.1);
+    border: 1px solid rgba(74, 144, 217, 0.2);
+    border-radius: var(--radius);
+}
+
+.rust-note h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.95rem;
+}
+
+.rust-note p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.rust-note code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    color: var(--accent);
+}
+
+.rust-note a {
+    color: var(--accent);
+}
+
+/* PythonAnywhere Section */
+.pythonanywhere-section {
+    padding: 4rem 2rem;
+    background: var(--bg-card);
+}
+
+.pythonanywhere-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.pythonanywhere-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.pythonanywhere-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.pythonanywhere-icon {
+    width: 32px;
+    height: 32px;
+}
+
+.pythonanywhere-title h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.pythonanywhere-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.pythonanywhere-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.pythonanywhere-btn.primary {
+    background: #3776ab;
+    color: #fff;
+}
+
+.pythonanywhere-btn.primary:hover {
+    background: #4a8bc2;
+    transform: translateY(-1px);
+}
+
+.pythonanywhere-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--border);
+}
+
+.pythonanywhere-feature {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.pythonanywhere-benchmarks {
+    padding: 1.25rem 1.5rem;
+}
+
+.pythonanywhere-benchmarks h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.pythonanywhere-benchmarks ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.pythonanywhere-benchmarks li {
+    font-size: 0.85rem;
+    color: var(--text);
+    padding: 0.4rem 0;
+    padding-left: 1.25rem;
+    position: relative;
+}
+
+.pythonanywhere-benchmarks li::before {
+    content: ">";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.pythonanywhere-note {
+    padding: 1rem 1.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.1);
+    margin: 0;
+}
+
+/* Benchmark Results */
+.benchmark-results {
+    padding: 4rem 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.benchmark-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+}
+
+.benchmark-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+}
+
+.benchmark-card.highlight {
+    border-color: rgba(0, 212, 170, 0.3);
+    background: linear-gradient(135deg, rgba(0, 212, 170, 0.05) 0%, var(--bg-elevated) 100%);
+}
+
+.benchmark-card h3 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: var(--text);
+}
+
+.benchmark-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.benchmark-table th,
+.benchmark-table td {
+    padding: 0.75rem 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.benchmark-table th {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.benchmark-table .result {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.benchmark-table .speedup {
+    color: var(--accent);
+}
+
+.benchmark-table .ratio {
+    color: var(--primary);
+}
+
+.benchmark-table .status {
+    text-align: center;
+}
+
+.benchmark-note {
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Code Samples Section */
+.code-samples {
+    padding: 4rem 2rem;
+    background: var(--bg-elevated);
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.code-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.code-tab {
+    padding: 0.6rem 1.25rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.code-tab:hover {
+    color: var(--text);
+    border-color: var(--primary);
+}
+
+.code-tab.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.code-panel {
+    display: none;
+}
+
+.code-panel.active {
+    display: block;
+}
+
+.code-block {
+    background: rgba(18, 18, 26, 0.9);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.code-header span {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.copy-btn {
+    padding: 0.4rem 0.75rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.copy-btn:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.copy-btn.copied {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+}
+
+.code-block pre {
+    padding: 1.5rem;
+    margin: 0;
+    overflow-x: auto;
+    max-height: 500px;
+}
+
+.code-block code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: var(--text);
+}
+
+/* Syntax highlighting */
+.code-block .kw { color: #c792ea; }
+.code-block .st { color: #c3e88d; }
+.code-block .nu { color: #f78c6c; }
+.code-block .cm { color: #546e7a; }
+.code-block .fn { color: #82aaff; }
+
+/* Methodology Section */
+.methodology {
+    padding: 4rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.methodology-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.method-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+}
+
+.method-card h3 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: var(--primary);
+}
+
+.method-card ul {
+    list-style: none;
+    padding: 0;
+}
+
+.method-card li {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    padding: 0.4rem 0;
+    padding-left: 1.25rem;
+    position: relative;
+}
+
+.method-card li::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+}
+
+.method-card code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    color: var(--accent);
+}
+
+/* FAQ Section */
+.faq {
+    padding: 4rem 2rem;
+    background: var(--bg-elevated);
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.faq-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.faq-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    transition: all 0.2s;
+}
+
+.faq-item:hover {
+    border-color: rgba(74, 144, 217, 0.3);
+}
+
+.faq-item h4 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+    color: var(--text);
+}
+
+.faq-item p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.faq-item code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    color: var(--accent);
+}
+
+/* Active nav link */
+nav a.active {
+    color: var(--accent);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .playground-hero h1 {
+        font-size: 2rem;
+    }
+    
+    .claims-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .benchmark-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .scale-selector {
+        flex-direction: column;
+    }
+    
+    .language-tabs {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .lang-tab {
+        text-align: center;
+    }
+    
+    .replit-container iframe {
+        height: 400px;
+    }
+    
+    .code-tabs {
+        flex-direction: column;
+    }
+    
+    .code-tab {
+        text-align: center;
+    }
+}

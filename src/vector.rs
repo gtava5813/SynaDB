@@ -244,7 +244,7 @@ impl VectorStore {
     ///
     /// # Errors
     ///
-    /// * `SynaError::InvalidDimensions` - If dimensions are not in range 64-4096
+    /// * `SynaError::InvalidDimensions` - If dimensions are not in range 64-8192
     /// * `SynaError::Io` - If the database file cannot be opened/created
     /// * `SynaError::IndexError` - If FAISS index creation fails (when using FAISS backend)
     ///

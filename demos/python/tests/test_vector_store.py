@@ -40,15 +40,15 @@ class TestVectorStoreCreation:
         """Should reject dimensions < 64."""
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = os.path.join(tmpdir, "test_vectors.db")
-            with pytest.raises(ValueError, match="Dimensions must be between 64 and 4096"):
+            with pytest.raises(ValueError, match="Dimensions must be between 64 and 8192"):
                 VectorStore(db_path, dimensions=32)
     
     def test_invalid_dimensions_too_large(self):
-        """Should reject dimensions > 4096."""
+        """Should reject dimensions > 8192."""
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = os.path.join(tmpdir, "test_vectors.db")
-            with pytest.raises(ValueError, match="Dimensions must be between 64 and 4096"):
-                VectorStore(db_path, dimensions=5000)
+            with pytest.raises(ValueError, match="Dimensions must be between 64 and 8192"):
+                VectorStore(db_path, dimensions=10000)
     
     def test_different_metrics(self):
         """Should support different distance metrics."""

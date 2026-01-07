@@ -19,9 +19,9 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 - **Schema-free** - Store heterogeneous data types without migrations
 - **AI/ML optimized** - Extract time-series data as contiguous tensors for PyTorch/TensorFlow
 - **Vector Store** - Native embedding storage with HNSW index for similarity search
-- **MmapVectorStore** - Ultra-high-throughput vector storage (490K vectors/sec)
+- **MmapVectorStore** - Ultra-high-throughput vector storage (7x faster than VectorStore)
 - **HNSW Index** - O(log N) approximate nearest neighbor search
-- **Gravity Well Index** - Novel O(N) build time index (168x faster than HNSW)
+- **Gravity Well Index** - Novel O(N) build time index (faster build than HNSW)
 - **Cascade Index** - Three-stage hybrid index (LSH + bucket tree + graph) (Experimental)
 - **Tensor Engine** - Batch tensor operations with chunked storage
 - **Model Registry** - Version models with SHA-256 checksum verification
@@ -290,7 +290,7 @@ store = VectorStore("vectors.db", dimensions=768, metric="dot_product")
 
 ### Supported Dimensions
 
-Vector dimensions from 64 to 4096 are supported, covering all common embedding models:
+Vector dimensions from 64 to 8192 are supported, covering all common embedding models:
 
 | Model | Dimensions |
 |-------|------------|
@@ -299,6 +299,8 @@ Vector dimensions from 64 to 4096 are supported, covering all common embedding m
 | BERT large | 1024 |
 | OpenAI ada-002 | 1536 |
 | OpenAI text-embedding-3-large | 3072 |
+| NVIDIA NV-Embed-v2 | 4096 |
+| OpenAI text-embedding-3-large (max) | 8192 |
 
 ### HNSW Index
 
@@ -343,7 +345,7 @@ let mut index = HnswIndex::new(768, DistanceMetric::Cosine, config);
 
 ### MmapVectorStore
 
-For ultra-high-throughput vector ingestion (490K vectors/sec), use MmapVectorStore:
+For ultra-high-throughput vector ingestion (7x faster than VectorStore), use MmapVectorStore:
 
 ```python
 from synadb import MmapVectorStore
@@ -355,7 +357,7 @@ store = MmapVectorStore("vectors.mmap", dimensions=768, initial_capacity=100000)
 # Batch insert - 7x faster than VectorStore
 keys = [f"doc_{i}" for i in range(10000)]
 vectors = np.random.randn(10000, 768).astype(np.float32)
-store.insert_batch(keys, vectors)  # 490K vectors/sec
+store.insert_batch(keys, vectors)  # 7x faster than VectorStore
 
 # Build HNSW index
 store.build_index()
@@ -376,7 +378,7 @@ store.close()
 
 ### Gravity Well Index (GWI)
 
-For scenarios where index build time is critical, GWI provides O(N) build time (168x faster than HNSW at 50K vectors):
+For scenarios where index build time is critical, GWI provides O(N) build time (faster than HNSW):
 
 ```python
 from synadb import GravityWellIndex
@@ -805,7 +807,7 @@ Syna supports six atomic data types:
 | Int | `Atom::Int(i64)` | `SYNA_put_int` | 64-bit signed integer |
 | Text | `Atom::Text(String)` | `SYNA_put_text` | UTF-8 string |
 | Bytes | `Atom::Bytes(Vec<u8>)` | `SYNA_put_bytes` | Raw byte array |
-| Vector | `Atom::Vector(Vec<f32>, u16)` | `SYNA_put_vector` | Embedding vector (64-4096 dims) |
+| Vector | `Atom::Vector(Vec<f32>, u16)` | `SYNA_put_vector` | Embedding vector (64-8192 dims) |
 
 ## Configuration
 
@@ -870,14 +872,20 @@ SynaDB is designed for high-performance AI/ML workloads. Here are benchmark resu
 | YCSB-B | 95% read, 5% update | 111,487 ops/sec | 8.5 μs |
 | YCSB-C | 100% read | **121,197 ops/sec** | 3.2 μs |
 
-### Performance Targets
+### Performance Characteristics
 
-| Operation | Target | Achieved |
-|-----------|--------|----------|
-| Write throughput | 100K+ ops/sec | ✅ 139K ops/sec |
-| Read throughput | 100K+ ops/sec | ✅ 135K ops/sec |
-| Read latency (p50) | <10 μs | ✅ 3.2-8.1 μs |
-| Vector search (1M) | <10 ms | ✅ O(log N) with HNSW |
+SynaDB uses relative benchmarks to ensure claims are hardware-independent:
+
+| Comparison | Claim | Verified |
+|------------|-------|----------|
+| Read vs Write | Read faster than write | In-memory index lookup |
+| MmapVectorStore vs VectorStore | 7x faster batch insert | Memory-mapped I/O |
+| GWI vs HNSW | Faster index build | O(N) vs O(N log N) |
+| HNSW vs Brute Force | Faster search | O(log N) vs O(N) |
+
+Run benchmarks on your own hardware:
+- **Google Colab**: [SynaDB Playground Notebook](https://colab.research.google.com/github/gtava5813/SynaDB/blob/main/demos/notebooks/SynaDB_Playground.ipynb)
+- **PythonAnywhere**: [Live Demo](https://gtava5813.pythonanywhere.com/)
 
 ### FAISS vs HNSW Comparison
 

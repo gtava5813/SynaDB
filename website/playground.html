@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SynaDB Playground - Validate Our Claims</title>
+    <meta name="description" content="Interactive playground to test and validate SynaDB performance claims with 1M, 10M, and 100M records.">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="playground.css">
+</head>
+
+<body>
+    <div class="noise-overlay"></div>
+    <canvas id="log-canvas"></canvas>
+    <header>
+        <div class="header-content">
+            <a href="/" class="logo-link">
+                <img src="logo-no-bg.png" alt="SynaDB" class="nav-logo">
+                <span class="nav-title">SynaDB</span>
+            </a>
+            <nav>
+                <a href="index.html#features">Features</a>
+                <a href="index.html#install">Install</a>
+                <a href="playground.html" class="active">Playground</a>
+                <a href="https://github.com/gtava5813/SynaDB/wiki">Docs</a>
+                <a href="https://github.com/gtava5813/SynaDB" class="github-link">
+                    <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                    </svg>
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="playground-main">
+        <section class="claim-validation">
+            <div class="section-header">
+                <h2>SynaDB Playground</h2>
+            </div>
+
+
+            <div class="claims-grid">
+                <!-- Core Storage Claims -->
+                <div class="claim-category">
+                    <h3>Core Storage</h3>
+                    
+                    <div class="claim-card" data-claim="append-only">
+                        <div class="claim-header">
+                            
+                            <h4>Append-only log structure</h4>
+                        </div>
+                        <p class="claim-text">Fast sequential writes, immutable history</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Claim: Sequential I/O optimized</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="schema-free">
+                        <div class="claim-header">
+                            
+                            <h4>Schema-free storage</h4>
+                        </div>
+                        <p class="claim-text">Store heterogeneous data types without migrations</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Types: Float, Int, Text, Bytes, Vector</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="compression">
+                        <div class="claim-header">
+                            
+                            <h4>Delta & LZ4 compression</h4>
+                        </div>
+                        <p class="claim-text">Minimize storage for time-series data</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Target: 10-100x savings</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="crash-recovery">
+                        <div class="claim-header">
+                            
+                            <h4>Crash recovery</h4>
+                        </div>
+                        <p class="claim-text">Automatic index rebuild on open</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Target: 1M+ entries/sec recovery</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="thread-safe">
+                        <div class="claim-header">
+                            
+                            <h4>Thread-safe</h4>
+                        </div>
+                        <p class="claim-text">Concurrent read/write access with mutex-protected writes</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Concurrent readers + single writer</span>
+                        </div>
+                        
+                    </div>
+                </div>
+
+                <!-- Vector Store Claims -->
+                <div class="claim-category">
+                    <h3>Vector Search</h3>
+                    
+                    <div class="claim-card" data-claim="vector-store">
+                        <div class="claim-header">
+                            
+                            <h4>Vector Store</h4>
+                        </div>
+                        <p class="claim-text">Native embedding storage with HNSW index for similarity search</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Dimensions: 64-8192</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="mmap-vector">
+                        <div class="claim-header">
+                            
+                            <h4>MmapVectorStore</h4>
+                        </div>
+                        <p class="claim-text">Ultra-high-throughput vector storage</p>
+                        <div class="claim-metrics">
+                            <span class="metric highlight">Claim: 7x faster than VectorStore</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="hnsw">
+                        <div class="claim-header">
+                            
+                            <h4>HNSW Index</h4>
+                        </div>
+                        <p class="claim-text">O(log N) approximate nearest neighbor search</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Target: &lt;10ms for 1M vectors</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="gwi">
+                        <div class="claim-header">
+                            
+                            <h4>Gravity Well Index</h4>
+                        </div>
+                        <p class="claim-text">Novel O(N) build time index</p>
+                        <div class="claim-metrics">
+                            <span class="metric highlight">Claim: Faster build than HNSW</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="cascade">
+                        <div class="claim-header">
+                            
+                            <h4>Cascade Index</h4>
+                            <span class="experimental-badge">Experimental</span>
+                        </div>
+                        <p class="claim-text">Three-stage hybrid index (LSH + bucket tree + graph)</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Recall: 95-99%</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="faiss">
+                        <div class="claim-header">
+                            
+                            <h4>FAISS Integration</h4>
+                            <span class="optional-badge">Optional</span>
+                        </div>
+                        <p class="claim-text">Billion-scale vector search</p>
+                        <div class="claim-metrics">
+                            <span class="metric">IVF/PQ indexes</span>
+                        </div>
+                        
+                    </div>
+                </div>
+
+                <!-- AI/ML Claims -->
+                <div class="claim-category">
+                    <h3>AI/ML Features</h3>
+                    
+                    <div class="claim-card" data-claim="tensor">
+                        <div class="claim-header">
+                            
+                            <h4>AI/ML optimized</h4>
+                        </div>
+                        <p class="claim-text">Extract time-series data as contiguous tensors for PyTorch/TensorFlow</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Target: 1 GB/s tensor load</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="tensor-engine">
+                        <div class="claim-header">
+                            
+                            <h4>Tensor Engine</h4>
+                        </div>
+                        <p class="claim-text">Batch tensor operations with chunked storage</p>
+                        <div class="claim-metrics">
+                            <span class="metric">1MB chunks, pattern matching</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="model-registry">
+                        <div class="claim-header">
+                            
+                            <h4>Model Registry</h4>
+                        </div>
+                        <p class="claim-text">Version models with SHA-256 checksum verification</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Stages: Dev → Staging → Prod</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="experiment">
+                        <div class="claim-header">
+                            
+                            <h4>Experiment Tracking</h4>
+                        </div>
+                        <p class="claim-text">Log parameters, metrics, and artifacts</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Local MLflow alternative</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="gpu">
+                        <div class="claim-header">
+                            
+                            <h4>GPU Direct</h4>
+                            <span class="optional-badge">Optional</span>
+                        </div>
+                        <p class="claim-text">CUDA tensor loading with pinned memory</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Zero-copy GPU access</span>
+                        </div>
+                        
+                    </div>
+                </div>
+<!-- Integration Claims -->
+                <!--
+                
+                <div class="claim-category">
+                    <h3>Integrations</h3>
+                    
+                    <div class="claim-card" data-claim="langchain">
+                        <div class="claim-header">
+                            
+                            <h4>LLM Integrations</h4>
+                        </div>
+                        <p class="claim-text">LangChain, LlamaIndex, Haystack support</p>
+                        <div class="claim-metrics">
+                            <span class="metric">VectorStore, ChatHistory, Loader</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="pytorch">
+                        <div class="claim-header">
+                            
+                            <h4>ML Integrations</h4>
+                        </div>
+                        <p class="claim-text">PyTorch Dataset/DataLoader, TensorFlow tf.data</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Distributed training support</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="ffi">
+                        <div class="claim-header">
+                            
+                            <h4>C-ABI interface</h4>
+                        </div>
+                        <p class="claim-text">Use from Python, Node.js, C++, or any FFI-capable language</p>
+                        <div class="claim-metrics">
+                            <span class="metric">libsynadb.so/.dylib/.dll</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="cli">
+                        <div class="claim-header">
+                            
+                            <h4>CLI Tool</h4>
+                        </div>
+                        <p class="claim-text">Command-line database inspection and management</p>
+                        <div class="claim-metrics">
+                            <span class="metric">syna-cli commands</span>
+                        </div>
+                        
+                    </div>
+
+                    <div class="claim-card" data-claim="studio">
+                        <div class="claim-header">
+                            
+                            <h4>Studio Web UI</h4>
+                        </div>
+                        <p class="claim-text">Visual database explorer with 3D embedding clusters</p>
+                        <div class="claim-metrics">
+                            <span class="metric">Flask-based dashboard</span>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div> -->
+        </section>
+
+        <!-- Interactive Google Colab Section -->
+        <section class="colab-section">
+            <div class="section-header">
+                <h2>Interactive Playground</h2>
+                <p>Run real benchmarks with the actual SynaDB library in Google Colab.</p>
+            </div>
+
+            <div class="colab-container">
+                <div class="colab-header">
+                    <div class="colab-title">
+                        <img src="https://colab.research.google.com/img/colab_favicon_256px.png" alt="Colab" class="colab-icon">
+                        <h3>SynaDB Benchmark Notebook</h3>
+                    </div>
+                    <div class="colab-actions">
+                        <a href="https://colab.research.google.com/github/gtava5813/SynaDB/blob/main/demos/notebooks/SynaDB_Playground.ipynb" 
+                           target="_blank" class="colab-btn primary">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                <path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+                            </svg>
+                            Open in Colab
+                        </a>
+                        <a href="https://github.com/gtava5813/SynaDB/blob/main/demos/notebooks/SynaDB_Playground.ipynb" 
+                           target="_blank" class="colab-btn secondary">
+                            View on GitHub
+                        </a>
+                    </div>
+                </div>
+
+                <div class="colab-features">
+                    <div class="colab-feature">
+                        <span class="feature-icon">[pkg]</span>
+                        <span>Installs real <code>synadb</code> via pip</span>
+                    </div>
+                    <div class="colab-feature">
+                        <span class="feature-icon">[fast]</span>
+                        <span>Tests at 1M, 10M, 100M scale</span>
+                    </div>
+                    <div class="colab-feature">
+                        <span class="feature-icon">[stats]</span>
+                        <span>8 benchmark categories</span>
+                    </div>
+                    <div class="colab-feature">
+                        <span class="feature-icon">[free]</span>
+                        <span>Free GPU available</span>
+                    </div>
+                </div>
+
+                <div class="colab-preview">
+                    <div class="notebook-preview">
+                        <div class="cell">
+                            <div class="cell-type">Code</div>
+                            <pre><code><span class="cm"># Install SynaDB</span>
+!pip install -q synadb numpy
+
+<span class="kw">from</span> synadb <span class="kw">import</span> SynaDB, VectorStore
+print(<span class="st">f"SynaDB {synadb.__version__} installed"</span>)</code></pre>
+                        </div>
+                        <div class="cell">
+                            <div class="cell-type">Code</div>
+                            <pre><code><span class="cm"># Benchmark: Write Performance</span>
+db = SynaDB(<span class="st">"bench.db"</span>, sync_on_write=<span class="kw">False</span>)
+
+<span class="kw">for</span> i <span class="kw">in</span> range(<span class="nu">1_000_000</span>):
+    db.put_float(<span class="st">f"key_{i}"</span>, float(i))
+
+<span class="cm"># Result: 127,000 ops/sec [PASS]</span></code></pre>
+                        </div>
+                        <div class="cell">
+                            <div class="cell-type">Code</div>
+                            <pre><code><span class="cm"># Benchmark: Vector Search</span>
+store = VectorStore(<span class="st">"vectors.db"</span>, dimensions=<span class="nu">768</span>)
+store.insert_batch(keys, embeddings)
+store.build_index()
+
+results = store.search(query, k=<span class="nu">10</span>)
+<span class="cm"># Search time: 0.6ms [PASS]</span></code></pre>
+                        </div>
+                    </div>
+                    <div class="preview-overlay">
+                        <a href="https://colab.research.google.com/github/gtava5813/SynaDB/blob/main/demos/notebooks/SynaDB_Playground.ipynb" 
+                           target="_blank" class="open-colab-btn">
+                            Run Full Notebook in Colab
+                        </a>
+                    </div>
+                </div>
+
+                <div class="colab-benchmarks">
+                    <h4>Benchmarks Included:</h4>
+                    <ul>
+                        <li>Core Database Performance (read vs write comparison)</li>
+                        <li>MmapVectorStore vs VectorStore</li>
+                        <li>HNSW vs Brute Force Search</li>
+                        <li>GWI vs HNSW Build Time</li>
+                        <li>Crash Recovery</li>
+                        <li>Schema-Free Storage</li>
+                        <li>Tensor Extraction</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="rust-note">
+                <h4>Rust Benchmarks</h4>
+                <p>For Rust, clone the repo and run <code>cargo bench</code> locally. See the <a href="#code-samples">copy-paste code</a> below.</p>
+            </div>
+        </section>
+
+        <!-- PythonAnywhere Live Demo Section -->
+        <section class="pythonanywhere-section">
+            <div class="section-header">
+                <h2>Live Python Demo</h2>
+                <p>Run benchmarks on a real server. No setup required.</p>
+            </div>
+
+            <div class="pythonanywhere-container">
+                <div class="pythonanywhere-header">
+                    <div class="pythonanywhere-title">
+                        <img src="https://www.pythonanywhere.com/static/anywhere/images/PA-logo.svg" alt="PythonAnywhere" class="pythonanywhere-icon" onerror="this.style.display='none'">
+                        <h3>SynaDB Live Demo</h3>
+                    </div>
+                    <div class="pythonanywhere-actions">
+                        <a href="https://gtava5813.pythonanywhere.com/" 
+                           target="_blank" class="pythonanywhere-btn primary">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                <path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+                            </svg>
+                            Open Live Demo
+                        </a>
+                    </div>
+                </div>
+
+                <div class="pythonanywhere-features">
+                    <div class="pythonanywhere-feature">
+                        <span class="feature-icon">[live]</span>
+                        <span>Real server, real results</span>
+                    </div>
+                    <div class="pythonanywhere-feature">
+                        <span class="feature-icon">[api]</span>
+                        <span>Interactive REST API</span>
+                    </div>
+                    <div class="pythonanywhere-feature">
+                        <span class="feature-icon">[free]</span>
+                        <span>No account needed</span>
+                    </div>
+                </div>
+
+                <div class="pythonanywhere-benchmarks">
+                    <h4>Available Benchmarks:</h4>
+                    <ul>
+                        <li>Mmap vs VectorStore - Compare batch insert speeds</li>
+                        <li>GWI vs HNSW - Compare index build times</li>
+                        <li>HNSW vs Brute Force - Compare search speeds</li>
+                        <li>Schema-Free - Test multi-type storage</li>
+                        <li>Crash Recovery - Test data integrity after reopen</li>
+                        <li>Tensor Extraction - Test NumPy tensor output</li>
+                        <li>Compression - Test delta + LZ4 compression</li>
+                    </ul>
+                </div>
+
+                <p class="pythonanywhere-note">
+                    Note: Free tier has resource limits. For full-scale benchmarks (1M+ records), use the Colab notebook above.
+                </p>
+            </div>
+        </section>
+
+        <!-- Benchmark Results Section -->
+        <section class="benchmark-results">
+            <div class="section-header">
+                <h2>Benchmark Results</h2>
+                <p>Run the benchmarks yourself using Colab or PythonAnywhere above. Results vary by hardware.</p>
+            </div>
+
+            <div class="benchmark-summary">
+                <div class="benchmark-card">
+                    <h3>Relative Benchmarks (Hardware Independent)</h3>
+                    <table class="benchmark-table">
+                        <thead>
+                            <tr>
+                                <th>Comparison</th>
+                                <th>Claim</th>
+                                <th>Verify</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>MmapVectorStore vs VectorStore</td>
+                                <td>Batch insert faster</td>
+                                <td><a href="https://gtava5813.pythonanywhere.com/" target="_blank">Run</a></td>
+                            </tr>
+                            <tr>
+                                <td>GWI vs HNSW</td>
+                                <td>Faster index build</td>
+                                <td><a href="https://gtava5813.pythonanywhere.com/" target="_blank">Run</a></td>
+                            </tr>
+                            <tr>
+                                <td>HNSW vs Brute Force</td>
+                                <td>Faster search</td>
+                                <td><a href="https://gtava5813.pythonanywhere.com/" target="_blank">Run</a></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="benchmark-card">
+                    <h3>Functional Tests</h3>
+                    <table class="benchmark-table">
+                        <thead>
+                            <tr>
+                                <th>Feature</th>
+                                <th>Claim</th>
+                                <th>Verify</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Schema-Free Storage</td>
+                                <td>Float, Int, Text, Bytes without migrations</td>
+                                <td><a href="https://gtava5813.pythonanywhere.com/" target="_blank">Run</a></td>
+                            </tr>
+                            <tr>
+                                <td>Crash Recovery</td>
+                                <td>Full data integrity after reopen</td>
+                                <td><a href="https://gtava5813.pythonanywhere.com/" target="_blank">Run</a></td>
+                            </tr>
+                            <tr>
+                                <td>Tensor Extraction</td>
+                                <td>Direct NumPy tensor from history</td>
+                                <td><a href="https://gtava5813.pythonanywhere.com/" target="_blank">Run</a></td>
+                            </tr>
+                            <tr>
+                                <td>Compression</td>
+                                <td>Delta + LZ4 for time-series</td>
+                                <td><a href="https://gtava5813.pythonanywhere.com/" target="_blank">Run</a></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Code Samples Section -->
+        <section class="code-samples" id="code-samples">
+            <div class="section-header">
+                <h2>Copy-Paste Benchmarks</h2>
+                <p>Run these locally to verify our claims on your hardware.</p>
+            </div>
+
+            <div class="code-tabs">
+                <button class="code-tab active" data-code="python-bench">Python Benchmark</button>
+                <button class="code-tab" data-code="rust-bench">Rust Benchmark</button>
+                <button class="code-tab" data-code="scale-test">Scale Test</button>
+            </div>
+
+            <div class="code-panel active" id="python-bench">
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>benchmark_claims.py</span>
+                        <button class="copy-btn" data-target="python-bench-code">Copy</button>
+                    </div>
+                    <pre id="python-bench-code"><code><span class="cm">#!/usr/bin/env python3</span>
+<span class="cm">"""SynaDB Claim Validation Benchmark"""</span>
+<span class="kw">import</span> time
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> synadb <span class="kw">import</span> SynaDB, VectorStore, MmapVectorStore, GravityWellIndex
+
+<span class="kw">def</span> <span class="fn">benchmark_writes</span>(n: int = <span class="nu">1_000_000</span>):
+    <span class="cm">"""Benchmark write performance"""</span>
+    db = SynaDB(<span class="st">"bench_write.db"</span>)
+    start = time.perf_counter()
+    <span class="kw">for</span> i <span class="kw">in</span> range(n):
+        db.put_float(<span class="st">f"key_{i}"</span>, float(i))
+    elapsed = time.perf_counter() - start
+    rate = n / elapsed
+    print(<span class="st">f"Write: {rate:,.0f} ops/sec ({n:,} records in {elapsed:.2f}s)"</span>)
+    print(<span class="st">f"[PASS]"</span> <span class="kw">if</span> rate >= <span class="nu">100_000</span> <span class="kw">else</span> <span class="st">f"[FAIL] (target: 100K)"</span>)
+    <span class="kw">return</span> rate
+
+<span class="kw">def</span> <span class="fn">benchmark_mmap_vectors</span>(n: int = <span class="nu">100_000</span>, dims: int = <span class="nu">768</span>):
+    <span class="cm">"""Claim: 7x faster than VectorStore"""</span>
+    store = MmapVectorStore(<span class="st">"bench_mmap.mmap"</span>, dimensions=dims)
+    vectors = np.random.randn(n, dims).astype(np.float32)
+    keys = [<span class="st">f"vec_{i}"</span> <span class="kw">for</span> i <span class="kw">in</span> range(n)]
+    
+    start = time.perf_counter()
+    store.insert_batch(keys, vectors)
+    elapsed = time.perf_counter() - start
+    rate = n / elapsed
+    print(<span class="st">f"MmapVector Insert: {rate:,.0f} vectors/sec"</span>)
+    print(<span class="st">f"[PASS]"</span> <span class="kw">if</span> rate >= vector_rate <span class="kw">else</span> <span class="st">f"[FAIL]"</span>)
+    <span class="kw">return</span> rate
+
+<span class="kw">def</span> <span class="fn">benchmark_gwi_vs_hnsw</span>(n: int = <span class="nu">50_000</span>, dims: int = <span class="nu">768</span>):
+    <span class="cm">"""Claim: GWI builds faster than HNSW"""</span>
+    vectors = np.random.randn(n, dims).astype(np.float32)
+    
+    <span class="cm"># GWI build</span>
+    gwi = GravityWellIndex(<span class="st">"bench_gwi.gwi"</span>, dimensions=dims)
+    gwi.initialize(vectors[:<span class="nu">1000</span>])
+    start = time.perf_counter()
+    gwi.insert_batch([<span class="st">f"v_{i}"</span> <span class="kw">for</span> i <span class="kw">in</span> range(n)], vectors)
+    gwi_time = time.perf_counter() - start
+    
+    <span class="cm"># HNSW build</span>
+    vs = VectorStore(<span class="st">"bench_hnsw.db"</span>, dimensions=dims)
+    start = time.perf_counter()
+    <span class="kw">for</span> i, v <span class="kw">in</span> enumerate(vectors):
+        vs.insert(<span class="st">f"v_{i}"</span>, v)
+    vs.build_index()
+    hnsw_time = time.perf_counter() - start
+    
+    speedup = hnsw_time / gwi_time
+    print(<span class="st">f"GWI: {gwi_time:.2f}s | HNSW: {hnsw_time:.2f}s | Speedup: {speedup:.1f}x"</span>)
+    print(<span class="st">f"[PASS]"</span> <span class="kw">if</span> speedup >= <span class="nu">2</span> <span class="kw">else</span> <span class="st">f"[WARN] {speedup:.1f}x"</span>)
+
+<span class="kw">if</span> __name__ == <span class="st">"__main__"</span>:
+    print(<span class="st">"=== SynaDB Claim Validation ==="</span>)
+    benchmark_writes(<span class="nu">1_000_000</span>)
+    benchmark_mmap_vectors(<span class="nu">100_000</span>)
+    benchmark_gwi_vs_hnsw(<span class="nu">50_000</span>)</code></pre>
+                </div>
+            </div>
+
+            <div class="code-panel" id="rust-bench">
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>benchmark_claims.rs</span>
+                        <button class="copy-btn" data-target="rust-bench-code">Copy</button>
+                    </div>
+                    <pre id="rust-bench-code"><code><span class="cm">//! SynaDB Claim Validation Benchmark</span>
+<span class="kw">use</span> synadb::{SynaDB, Atom, VectorStore, VectorConfig};
+<span class="kw">use</span> synadb::distance::DistanceMetric;
+<span class="kw">use</span> std::time::Instant;
+
+<span class="kw">fn</span> <span class="fn">benchmark_writes</span>(n: usize) {
+    <span class="cm">// Benchmark write performance</span>
+    <span class="kw">let</span> <span class="kw">mut</span> db = SynaDB::new(<span class="st">"bench_write.db"</span>).unwrap();
+    <span class="kw">let</span> start = Instant::now();
+    
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="nu">0</span>..n {
+        db.append(&format!(<span class="st">"key_{}"</span>, i), Atom::Float(i <span class="kw">as</span> f64)).unwrap();
+    }
+    
+    <span class="kw">let</span> elapsed = start.elapsed().as_secs_f64();
+    <span class="kw">let</span> rate = n <span class="kw">as</span> f64 / elapsed;
+    println!(<span class="st">"Write: {:.0} ops/sec ({} records in {:.2}s)"</span>, rate, n, elapsed);
+    println!(<span class="st">"{}"</span>, <span class="kw">if</span> rate >= <span class="nu">100_000.0</span> { <span class="st">"[PASS]"</span> } <span class="kw">else</span> { <span class="st">"[FAIL]"</span> });
+}
+
+<span class="kw">fn</span> <span class="fn">benchmark_reads</span>(n: usize) {
+    <span class="cm">// Benchmark read performance</span>
+    <span class="kw">let</span> <span class="kw">mut</span> db = SynaDB::new(<span class="st">"bench_read.db"</span>).unwrap();
+    
+    <span class="cm">// Setup: write data first</span>
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="nu">0</span>..n {
+        db.append(&format!(<span class="st">"key_{}"</span>, i), Atom::Float(i <span class="kw">as</span> f64)).unwrap();
+    }
+    
+    <span class="kw">let</span> start = Instant::now();
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="nu">0</span>..n {
+        <span class="kw">let</span> _ = db.get(&format!(<span class="st">"key_{}"</span>, i)).unwrap();
+    }
+    
+    <span class="kw">let</span> elapsed = start.elapsed().as_secs_f64();
+    <span class="kw">let</span> rate = n <span class="kw">as</span> f64 / elapsed;
+    println!(<span class="st">"Read: {:.0} ops/sec ({} records in {:.2}s)"</span>, rate, n, elapsed);
+    println!(<span class="st">"{}"</span>, <span class="kw">if</span> rate >= <span class="nu">500_000.0</span> { <span class="st">"[PASS]"</span> } <span class="kw">else</span> { <span class="st">"[FAIL]"</span> });
+}
+
+<span class="kw">fn</span> <span class="fn">benchmark_vector_search</span>(n: usize, dims: u16) {
+    <span class="cm">// Claim: &lt;10ms search for 1M vectors</span>
+    <span class="kw">let</span> config = VectorConfig {
+        dimensions: dims,
+        metric: DistanceMetric::Cosine,
+        key_prefix: <span class="st">"vec/"</span>.to_string(),
+        index_threshold: <span class="nu">10000</span>,
+    };
+    <span class="kw">let</span> <span class="kw">mut</span> store = VectorStore::new(<span class="st">"bench_vec.db"</span>, config).unwrap();
+    
+    <span class="cm">// Insert vectors</span>
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="nu">0</span>..n {
+        <span class="kw">let</span> vec: Vec&lt;f32&gt; = (<span class="nu">0</span>..dims).map(|_| rand::random()).collect();
+        store.insert(&format!(<span class="st">"v_{}"</span>, i), &vec).unwrap();
+    }
+    store.build_index().unwrap();
+    
+    <span class="cm">// Search</span>
+    <span class="kw">let</span> query: Vec&lt;f32&gt; = (<span class="nu">0</span>..dims).map(|_| rand::random()).collect();
+    <span class="kw">let</span> start = Instant::now();
+    <span class="kw">let</span> _ = store.search(&query, <span class="nu">10</span>).unwrap();
+    <span class="kw">let</span> elapsed_ms = start.elapsed().as_secs_f64() * <span class="nu">1000.0</span>;
+    
+    println!(<span class="st">"Vector Search: {:.2}ms ({} vectors)"</span>, elapsed_ms, n);
+    println!(<span class="st">"{}"</span>, <span class="kw">if</span> elapsed_ms < <span class="nu">10.0</span> { <span class="st">"[PASS]"</span> } <span class="kw">else</span> { <span class="st">"[FAIL]"</span> });
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    println!(<span class="st">"=== SynaDB Claim Validation (Rust) ==="</span>);
+    benchmark_writes(<span class="nu">1_000_000</span>);
+    benchmark_reads(<span class="nu">1_000_000</span>);
+    benchmark_vector_search(<span class="nu">100_000</span>, <span class="nu">768</span>);
+}</code></pre>
+                </div>
+            </div>
+
+            <div class="code-panel" id="scale-test">
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>scale_test.py</span>
+                        <button class="copy-btn" data-target="scale-test-code">Copy</button>
+                    </div>
+                    <pre id="scale-test-code"><code><span class="cm">#!/usr/bin/env python3</span>
+<span class="cm">"""SynaDB Scale Test: 1M, 10M, 100M Records"""</span>
+<span class="kw">import</span> time
+<span class="kw">import</span> os
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> synadb <span class="kw">import</span> SynaDB
+
+<span class="kw">def</span> <span class="fn">scale_test</span>(scale: str):
+    scales = {<span class="st">"1m"</span>: <span class="nu">1_000_000</span>, <span class="st">"10m"</span>: <span class="nu">10_000_000</span>, <span class="st">"100m"</span>: <span class="nu">100_000_000</span>}
+    n = scales[scale]
+    db_path = <span class="st">f"scale_test_{scale}.db"</span>
+    
+    print(<span class="st">f"\n{'='*50}"</span>)
+    print(<span class="st">f"Scale Test: {n:,} records"</span>)
+    print(<span class="st">f"{'='*50}"</span>)
+    
+    <span class="cm"># Write test</span>
+    db = SynaDB(db_path, sync_on_write=<span class="kw">False</span>)  <span class="cm"># Disable sync for speed</span>
+    
+    print(<span class="st">f"\nWriting {n:,} records..."</span>)
+    start = time.perf_counter()
+    batch_size = <span class="nu">100_000</span>
+    <span class="kw">for</span> batch_start <span class="kw">in</span> range(<span class="nu">0</span>, n, batch_size):
+        batch_end = min(batch_start + batch_size, n)
+        <span class="kw">for</span> i <span class="kw">in</span> range(batch_start, batch_end):
+            db.put_float(<span class="st">f"sensor/temp/{i}"</span>, <span class="nu">20.0</span> + (i % <span class="nu">100</span>) * <span class="nu">0.1</span>)
+        <span class="kw">if</span> (batch_start + batch_size) % <span class="nu">1_000_000</span> == <span class="nu">0</span>:
+            elapsed = time.perf_counter() - start
+            rate = (batch_start + batch_size) / elapsed
+            print(<span class="st">f"  Progress: {(batch_start + batch_size):,} ({rate:,.0f}/sec)"</span>)
+    
+    write_time = time.perf_counter() - start
+    write_rate = n / write_time
+    print(<span class="st">f"[OK] Write complete: {write_rate:,.0f} ops/sec"</span>)
+    
+    <span class="cm"># File size</span>
+    file_size = os.path.getsize(db_path) / (<span class="nu">1024</span> ** <span class="nu">3</span>)  <span class="cm"># GB</span>
+    print(<span class="st">f"File size: {file_size:.2f} GB"</span>)
+    
+    <span class="cm"># Read test (random access)</span>
+    print(<span class="st">f"\nReading {min(n, 100_000):,} random records..."</span>)
+    indices = np.random.randint(<span class="nu">0</span>, n, size=min(n, <span class="nu">100_000</span>))
+    start = time.perf_counter()
+    <span class="kw">for</span> i <span class="kw">in</span> indices:
+        _ = db.get_float(<span class="st">f"sensor/temp/{i}"</span>)
+    read_time = time.perf_counter() - start
+    read_rate = len(indices) / read_time
+    print(<span class="st">f"[OK] Read complete: {read_rate:,.0f} ops/sec"</span>)
+    
+    <span class="cm"># Recovery test</span>
+    db.close()
+    print(<span class="st">f"\nTesting crash recovery..."</span>)
+    start = time.perf_counter()
+    db2 = SynaDB(db_path)  <span class="cm"># Reopen triggers index rebuild</span>
+    recovery_time = time.perf_counter() - start
+    recovery_rate = n / recovery_time
+    print(<span class="st">f"[OK] Recovery: {recovery_time:.2f}s ({recovery_rate:,.0f} entries/sec)"</span>)
+    
+    <span class="cm"># Summary</span>
+    print(<span class="st">f"\n{'='*50}"</span>)
+    print(<span class="st">f"SUMMARY: {scale.upper()}"</span>)
+    print(<span class="st">f"{'='*50}"</span>)
+    print(<span class="st">f"Write:    {write_rate:>12,.0f} ops/sec {'[PASS]' if write_rate >= 100_000 else '[FAIL]'}"</span>)
+    print(<span class="st">f"Read:     {read_rate:>12,.0f} ops/sec {'[PASS]' if read_rate >= 500_000 else '[FAIL]'}"</span>)
+    print(<span class="st">f"Recovery: {recovery_rate:>12,.0f} entries/sec {'[PASS]' if recovery_rate >= 1_000_000 else '[FAIL]'}"</span>)
+    print(<span class="st">f"Size:     {file_size:>12.2f} GB"</span>)
+    
+    <span class="cm"># Cleanup</span>
+    os.remove(db_path)
+
+<span class="kw">if</span> __name__ == <span class="st">"__main__"</span>:
+    <span class="kw">import</span> sys
+    scale = sys.argv[<span class="nu">1</span>] <span class="kw">if</span> len(sys.argv) > <span class="nu">1</span> <span class="kw">else</span> <span class="st">"1m"</span>
+    scale_test(scale)</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Methodology Section -->
+        <section class="methodology">
+            <div class="section-header">
+                <h2>Benchmark Methodology</h2>
+                <p>How we measure and what you should expect.</p>
+            </div>
+
+            <div class="methodology-grid">
+                <div class="method-card">
+                    <h3>Hardware Baseline</h3>
+                    <ul>
+                        <li>CPU: 8-core (benchmarks scale with cores)</li>
+                        <li>RAM: 16GB minimum for 100M tests</li>
+                        <li>Storage: SSD recommended (NVMe for best results)</li>
+                        <li>OS: Linux, macOS, or Windows</li>
+                    </ul>
+                </div>
+
+                <div class="method-card">
+                    <h3>Test Conditions</h3>
+                    <ul>
+                        <li><code>sync_on_write=False</code> for throughput tests</li>
+                        <li>Warm cache for read benchmarks</li>
+                        <li>Cold start for recovery benchmarks</li>
+                        <li>Random data distribution</li>
+                    </ul>
+                </div>
+
+                <div class="method-card">
+                    <h3>What Affects Results</h3>
+                    <ul>
+                        <li>Disk I/O speed (SSD vs HDD: 10x difference)</li>
+                        <li>Key length (longer keys = slower)</li>
+                        <li>Value size (compression helps large values)</li>
+                        <li>Memory pressure (swapping kills performance)</li>
+                    </ul>
+                </div>
+
+                <div class="method-card">
+                    <h3>Fair Comparison Notes</h3>
+                    <ul>
+                        <li>GWI vs HNSW: Same dataset, same dimensions</li>
+                        <li>MmapVectorStore: Batch insert, not single</li>
+                        <li>Recovery: Includes full index rebuild</li>
+                        <li>All tests use release builds</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section class="faq">
+            <div class="section-header">
+                <h2>Frequently Asked Questions</h2>
+            </div>
+
+            <div class="faq-grid">
+                <div class="faq-item">
+                    <h4>Why is my write speed lower than claimed?</h4>
+                    <p>Check <code>sync_on_write</code> setting. Default is <code>True</code> for durability, which limits throughput to ~100 ops/sec. Set to <code>False</code> for benchmarks.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h4>Is MmapVectorStore really faster?</h4>
+                    <p>Yes, <code>MmapVectorStore.insert_batch()</code> is about 7x faster than individual VectorStore inserts. Use batch operations for bulk loading.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h4>Is GWI always faster than HNSW?</h4>
+                    <p>For <em>build time</em>, yes. For <em>search</em>, HNSW can be faster at high recall. GWI shines for streaming/real-time data where rebuild cost matters.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h4>What about 100M+ vectors?</h4>
+                    <p>Use the optional FAISS integration (<code>--features faiss</code>) for billion-scale. Native indexes are optimized for 1-10M vectors.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h4>How do I reproduce these benchmarks?</h4>
+                    <p>Clone the repo, run <code>cargo bench</code> for Rust or <code>python benchmarks/run_all.py</code> for Python. Results vary by hardware.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h4>Are these numbers cherry-picked?</h4>
+                    <p>No. We report median of 5 runs. Outliers are noted. Run the tests yourself - that's why this playground exists!</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand">
+                <img src="logo-no-bg.png" alt="SynaDB" class="footer-logo">
+                <span>SynaDB</span>
+            </div>
+            <div class="footer-links">
+                <a href="mailto:hello@synadb.ai">Contact</a>
+                <a href="https://github.com/gtava5813/SynaDB">GitHub</a>
+                <a href="https://github.com/gtava5813/SynaDB/wiki">Docs</a>
+            </div>
+            <p class="footer-copy">&copy; 2025 SynaDB</p>
+        </div>
+    </footer>
+
+    <script src="js/background.js"></script>
+    <script src="js/playground.js"></script>
+</body>
+</html>

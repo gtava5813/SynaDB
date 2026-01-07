@@ -292,7 +292,7 @@ impl HnswIndex {
     ///
     /// # Arguments
     ///
-    /// * `dimensions` - Number of dimensions for vectors (64-4096)
+    /// * `dimensions` - Number of dimensions for vectors (64-8192)
     /// * `metric` - Distance metric for similarity computation
     /// * `config` - Index configuration parameters
     ///

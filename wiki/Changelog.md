@@ -12,9 +12,31 @@ This document contains the complete release history for SynaDB.
 
 ### Highlights
 
-- 🔧 **GWI Persistence Fix** - Critical bug fix for GravityWellIndex data persistence
-- 🔧 **CascadeIndex Import Fix** - Fixed Python import error
-- 📊 **Benchmark Results** - GWI is 388x faster to build than HNSW
+- **GWI Persistence Fix** - Critical bug fix for GravityWellIndex data persistence
+- **CascadeIndex Import Fix** - Fixed Python import error
+-  **Benchmark Results** - GWI is 388x faster to build than HNSW
+-  **Interactive Playground** - New web-based playground for validating SynaDB claims
+
+### New Features
+
+#### DAVO Module (`src/davo/`)
+
+Experimental freshness-aware data primitives for time-sensitive workloads.(It is gitignored for now, you can request access at hello[at]synadb[dot]ai)
+
+#### Interactive Playground (`website/playground.html`)
+
+A new web-based playground for validating SynaDB's performance claims:
+
+- **Claim Validation Cards** - Visual overview of all SynaDB features organized by category (Core Storage, Vector Search, AI/ML)
+- **Google Colab Integration** - One-click access to run real benchmarks with the actual `synadb` package at 1M, 10M, and 100M scale
+- **PythonAnywhere Live Demo** - Hosted demo at [gtava5813.pythonanywhere.com](https://gtava5813.pythonanywhere.com/) for instant testing without setup
+- **Copy-Paste Benchmarks** - Ready-to-run Python and Rust code samples for local verification
+
+**Benchmarks Available:**
+- MmapVectorStore vs VectorStore (batch insert speed)
+- GWI vs HNSW (index build time)
+- HNSW vs Brute Force (search speed)
+- Schema-Free Storage, Crash Recovery, Tensor Extraction, Compression
 
 ### Bug Fixes
 
@@ -101,7 +123,7 @@ print(f"After reopen: len={len(gwi2)}")  # 1000 ✓
 
 ### Highlights
 
-- **MmapVectorStore** - Ultra-high-throughput vector storage (490K vectors/sec)
+- **MmapVectorStore** - Ultra-high-throughput vector storage (7x faster than VectorStore)
 - **Gravity Well Index (GWI)** - Novel append-only vector indexing algorithm
 - **Cascade Index** - O(N) build time index with no initialization required
 - **Extended Dimensions** - Support for 384-7168 dimensional embeddings
@@ -199,7 +221,7 @@ Memory-mapped vector storage for maximum throughput:
 from synadb import MmapVectorStore
 
 store = MmapVectorStore("vectors.mmap", dimensions=768, initial_capacity=100_000)
-store.insert_batch(keys, vectors)  # 490K vectors/sec
+store.insert_batch(keys, vectors)  # 7x faster than VectorStore
 store.build_index()
 results = store.search(query, k=10)  # 0.6ms
 ```
@@ -800,7 +822,7 @@ for r in results:
 - `Atom::Vector(Vec<f32>, u16)` type for embedding storage
 - Brute-force k-NN search (HNSW added in v0.5.0)
 - Distance metrics: Cosine, Euclidean, DotProduct
-- Dimension validation (64-4096)
+- Dimension validation (64-8192)
 - Python `VectorStore` class with NumPy integration
 
 #### FFI Extensions

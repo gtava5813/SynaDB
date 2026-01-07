@@ -21,8 +21,8 @@ v1.0.4 through v1.0.6 are incremental releases that add high-performance vector 
 
 | Version | Feature | Description |
 |---------|---------|-------------|
-| v1.0.4 | MmapVectorStore | Ultra-high-throughput vector storage (490K vectors/sec) |
-| v1.0.4 | Gravity Well Index (GWI) | Novel O(N) build time index, 168x faster than HNSW |
+| v1.0.4 | MmapVectorStore | Ultra-high-throughput vector storage (7x faster than VectorStore) |
+| v1.0.4 | Gravity Well Index (GWI) | Novel O(N) build time index, faster than HNSW |
 | v1.0.4 | HNSW Recall Fix | Critical bug fix - recall improved from 0-20% to 100% |
 | v1.0.4 | sync_on_write | Configurable sync for 456x throughput improvement |
 | v1.0.5 | Cascade Index | Three-stage hybrid index (LSH + bucket tree + graph) - Experimental |
@@ -39,7 +39,7 @@ from synadb import MmapVectorStore, GravityWellIndex
 
 # MmapVectorStore - Ultra-high-throughput
 store = MmapVectorStore("vectors.mmap", dimensions=768, initial_capacity=100000)
-store.insert_batch(keys, vectors)  # 490K vectors/sec
+store.insert_batch(keys, vectors)  # 7x faster than VectorStore
 store.build_index()
 results = store.search(query, k=10)
 

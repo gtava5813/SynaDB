@@ -78,7 +78,7 @@ pub enum Atom {
     Bytes(Vec<u8>),
     /// Embedding vector with dimensions (data, dimensions).
     /// Used for storing high-dimensional vectors for similarity search.
-    /// Dimensions typically range from 64 to 4096.
+    /// Dimensions typically range from 64 to 8192.
     Vector(Vec<f32>, u16),
 }
 

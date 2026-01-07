@@ -251,7 +251,7 @@ store = VectorStore("vectors.db", dimensions=768)
 # High-throughput ingestion
 store = MmapVectorStore("vectors.mmap", dimensions=768, initial_capacity=100000)
 
-# Fast index build (168x faster than HNSW at 50K vectors)
+# Fast index build (faster than HNSW)
 gwi = GravityWellIndex("vectors.gwi", dimensions=768)
 gwi.initialize(sample_vectors)  # Required for GWI
 

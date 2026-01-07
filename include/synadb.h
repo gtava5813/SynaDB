@@ -376,7 +376,7 @@ void SYNA_free_vector(float* data, uint16_t dimensions);
  * - Key prefixing for namespace isolation
  * 
  * @param path        Null-terminated path to the database file
- * @param dimensions  Number of dimensions for vectors (64-4096)
+ * @param dimensions  Number of dimensions for vectors (64-8192)
  * @param metric      Distance metric (SYNA_METRIC_COSINE, SYNA_METRIC_EUCLIDEAN, 
  *                    or SYNA_METRIC_DOT_PRODUCT)
  * @return            SYNA_SUCCESS on success, error code on failure
@@ -582,7 +582,7 @@ void SYNA_free_tensor_data(void* data, size_t len, int32_t dtype);
  * with <10ms latency.
  * 
  * @param path        Null-terminated path to the index file (.hnsw)
- * @param dimensions  Number of dimensions for vectors (64-4096)
+ * @param dimensions  Number of dimensions for vectors (64-8192)
  * @param metric      Distance metric (SYNA_METRIC_COSINE, SYNA_METRIC_EUCLIDEAN,
  *                    or SYNA_METRIC_DOT_PRODUCT)
  * @param m           Max connections per node (default: 16, range: 8-64)
@@ -964,7 +964,7 @@ int32_t SYNA_exp_end_run(const char* path, const char* run_id, int32_t status);
  * Creates a new Gravity Well Index at the given path.
  * 
  * GWI is a novel append-only vector index with O(N) build time,
- * 168x faster than HNSW for large datasets.
+ * faster than HNSW for large datasets.
  * 
  * @param path        Null-terminated path to the index file (.gwi)
  * @param dimensions  Number of dimensions for vectors (64-7168)

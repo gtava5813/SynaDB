@@ -435,7 +435,7 @@ store = MmapVectorStore(
 # Insert single vector
 store.insert(key: str, vector: np.ndarray) -> None
 
-# Insert batch (490K vectors/sec for 768 dims)
+# Insert batch (7x faster than VectorStore)
 store.insert_batch(keys: List[str], vectors: np.ndarray) -> None
 
 # Build HNSW index
@@ -478,7 +478,7 @@ store = MmapVectorStore("vectors.mmap", dimensions=768, initial_capacity=100000)
 # Batch insert (fastest)
 keys = [f"doc_{i}" for i in range(10000)]
 vectors = np.random.randn(10000, 768).astype(np.float32)
-store.insert_batch(keys, vectors)  # 490K vectors/sec
+store.insert_batch(keys, vectors)  # 7x faster than VectorStore
 
 # Build HNSW index for fast search
 store.build_index()

@@ -21,9 +21,9 @@
 //!
 //! ### Vector Search
 //! - **[`vector::VectorStore`]** - Embedding storage with similarity search
-//! - **[`mmap_vector::MmapVectorStore`]** - Ultra-high-throughput vector storage (490K vectors/sec)
+//! - **[`mmap_vector::MmapVectorStore`]** - Ultra-high-throughput vector storage (7x faster than VectorStore)
 //! - **[`hnsw::HnswIndex`]** - O(log N) approximate nearest neighbor search
-//! - **[`gwi::GravityWellIndex`]** - Novel O(N) build time index (168x faster than HNSW)
+//! - **[`gwi::GravityWellIndex`]** - Novel O(N) build time index (faster than HNSW)
 //! - **[`cascade::CascadeIndex`]** - Three-stage hybrid index (LSH + bucket tree + graph)
 //! - **[`distance`]** - Cosine, Euclidean, and Dot Product metrics
 //!
@@ -135,7 +135,7 @@
 //!     let embedding = vec![0.1f32; 768];
 //!     store.insert("doc_0", &embedding)?;
 //!
-//!     // Batch insert (490K vectors/sec)
+//!     // Batch insert (7x faster than VectorStore)
 //!     let keys: Vec<&str> = vec!["doc_1", "doc_2", "doc_3"];
 //!     let vecs: Vec<Vec<f32>> = vec![vec![0.1f32; 768]; 3];
 //!     let vec_refs: Vec<&[f32]> = vecs.iter().map(|v| v.as_slice()).collect();
@@ -220,6 +220,7 @@
 
 pub mod cascade;
 pub mod compression;
+pub mod davo; // !Experimental - you may ask for access at hello@synadb.ai
 pub mod distance;
 pub mod engine;
 pub mod error;

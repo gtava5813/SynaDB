@@ -81,7 +81,7 @@ class SynaVectorStore(VectorStore):
         
         Args:
             path: Path to the Syna database file.
-            dimensions: Vector dimensions (64-4096).
+            dimensions: Vector dimensions (64-8192).
             metric: Distance metric ("cosine", "euclidean", "dot_product").
         
         Raises:

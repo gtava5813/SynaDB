@@ -7,7 +7,7 @@ use proptest::prelude::*;
 use synadb::{Atom, SynaDB};
 use tempfile::tempdir;
 
-/// Generator for valid vector dimensions (64-4096).
+/// Generator for valid vector dimensions (64-8192).
 /// These cover common embedding model dimensions.
 fn arb_dimensions() -> impl Strategy<Value = u16> {
     prop_oneof![
@@ -29,7 +29,7 @@ proptest! {
 
     /// **Feature: Syna-ai-native, Property 17: Vector Serialization Round-Trip**
     ///
-    /// For any valid vector with dimensions in the range 64-4096,
+    /// For any valid vector with dimensions in the range 64-8192,
     /// storing it in the database and retrieving it SHALL produce
     /// a value equal to the original (within floating-point tolerance).
     ///

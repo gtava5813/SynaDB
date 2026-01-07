@@ -1343,7 +1343,7 @@ fn canonicalize_vector_path(path: &str) -> Option<String> {
 ///
 /// # Arguments
 /// * `path` - Null-terminated C string containing the path to the database file
-/// * `dimensions` - Number of dimensions for vectors (64-4096)
+/// * `dimensions` - Number of dimensions for vectors (64-8192)
 /// * `metric` - Distance metric: 0=Cosine, 1=Euclidean, 2=DotProduct
 ///
 /// # Returns
@@ -1410,7 +1410,7 @@ pub extern "C" fn SYNA_vector_store_new(path: *const c_char, dimensions: u16, me
 ///
 /// # Arguments
 /// * `path` - Null-terminated C string containing the path to the database file
-/// * `dimensions` - Number of dimensions for vectors (64-4096)
+/// * `dimensions` - Number of dimensions for vectors (64-8192)
 /// * `metric` - Distance metric: 0=Cosine, 1=Euclidean, 2=DotProduct
 /// * `sync_on_write` - 1 for sync after each write (durable), 0 for no sync (fast)
 ///

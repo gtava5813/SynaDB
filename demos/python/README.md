@@ -49,9 +49,9 @@ pip install synadb[all]       # Everything
 | Feature | Description |
 |---------|-------------|
 | **Vector Store** | Embedding storage with similarity search (cosine, euclidean, dot product) |
-| **MmapVectorStore** | Ultra-high-throughput vector storage (490K vectors/sec) |
+| **MmapVectorStore** | Ultra-high-throughput vector storage (7x faster than VectorStore) |
 | **HNSW Index** | O(log N) approximate nearest neighbor search for large-scale vectors |
-| **Gravity Well Index** | O(N) build time index, 168x faster than HNSW at 50K vectors |
+| **Gravity Well Index** | O(N) build time index, faster build than HNSW |
 | **Cascade Index** | Three-stage hybrid index (LSH + bucket tree + graph) with tunable recall (Experimental) |
 | **Tensor Engine** | Batch tensor operations for ML data loading |
 | **Model Registry** | Version and stage ML models with checksum verification |
@@ -116,7 +116,7 @@ for r in results:
 - `euclidean` - Best for image embeddings  
 - `dot_product` - Maximum inner product search
 
-**Supported Dimensions:** 64-4096 (covers MiniLM, BERT, OpenAI ada-002, etc.)
+**Supported Dimensions:** 64-8192 (covers MiniLM, BERT, OpenAI, DeepSeek-V3, etc.)
 
 **High-Throughput Mode:**
 
@@ -132,7 +132,7 @@ with VectorStore("vectors.db", dimensions=768) as store:
 
 ### MmapVectorStore (Ultra-High-Throughput)
 
-For maximum write throughput (490K vectors/sec):
+For maximum write throughput (7x faster than VectorStore):
 
 ```python
 from synadb import MmapVectorStore
@@ -144,7 +144,7 @@ store = MmapVectorStore("vectors.mmap", dimensions=768, initial_capacity=100_000
 # Batch insert for maximum throughput
 keys = [f"doc_{i}" for i in range(10000)]
 vectors = np.random.randn(10000, 768).astype(np.float32)
-store.insert_batch(keys, vectors)  # 490K vectors/sec
+store.insert_batch(keys, vectors)  # 7x faster than VectorStore
 
 # Build index for fast search
 store.build_index()
@@ -171,7 +171,7 @@ results = store.search(query, k=10)  # 0.6ms
 
 ### Gravity Well Index (Fastest Build Time)
 
-For scenarios where index build time is critical (168x faster than HNSW):
+For scenarios where index build time is critical (faster than HNSW):
 
 ```python
 from synadb import GravityWellIndex
@@ -612,8 +612,8 @@ SynaDB is optimized for AI/ML workloads:
 
 | Operation | Performance | Notes |
 |-----------|-------------|-------|
-| Vector insert (VectorStore) | 67K vectors/sec | 768-dim, sync_on_write=False |
-| Vector insert (MmapVectorStore) | 490K vectors/sec | 768-dim, batch insert |
+| Vector insert (VectorStore) | Baseline | 768-dim, sync_on_write=False |
+| Vector insert (MmapVectorStore) | 7x faster | 768-dim, batch insert |
 | Vector search (1M) | <10ms | Top-10, HNSW index |
 | Tensor load | 1+ GB/s | NVMe SSD |
 | Experiment log | <100μs | Single metric |

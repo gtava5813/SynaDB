@@ -18,7 +18,7 @@ fn arb_atom() -> impl Strategy<Value = Atom> {
         10 => ".{0,1000}".prop_map(|s: String| Atom::Text(s)),
         // Bytes with arbitrary byte vectors (0-10000 bytes)
         10 => prop::collection::vec(any::<u8>(), 0..10000).prop_map(Atom::Bytes),
-        // Vector with arbitrary f32 values and dimensions (64-4096)
+        // Vector with arbitrary f32 values and dimensions (64-8192)
         10 => arb_vector().prop_map(|(data, dims)| Atom::Vector(data, dims)),
     ]
 }

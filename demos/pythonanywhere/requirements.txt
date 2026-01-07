@@ -1,0 +1,4 @@
+# SynaDB Live Demo - PythonAnywhere Requirements
+flask>=2.0.0
+synadb>=1.0.0
+numpy>=1.20.0

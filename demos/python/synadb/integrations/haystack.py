@@ -70,7 +70,7 @@ class SynaDocumentStore(DocumentStore):
         
         Args:
             path: Path to the Syna database file.
-            embedding_dim: Vector dimensions (64-4096).
+            embedding_dim: Vector dimensions (64-8192).
             metric: Distance metric ("cosine", "euclidean", "dot_product").
         
         Raises:

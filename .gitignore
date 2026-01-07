@@ -26,6 +26,10 @@ starter_context.txt
 # Internal docs
 aifactory_needs/
 
+# DAVO (highly experimental - not ready for release)
+src/davo/
+demos/python/synadb/davo/
+
 # Python
 __pycache__/
 *.py[cod]

@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SynaDB Live Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4a90d9;
+            --accent: #00d4aa;
+            --bg: #0a0a0f;
+            --bg-elevated: rgba(30, 30, 40, 0.5);
+            --bg-card: rgba(26, 26, 36, 0.6);
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #f0f0f5;
+            --text-secondary: #8888a0;
+            --radius: 12px;
+            --success: #00d4aa;
+            --error: #ff6b6b;
+            --warning: #ffd93d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+        a { color: inherit; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="noise-overlay"></div>
+    <header>
+        <div class="header-content">
+            <a href="https://github.com/gtava5813/SynaDB" class="logo-link">
+                <span class="nav-title">SynaDB</span>
+            </a>
+            <nav>
+                <a href="https://github.com/gtava5813/SynaDB/wiki">Docs</a>
+                <a href="https://pypi.org/project/synadb/">PyPI</a>
+                <a href="https://github.com/gtava5813/SynaDB" class="github-link">
+                    <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                    </svg>
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                <h1>SynaDB Live Demo</h1>
+                <p class="hero-subtitle">Relative Benchmarks - Hardware Independent</p>
+                <div class="status-bar">
+                    <div class="status-item {% if synadb_available %}ok{% else %}error{% endif %}">
+                        SynaDB {{ synadb_version if synadb_available else 'Not installed' }}
+                    </div>
+                    <div class="status-item {% if numpy_available %}ok{% else %}error{% endif %}">
+                        NumPy {% if numpy_available %}OK{% else %}Missing{% endif %}
+                    </div>
+                    <div class="status-item {% if mmap_available %}ok{% else %}warn{% endif %}">
+                        Mmap {% if mmap_available %}OK{% else %}N/A{% endif %}
+                    </div>
+                    <div class="status-item {% if gwi_available %}ok{% else %}warn{% endif %}">
+                        GWI {% if gwi_available %}OK{% else %}N/A{% endif %}
+                    </div>
+                    <div class="status-item {% if cascade_available %}ok{% else %}warn{% endif %}">
+                        Cascade {% if cascade_available %}OK{% else %}N/A{% endif %}
+                    </div>
+                </div>
+                <div class="hero-actions">
+                    <button class="btn-primary" onclick="runAllBenchmarks()">Run All Benchmarks</button>
+                    <button class="btn-secondary" onclick="resetResults()">Reset</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="benchmarks">
+            <div class="section-header">
+                <h2>Relative Benchmarks</h2>
+                <p>These benchmarks compare SynaDB components against each other - results are hardware independent.</p>
+            </div>
+            
+            <div class="benchmark-grid">
+                <!-- MmapVectorStore vs VectorStore -->
+                <div class="benchmark-card highlight" id="card-mmap_vs_vector">
+                    <div class="card-header">
+                        <h3>Mmap vs VectorStore</h3>
+                        <span class="status-badge" id="status-mmap_vs_vector">--</span>
+                    </div>
+                    <p class="claim">Claim: MmapVectorStore batch insert faster than VectorStore</p>
+                    <div class="card-controls">
+                        <div class="input-group">
+                            <label>Vectors:</label>
+                            <input type="number" id="mmap_vs_vector-vectors" value="5000" min="1000" max="20000">
+                        </div>
+                        <button class="run-btn" onclick="runBenchmark('mmap_vs_vector')">Run</button>
+                    </div>
+                    <div class="result-box" id="result-mmap_vs_vector"></div>
+                </div>
+
+                <!-- GWI vs HNSW -->
+                <div class="benchmark-card highlight" id="card-gwi_vs_hnsw">
+                    <div class="card-header">
+                        <h3>GWI vs HNSW</h3>
+                        <span class="status-badge" id="status-gwi_vs_hnsw">--</span>
+                    </div>
+                    <p class="claim">Claim: GWI builds faster than HNSW index</p>
+                    <div class="card-controls">
+                        <div class="input-group">
+                            <label>Vectors:</label>
+                            <input type="number" id="gwi_vs_hnsw-vectors" value="5000" min="1000" max="20000">
+                        </div>
+                        <button class="run-btn" onclick="runBenchmark('gwi_vs_hnsw')">Run</button>
+                    </div>
+                    <div class="result-box" id="result-gwi_vs_hnsw"></div>
+                </div>
+
+                <!-- HNSW vs Brute Force -->
+                <div class="benchmark-card" id="card-hnsw_vs_brute">
+                    <div class="card-header">
+                        <h3>HNSW vs Brute Force</h3>
+                        <span class="status-badge" id="status-hnsw_vs_brute">--</span>
+                    </div>
+                    <p class="claim">Claim: HNSW search faster than brute force</p>
+                    <div class="card-controls">
+                        <div class="input-group">
+                            <label>Vectors:</label>
+                            <input type="number" id="hnsw_vs_brute-vectors" value="2000" min="500" max="10000">
+                        </div>
+                        <button class="run-btn" onclick="runBenchmark('hnsw_vs_brute')">Run</button>
+                    </div>
+                    <div class="result-box" id="result-hnsw_vs_brute"></div>
+                </div>
+
+                <!-- Cascade Search -->
+                <div class="benchmark-card highlight" id="card-cascade_search">
+                    <div class="card-header">
+                        <h3>Cascade Index</h3>
+                        <span class="experimental-badge">Experimental</span>
+                        <span class="status-badge" id="status-cascade_search">--</span>
+                    </div>
+                    <p class="claim">Claim: Sub-linear search with LSH + bucket tree + graph</p>
+                    <div class="card-controls">
+                        <div class="input-group">
+                            <label>Vectors:</label>
+                            <input type="number" id="cascade_search-vectors" value="5000" min="1000" max="20000">
+                        </div>
+                        <button class="run-btn" onclick="runBenchmark('cascade_search')">Run</button>
+                    </div>
+                    <div class="result-box" id="result-cascade_search"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="functional-tests">
+            <div class="section-header">
+                <h2>Functional Tests</h2>
+                <p>These tests verify correctness - pass/fail based on functionality, not speed.</p>
+            </div>
+            
+            <div class="benchmark-grid">
+                <!-- Schema-Free -->
+                <div class="benchmark-card" id="card-schema">
+                    <div class="card-header">
+                        <h3>Schema-Free Storage</h3>
+                        <span class="status-badge" id="status-schema">--</span>
+                    </div>
+                    <p class="claim">Claim: Store Float, Int, Text, Bytes without migrations</p>
+                    <div class="card-controls">
+                        <button class="run-btn" onclick="runBenchmark('schema')">Run</button>
+                    </div>
+                    <div class="result-box" id="result-schema"></div>
+                </div>
+
+                <!-- Recovery -->
+                <div class="benchmark-card" id="card-recovery">
+                    <div class="card-header">
+                        <h3>Crash Recovery</h3>
+                        <span class="status-badge" id="status-recovery">--</span>
+                    </div>
+                    <p class="claim">Claim: Full data recovery after crash</p>
+                    <div class="card-controls">
+                        <div class="input-group">
+                            <label>Records:</label>
+                            <input type="number" id="recovery-records" value="10000" min="1000" max="50000">
+                        </div>
+                        <button class="run-btn" onclick="runBenchmark('recovery')">Run</button>
+                    </div>
+                    <div class="result-box" id="result-recovery"></div>
+                </div>
+
+                <!-- Tensor -->
+                <div class="benchmark-card" id="card-tensor">
+                    <div class="card-header">
+                        <h3>Tensor Extraction</h3>
+                        <span class="status-badge" id="status-tensor">--</span>
+                    </div>
+                    <p class="claim">Claim: Direct NumPy tensor from time-series history</p>
+                    <div class="card-controls">
+                        <div class="input-group">
+                            <label>Records:</label>
+                            <input type="number" id="tensor-records" value="10000" min="1000" max="50000">
+                        </div>
+                        <button class="run-btn" onclick="runBenchmark('tensor')">Run</button>
+                    </div>
+                    <div class="result-box" id="result-tensor"></div>
+                </div>
+
+                <!-- Compression -->
+                <div class="benchmark-card" id="card-compression">
+                    <div class="card-header">
+                        <h3>Compression</h3>
+                        <span class="status-badge" id="status-compression">--</span>
+                    </div>
+                    <p class="claim">Claim: Delta + LZ4 compression for time-series</p>
+                    <div class="card-controls">
+                        <div class="input-group">
+                            <label>Records:</label>
+                            <input type="number" id="compression-records" value="10000" min="1000" max="50000">
+                        </div>
+                        <button class="run-btn" onclick="runBenchmark('compression')">Run</button>
+                    </div>
+                    <div class="result-box" id="result-compression"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Summary Section -->
+        <section class="summary-section" id="summary-section" style="display: none;">
+            <div class="section-header">
+                <h2>Results Summary</h2>
+            </div>
+            <div class="summary-card">
+                <div class="summary-stats">
+                    <div class="stat">
+                        <span class="stat-value" id="summary-passed">0</span>
+                        <span class="stat-label">Passed</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="summary-failed">0</span>
+                        <span class="stat-label">Failed</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="summary-total">0</span>
+                        <span class="stat-label">Total</span>
+                    </div>
+                </div>
+                <table class="summary-table" id="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Benchmark</th>
+                            <th>Result</th>
+                            <th>Claim</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summary-tbody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand"><span>SynaDB</span></div>
+            <div class="footer-links">
+                <a href="https://github.com/gtava5813/SynaDB">GitHub</a>
+                <a href="https://github.com/gtava5813/SynaDB/wiki">Docs</a>
+                <a href="https://pypi.org/project/synadb/">PyPI</a>
+            </div>
+            <p class="footer-copy">2026 SynaDB</p>
+        </div>
+    </footer>
+
+    <style>
+        .noise-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 9999; opacity: 0.03;
+        }
+        header {
+            position: fixed; top: 0; width: 100%;
+            background: rgba(10, 10, 15, 0.9); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border); z-index: 100;
+        }
+        .header-content {
+            max-width: 1200px; margin: 0 auto; padding: 0 2rem;
+            height: 64px; display: flex; align-items: center; justify-content: space-between;
+        }
+        .logo-link { display: flex; align-items: center; gap: 0.75rem; }
+        .nav-title { font-weight: 600; font-size: 1.1rem; }
+        nav { display: flex; align-items: center; gap: 2rem; }
+        nav a { color: var(--text-secondary); font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+        nav a:hover { color: var(--text); }
+        .github-link { display: flex; align-items: center; }
+        .hero {
+            min-height: 45vh; display: flex; align-items: center; justify-content: center;
+            padding: 7rem 2rem 3rem; text-align: center;
+            background: linear-gradient(180deg, rgba(74, 144, 217, 0.1) 0%, transparent 100%);
+        }
+        .hero-content { max-width: 800px; }
+        .hero h1 {
+            font-size: 2.5rem; font-weight: 700; margin-bottom: 0.75rem;
+            background: linear-gradient(135deg, #ffffff 0%, #b0b0d0 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .hero-subtitle { font-size: 1.1rem; color: var(--accent); margin-bottom: 1.5rem; }
+        .status-bar { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
+        .status-item {
+            padding: 0.3rem 0.6rem; background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 6px; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace;
+        }
+        .status-item.ok { border-color: var(--success); color: var(--success); }
+        .status-item.error { border-color: var(--error); color: var(--error); }
+        .status-item.warn { border-color: var(--warning); color: var(--warning); }
+        .hero-actions { display: flex; gap: 1rem; justify-content: center; }
+        .btn-primary {
+            padding: 0.75rem 1.5rem; background: var(--accent); color: #050508;
+            font-weight: 600; border: none; border-radius: 100px; cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 0 20px rgba(0, 212, 170, 0.3);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 30px rgba(0, 212, 170, 0.5); }
+        .btn-secondary {
+            padding: 0.75rem 1.5rem; background: transparent; border: 1px solid var(--border);
+            color: var(--text); font-weight: 500; border-radius: 100px; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.05); border-color: var(--text); }
+        section { padding: 3rem 2rem; }
+        .section-header { max-width: 600px; margin: 0 auto 2rem; text-align: center; }
+        .section-header h2 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .section-header p { color: var(--text-secondary); font-size: 0.95rem; }
+        .benchmarks, .functional-tests { background: var(--bg-elevated); }
+        .benchmark-grid {
+            max-width: 1200px; margin: 0 auto;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;
+        }
+        .benchmark-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 1.25rem; transition: all 0.3s;
+        }
+        .benchmark-card:hover { border-color: rgba(74, 144, 217, 0.5); transform: translateY(-2px); }
+        .benchmark-card.highlight { border-color: rgba(0, 212, 170, 0.3); background: linear-gradient(135deg, rgba(0, 212, 170, 0.05) 0%, var(--bg-card) 100%); }
+        .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap; }
+        .card-header h3 { font-size: 0.95rem; font-weight: 600; margin: 0; }
+        .status-badge {
+            padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;
+            font-family: 'JetBrains Mono', monospace; background: var(--bg-elevated); color: var(--text-secondary);
+        }
+        .status-badge.pass { background: rgba(0, 212, 170, 0.2); color: var(--success); }
+        .status-badge.fail { background: rgba(255, 107, 107, 0.2); color: var(--error); }
+        .status-badge.skip { background: rgba(255, 217, 61, 0.2); color: var(--warning); }
+        .status-badge.running { background: rgba(74, 144, 217, 0.2); color: var(--primary); }
+        .experimental-badge {
+            padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.65rem; font-weight: 500;
+            background: rgba(255, 217, 61, 0.2); color: var(--warning);
+        }
+        .claim { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem; line-height: 1.4; }
+        .card-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
+        .input-group { display: flex; align-items: center; gap: 0.3rem; }
+        .input-group label { font-size: 0.75rem; color: var(--text-secondary); }
+        .input-group input {
+            width: 70px; padding: 0.35rem 0.5rem; border: 1px solid var(--border); border-radius: 6px;
+            background: var(--bg); color: var(--text); font-size: 0.8rem; font-family: 'JetBrains Mono', monospace;
+        }
+        .run-btn {
+            padding: 0.4rem 0.8rem; background: var(--primary); border: none; border-radius: 6px;
+            color: #fff; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.2s;
+        }
+        .run-btn:hover { background: #5a9fe9; transform: translateY(-1px); }
+        .run-btn:disabled { background: var(--border); cursor: not-allowed; }
+        .result-box {
+            margin-top: 0.5rem; padding: 0.6rem; background: rgba(0, 0, 0, 0.3); border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; display: none;
+        }
+        .result-box.visible { display: block; }
+        .result-row { display: flex; justify-content: space-between; padding: 0.2rem 0; }
+        .result-label { color: var(--text-secondary); }
+        .result-value { font-weight: 500; }
+        .result-value.pass { color: var(--success); }
+        .result-value.fail { color: var(--error); }
+        .result-value.highlight { color: var(--accent); }
+    </style>
+
+    <style>
+        .summary-section { background: var(--bg); }
+        .summary-card {
+            max-width: 800px; margin: 0 auto; background: var(--bg-card);
+            border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+        }
+        .summary-stats {
+            display: flex; justify-content: center; gap: 3rem; padding: 1.5rem;
+            background: var(--bg-elevated); border-bottom: 1px solid var(--border);
+        }
+        .stat { text-align: center; }
+        .stat-value { display: block; font-size: 2rem; font-weight: 700; }
+        .stat-label { font-size: 0.85rem; color: var(--text-secondary); }
+        .stat:nth-child(1) .stat-value { color: var(--success); }
+        .stat:nth-child(2) .stat-value { color: var(--error); }
+        .summary-table { width: 100%; border-collapse: collapse; }
+        .summary-table th, .summary-table td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); }
+        .summary-table th { color: var(--text-secondary); font-weight: 500; font-size: 0.8rem; }
+        .summary-table td { font-size: 0.85rem; }
+        .summary-table .pass { color: var(--success); }
+        .summary-table .fail { color: var(--error); }
+        .summary-table .skip { color: var(--warning); }
+        footer { border-top: 1px solid var(--border); padding: 1.5rem; background: rgba(10, 10, 15, 0.8); }
+        .footer-content {
+            max-width: 1200px; margin: 0 auto; display: flex;
+            align-items: center; justify-content: space-between;
+        }
+        .footer-brand { font-weight: 600; }
+        .footer-links { display: flex; gap: 2rem; }
+        .footer-links a { color: var(--text-secondary); font-size: 0.85rem; transition: color 0.2s; }
+        .footer-links a:hover { color: var(--text); }
+        .footer-copy { color: var(--text-secondary); font-size: 0.8rem; }
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 1.75rem; }
+            .benchmark-grid { grid-template-columns: 1fr; }
+            .summary-stats { flex-direction: column; gap: 1rem; }
+            .footer-content { flex-direction: column; gap: 1rem; text-align: center; }
+        }
+    </style>
+
+    <script>
+        const benchmarkResults = {};
+        const testNames = {
+            'mmap_vs_vector': 'Mmap vs VectorStore',
+            'gwi_vs_hnsw': 'GWI vs HNSW',
+            'hnsw_vs_brute': 'HNSW vs Brute Force',
+            'cascade_search': 'Cascade Index',
+            'schema': 'Schema-Free Storage',
+            'recovery': 'Crash Recovery',
+            'tensor': 'Tensor Extraction',
+            'compression': 'Compression'
+        };
+        
+        async function runBenchmark(type) {
+            const statusBadge = document.getElementById(`status-${type}`);
+            const resultBox = document.getElementById(`result-${type}`);
+            
+            statusBadge.textContent = '...';
+            statusBadge.className = 'status-badge running';
+            resultBox.classList.add('visible');
+            resultBox.innerHTML = 'Running...';
+            
+            let body = {};
+            const recordsInput = document.getElementById(`${type}-records`);
+            const vectorsInput = document.getElementById(`${type}-vectors`);
+            if (recordsInput) body.records = parseInt(recordsInput.value);
+            if (vectorsInput) body.vectors = parseInt(vectorsInput.value);
+            
+            try {
+                const response = await fetch(`/api/benchmark/${type}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                
+                const data = await response.json();
+                benchmarkResults[type] = data;
+                
+                if (data.error || data.skip) {
+                    statusBadge.textContent = 'SKIP';
+                    statusBadge.className = 'status-badge skip';
+                    resultBox.innerHTML = `<div class="result-row"><span class="result-value skip">${data.error}</span></div>`;
+                } else {
+                    statusBadge.textContent = data.passed ? 'PASS' : 'FAIL';
+                    statusBadge.className = `status-badge ${data.passed ? 'pass' : 'fail'}`;
+                    resultBox.innerHTML = formatResult(type, data);
+                }
+                updateSummary();
+            } catch (err) {
+                statusBadge.textContent = 'ERR';
+                statusBadge.className = 'status-badge fail';
+                resultBox.innerHTML = `<div class="result-row"><span class="result-value fail">Error: ${err.message}</span></div>`;
+            }
+        }
+
+        function formatResult(type, data) {
+            let html = '';
+            if (type === 'mmap_vs_vector') {
+                html = `
+                    <div class="result-row"><span class="result-label">MmapVectorStore</span><span class="result-value">${data.mmap_rate.toLocaleString()}/sec</span></div>
+                    <div class="result-row"><span class="result-label">VectorStore</span><span class="result-value">${data.vector_rate.toLocaleString()}/sec</span></div>
+                    <div class="result-row"><span class="result-label">Speedup</span><span class="result-value highlight">${data.speedup}x faster</span></div>
+                `;
+            } else if (type === 'gwi_vs_hnsw') {
+                html = `
+                    <div class="result-row"><span class="result-label">GWI Build</span><span class="result-value">${data.gwi_build_sec}s</span></div>
+                    <div class="result-row"><span class="result-label">HNSW Build</span><span class="result-value">${data.hnsw_build_sec}s</span></div>
+                    <div class="result-row"><span class="result-label">Build Speedup</span><span class="result-value highlight">${data.build_speedup}x faster</span></div>
+                    <div class="result-row"><span class="result-label">GWI Search</span><span class="result-value">${data.gwi_search_ms}ms</span></div>
+                    <div class="result-row"><span class="result-label">HNSW Search</span><span class="result-value">${data.hnsw_search_ms}ms</span></div>
+                `;
+            } else if (type === 'hnsw_vs_brute') {
+                html = `
+                    <div class="result-row"><span class="result-label">Brute Force</span><span class="result-value">${data.brute_search_ms}ms</span></div>
+                    <div class="result-row"><span class="result-label">HNSW</span><span class="result-value">${data.hnsw_search_ms}ms</span></div>
+                    <div class="result-row"><span class="result-label">Speedup</span><span class="result-value highlight">${data.speedup}x faster</span></div>
+                `;
+            } else if (type === 'cascade_search') {
+                html = `
+                    <div class="result-row"><span class="result-label">Build Time</span><span class="result-value">${data.build_time_sec}s</span></div>
+                    <div class="result-row"><span class="result-label">Build Rate</span><span class="result-value">${data.build_rate.toLocaleString()}/sec</span></div>
+                    <div class="result-row"><span class="result-label">Avg Search</span><span class="result-value highlight">${data.avg_search_ms}ms</span></div>
+                `;
+            } else if (type === 'schema') {
+                html = `
+                    <div class="result-row"><span class="result-label">Float</span><span class="result-value ${data.results.float ? 'pass' : 'fail'}">${data.results.float ? 'OK' : 'FAIL'}</span></div>
+                    <div class="result-row"><span class="result-label">Int</span><span class="result-value ${data.results.int ? 'pass' : 'fail'}">${data.results.int ? 'OK' : 'FAIL'}</span></div>
+                    <div class="result-row"><span class="result-label">Text</span><span class="result-value ${data.results.text ? 'pass' : 'fail'}">${data.results.text ? 'OK' : 'FAIL'}</span></div>
+                    <div class="result-row"><span class="result-label">Bytes</span><span class="result-value ${data.results.bytes ? 'pass' : 'fail'}">${data.results.bytes ? 'OK' : 'FAIL'}</span></div>
+                `;
+            } else if (type === 'recovery') {
+                html = `
+                    <div class="result-row"><span class="result-label">Records</span><span class="result-value">${data.records.toLocaleString()}</span></div>
+                    <div class="result-row"><span class="result-label">Recovery Time</span><span class="result-value">${data.recovery_time_sec}s</span></div>
+                    <div class="result-row"><span class="result-label">Integrity</span><span class="result-value ${data.integrity_ok ? 'pass' : 'fail'}">${data.integrity_ok ? 'OK' : 'FAIL'}</span></div>
+                `;
+            } else if (type === 'tensor') {
+                html = `
+                    <div class="result-row"><span class="result-label">Records</span><span class="result-value">${data.records.toLocaleString()}</span></div>
+                    <div class="result-row"><span class="result-label">Shape</span><span class="result-value">${data.tensor_shape}</span></div>
+                    <div class="result-row"><span class="result-label">Dtype</span><span class="result-value">${data.tensor_dtype}</span></div>
+                `;
+            } else if (type === 'compression') {
+                html = `
+                    <div class="result-row"><span class="result-label">Raw Size</span><span class="result-value">${data.raw_size_kb} KB</span></div>
+                    <div class="result-row"><span class="result-label">File Size</span><span class="result-value">${data.file_size_kb} KB</span></div>
+                    <div class="result-row"><span class="result-label">Ratio</span><span class="result-value highlight">${data.compression_ratio}x</span></div>
+                `;
+            }
+            return html;
+        }
+
+        function updateSummary() {
+            const section = document.getElementById('summary-section');
+            const tbody = document.getElementById('summary-tbody');
+            const passedEl = document.getElementById('summary-passed');
+            const failedEl = document.getElementById('summary-failed');
+            const totalEl = document.getElementById('summary-total');
+            
+            let passed = 0, failed = 0, total = 0;
+            let rows = '';
+            
+            for (const [key, data] of Object.entries(benchmarkResults)) {
+                total++;
+                let status = 'skip';
+                let result = 'N/A';
+                let claim = data.claim || '-';
+                
+                if (data.skip || data.error) {
+                    status = 'skip';
+                    result = 'Skipped';
+                } else if (data.passed === true) {
+                    status = 'pass';
+                    passed++;
+                    if (data.speedup) result = `${data.speedup}x`;
+                    else if (data.build_speedup) result = `${data.build_speedup}x`;
+                    else if (data.avg_search_ms !== undefined) result = `${data.avg_search_ms}ms`;
+                    else if (data.types_passed) result = `${data.types_passed}/4`;
+                    else if (data.compression_ratio) result = `${data.compression_ratio}x`;
+                    else result = 'OK';
+                } else if (data.passed === false) {
+                    status = 'fail';
+                    failed++;
+                    result = 'Failed';
+                }
+                
+                rows += `<tr>
+                    <td>${testNames[key] || key}</td>
+                    <td>${result}</td>
+                    <td style="font-size:0.75rem;color:var(--text-secondary)">${claim}</td>
+                    <td class="${status}">${status.toUpperCase()}</td>
+                </tr>`;
+            }
+            
+            if (total > 0) {
+                section.style.display = 'block';
+                passedEl.textContent = passed;
+                failedEl.textContent = failed;
+                totalEl.textContent = total;
+                tbody.innerHTML = rows;
+            }
+        }
+        
+        async function runAllBenchmarks() {
+            const tests = ['mmap_vs_vector', 'gwi_vs_hnsw', 'hnsw_vs_brute', 'cascade_search', 'schema', 'recovery', 'tensor', 'compression'];
+            for (const test of tests) {
+                await runBenchmark(test);
+                await new Promise(r => setTimeout(r, 100));
+            }
+        }
+        
+        async function resetResults() {
+            await fetch('/api/reset');
+            for (const key of Object.keys(benchmarkResults)) {
+                delete benchmarkResults[key];
+                const badge = document.getElementById(`status-${key}`);
+                const box = document.getElementById(`result-${key}`);
+                if (badge) { badge.textContent = '--'; badge.className = 'status-badge'; }
+                if (box) { box.classList.remove('visible'); box.innerHTML = ''; }
+            }
+            document.getElementById('summary-section').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
