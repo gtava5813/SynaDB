@@ -220,7 +220,6 @@
 
 pub mod cascade;
 pub mod compression;
-pub mod davo; // !Experimental - you may ask for access at hello@synadb.ai
 pub mod distance;
 pub mod engine;
 pub mod error;
