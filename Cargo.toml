@@ -59,35 +59,36 @@ proptest = "1.4"
 tempfile = "3.10"
 
 # Internal DAVO demos (gitignored, not for release)
-[[example]]
-name = "davo_demo"
-path = ".kiro/internal-demos-tests-rust-python-cpp/rust/davo_demo.rs"
+# [[example]]
+# name = "davo_demo"
+# path = ".kiro/internal-demos-tests-rust-python-cpp/rust/davo_demo.rs"
 
-[[example]]
-name = "example_01_sensor_ingestion"
-path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_01_sensor_ingestion.rs"
+# [[example]]
+# name = "example_01_sensor_ingestion"
+# path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_01_sensor_ingestion.rs"
 
-[[example]]
-name = "example_02_cache_eviction"
-path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_02_cache_eviction.rs"
+# [[example]]
+# name = "example_02_cache_eviction"
+# path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_02_cache_eviction.rs"
 
-[[example]]
-name = "example_03_ml_feature_store"
-path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_03_ml_feature_store.rs"
+# [[example]]
+# name = "example_03_ml_feature_store"
+# path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_03_ml_feature_store.rs"
 
-[[example]]
-name = "example_04_embedding_freshness"
-path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_04_embedding_freshness.rs"
+# [[example]]
+# name = "example_04_embedding_freshness"
+# path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_04_embedding_freshness.rs"
 
-[[example]]
-name = "example_05_gradient_checkpointing"
-path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_05_gradient_checkpointing.rs"
+# [[example]]
+# name = "example_05_gradient_checkpointing"
+# path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_05_gradient_checkpointing.rs"
 
 # V2 examples using FreshnessIndexV2 (addresses O(N) scan critique)
-[[example]]
-name = "example_01_sensor_ingestion_v2"
-path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_01_sensor_ingestion_v2.rs"
+# [[example]]
+# name = "example_01_sensor_ingestion_v2"
+# path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_01_sensor_ingestion_v2.rs"
 
-[[example]]
-name = "example_02_cache_eviction_v2"
-path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_02_cache_eviction_v2.rs"
+# [[example]]
+# name = "example_02_cache_eviction_v2"
+# path = ".kiro/internal-demos-tests-rust-python-cpp/rust/example_02_cache_eviction_v2.rs"
+
