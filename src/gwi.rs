@@ -1288,6 +1288,11 @@ impl GravityWellIndex {
             .collect()
     }
 
+    /// Get all keys in the index
+    pub fn keys(&self) -> Vec<String> {
+        self.key_to_location.keys().cloned().collect()
+    }
+
     /// Close the index (flush and release resources)
     pub fn close(&mut self) -> Result<(), SynaError> {
         // Update header with final counts

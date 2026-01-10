@@ -1081,6 +1081,195 @@ int32_t SYNA_gwi_close(const char* path);
  */
 int64_t SYNA_gwi_len(const char* path);
 
+/* ============================================================================
+ * Sparse Vector Store (SVS) Functions
+ * ============================================================================ */
+
+/** SVS: Operation completed successfully */
+#define SVS_SUCCESS           1
+
+/** SVS: Generic/unspecified error */
+#define SVS_ERR_GENERIC       0
+
+/** SVS: Null pointer argument */
+#define SVS_ERR_NULL_PTR      -1
+
+/** SVS: Invalid UTF-8 string */
+#define SVS_ERR_INVALID_UTF8  -2
+
+/** SVS: Store or key not found */
+#define SVS_ERR_NOT_FOUND     -3
+
+/** SVS: Store already exists */
+#define SVS_ERR_ALREADY_EXISTS -4
+
+/** SVS: Internal panic */
+#define SVS_ERR_INTERNAL      -100
+
+/**
+ * Creates a new sparse vector store.
+ * 
+ * Sparse vector stores are optimized for lexical embeddings where most
+ * dimensions are zero. Works with any sparse encoder (FLES-1, SPLADE, 
+ * BM25, TF-IDF, etc.).
+ * 
+ * @param path  Unique identifier for the store (used as registry key)
+ * @return      SVS_SUCCESS on success, error code on failure
+ * 
+ * @example
+ * ```c
+ * if (svs_new("sparse.db") != SVS_SUCCESS) {
+ *     // Handle error
+ * }
+ * ```
+ */
+int32_t svs_new(const char* path);
+
+/**
+ * Closes and removes a sparse vector store from the registry.
+ * 
+ * @param path  Store identifier
+ * @return      SVS_SUCCESS on success, error code on failure
+ */
+int32_t svs_close(const char* path);
+
+/**
+ * Indexes a sparse vector with a key.
+ * 
+ * @param path      Store identifier
+ * @param key       Document key
+ * @param term_ids  Array of term IDs (vocabulary indices)
+ * @param weights   Array of weights (same length as term_ids)
+ * @param count     Number of terms
+ * @return          Document ID (>= 0) on success, error code (< 0) on failure
+ * 
+ * @example
+ * ```c
+ * uint32_t term_ids[] = {100, 200, 300};
+ * float weights[] = {1.5, 0.8, 2.0};
+ * int64_t doc_id = svs_index("sparse.db", "doc1", term_ids, weights, 3);
+ * ```
+ */
+int64_t svs_index(const char* path, const char* key,
+                  const uint32_t* term_ids, const float* weights, uint32_t count);
+
+/**
+ * Searches for similar documents using dot product scoring.
+ * 
+ * @param path        Store identifier
+ * @param term_ids    Query term IDs
+ * @param weights     Query weights
+ * @param count       Number of query terms
+ * @param k           Number of results to return
+ * @param out_keys    Output array for result keys (caller allocates, k elements)
+ * @param out_scores  Output array for result scores (caller allocates, k elements)
+ * @param out_count   Output: actual number of results
+ * @return            SVS_SUCCESS on success, error code on failure
+ * 
+ * @warning Each key in out_keys MUST be freed with svs_free_key()
+ * 
+ * @example
+ * ```c
+ * uint32_t query_ids[] = {100, 200};
+ * float query_weights[] = {1.0, 1.0};
+ * char* keys[10];
+ * float scores[10];
+ * uint32_t count;
+ * 
+ * if (svs_search("sparse.db", query_ids, query_weights, 2, 10, 
+ *                keys, scores, &count) == SVS_SUCCESS) {
+ *     for (uint32_t i = 0; i < count; i++) {
+ *         printf("%s: %.4f\n", keys[i], scores[i]);
+ *         svs_free_key(keys[i]);
+ *     }
+ * }
+ * ```
+ */
+int32_t svs_search(const char* path,
+                   const uint32_t* term_ids, const float* weights, uint32_t count,
+                   uint32_t k, char** out_keys, float* out_scores, uint32_t* out_count);
+
+/**
+ * Frees a key string returned by svs_search.
+ * 
+ * @param key  Key string to free
+ */
+void svs_free_key(char* key);
+
+/**
+ * Gets the number of documents in the store.
+ * 
+ * @param path  Store identifier
+ * @return      Number of documents (>= 0), or error code (< 0)
+ */
+int64_t svs_len(const char* path);
+
+/**
+ * Deletes a document by key.
+ * 
+ * @param path  Store identifier
+ * @param key   Document key to delete
+ * @return      SVS_SUCCESS if deleted, SVS_ERR_NOT_FOUND if not found
+ */
+int32_t svs_delete(const char* path, const char* key);
+
+/**
+ * Gets index statistics.
+ * 
+ * @param path            Store identifier
+ * @param out_num_docs    Output: number of documents
+ * @param out_num_terms   Output: number of unique terms
+ * @param out_num_postings Output: total postings
+ * @param out_avg_doc_len Output: average document length
+ * @return                SVS_SUCCESS on success, error code on failure
+ */
+int32_t svs_stats(const char* path,
+                  uint32_t* out_num_docs, uint32_t* out_num_terms,
+                  uint32_t* out_num_postings, float* out_avg_doc_len);
+
+/**
+ * Checks if a store exists in the registry.
+ * 
+ * @param path  Store identifier
+ * @return      1 if exists, 0 if not, error code on failure
+ */
+int32_t svs_exists(const char* path);
+
+/**
+ * Saves the index to a file.
+ * 
+ * @param path       Store identifier (registry key)
+ * @param file_path  File path to save to
+ * @return           SVS_SUCCESS on success, error code on failure
+ * 
+ * @example
+ * ```c
+ * if (svs_save("sparse.db", "index.svs") != SVS_SUCCESS) {
+ *     // Handle error
+ * }
+ * ```
+ */
+int32_t svs_save(const char* path, const char* file_path);
+
+/**
+ * Opens an existing index from a file.
+ * 
+ * Loads the index from disk and registers it in the global registry.
+ * 
+ * @param path       Store identifier (registry key)
+ * @param file_path  File path to load from
+ * @return           SVS_SUCCESS on success, error code on failure
+ * 
+ * @example
+ * ```c
+ * if (svs_open("sparse.db", "index.svs") != SVS_SUCCESS) {
+ *     // Handle error
+ * }
+ * // Now use svs_search, svs_index, etc.
+ * ```
+ */
+int32_t svs_open(const char* path, const char* file_path);
+
 #ifdef __cplusplus
 }
 #endif

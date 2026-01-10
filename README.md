@@ -23,6 +23,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 - **HNSW Index** - O(log N) approximate nearest neighbor search
 - **Gravity Well Index** - Novel O(N) build time index (faster build than HNSW)
 - **Cascade Index** - Three-stage hybrid index (LSH + bucket tree + graph) (Experimental)
+- **Sparse Vector Store** - Inverted index for lexical embeddings (SPLADE, BM25, TF-IDF)
 - **Tensor Engine** - Batch tensor operations with chunked storage
 - **Model Registry** - Version models with SHA-256 checksum verification
 - **Experiment Tracking** - Log parameters, metrics, and artifacts
@@ -43,7 +44,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 
 ```toml
 [dependencies]
-synadb = "1.0.6"
+synadb = "1.1.0"
 ```
 
 ### Python
@@ -455,6 +456,111 @@ index.close()
 1. **LSH Layer** - Hyperplane-based locality-sensitive hashing with multi-probe
 2. **Bucket Tree** - Adaptive splitting when buckets exceed threshold
 3. **Sparse Graph** - Local neighbor connections for search refinement
+
+### Sparse Vector Store (SVS)
+
+For lexical embeddings from sparse encoders like SPLADE, BM25, or TF-IDF:
+
+```python
+from synadb import SparseVectorStore
+
+# Create store with vocabulary size
+store = SparseVectorStore("lexical.svs", vocab_size=30522)
+
+# Index sparse vectors (from any encoder)
+# Example: SPLADE output for "machine learning"
+store.index("doc1", indices=[101, 2054, 3000, 4521], values=[0.8, 0.5, 0.3, 0.2])
+store.index("doc2", indices=[101, 5678, 9012], values=[0.9, 0.4, 0.1])
+
+# Search with sparse query
+query_indices = [101, 2054]
+query_values = [0.7, 0.6]
+results = store.search(query_indices, query_values, k=10)
+for r in results:
+    print(f"{r.key}: {r.score:.4f}")
+
+# Get statistics
+stats = store.stats()
+print(f"Documents: {stats.num_vectors}, Vocab: {stats.vocab_size}")
+
+# Persistence
+store.save()
+store.close()
+
+# Reopen existing store
+store = SparseVectorStore.open("lexical.svs")
+```
+
+**Rust API:**
+
+```rust
+use synadb::sparse_vector_store::{SparseVectorStore, SparseVector};
+
+// Create store
+let mut store = SparseVectorStore::new("lexical.svs", 30522)?;
+
+// Index sparse vectors
+let vec = SparseVector::new(vec![101, 2054, 3000], vec![0.8, 0.5, 0.3])?;
+store.index("doc1", vec)?;
+
+// Search
+let query = SparseVector::new(vec![101, 2054], vec![0.7, 0.6])?;
+let results = store.search(&query, 10)?;
+
+// Persistence
+store.save()?;
+```
+
+**When to use SVS:**
+- Lexical/keyword search (BM25, TF-IDF)
+- Learned sparse representations (SPLADE, SPLADE++)
+- Hybrid search (combine with dense vectors)
+- High-dimensional sparse data
+
+**Architecture:**
+- Inverted index maps vocabulary terms to document postings
+- O(min(nnz)) search complexity (nnz = non-zero elements in query)
+- Exact search (100% recall)
+- Efficient for high-dimensional sparse vectors
+
+### Hybrid Vector Store (Hot/Cold Architecture)
+
+For production workloads that need both real-time ingestion AND fast search, use HybridVectorStore which combines GWI (hot layer) with Cascade (cold layer):
+
+```rust
+use synadb::arch::{HybridVectorStore, HybridConfig};
+
+// Create hybrid store
+let config = HybridConfig {
+    hot: GwiConfig::default(),
+    cold: CascadeConfig::preset_large(768),
+};
+let mut store = HybridVectorStore::new("hot.gwi", "cold.cascade", config)?;
+
+// Initialize hot layer with sample vectors
+store.initialize_hot(&sample_vectors)?;
+
+// Real-time ingestion to hot layer (O(1) per insert)
+store.ingest("doc1", &embedding)?;
+
+// Search both layers (results merged automatically)
+let results = store.search(&query, 10)?;
+
+// Periodically promote hot → cold for better search performance
+let promoted = store.promote_to_cold()?;
+```
+
+**Architecture:**
+
+| Layer | Index | Role | Write | Read |
+|-------|-------|------|-------|------|
+| Hot | GWI | Real-time buffer | O(1) sync | Fallback |
+| Cold | Cascade | Historical storage | Batch | Primary |
+
+**When to use:**
+- Streaming data with real-time search requirements
+- High-throughput ingestion with periodic batch optimization
+- Production systems needing both speed and quality
 
 ## Tensor Engine
 
@@ -962,6 +1068,7 @@ SynaDB uses a **modular architecture** where each component is a specialized cla
 | `MmapVectorStore` | High-throughput vector ingestion | Bulk embedding pipelines |
 | `GravityWellIndex` | Fast-build vector index | Streaming/real-time data |
 | `CascadeIndex` | Hybrid three-stage index | Balanced build/search (Experimental) |
+| `SparseVectorStore` | Inverted index for sparse vectors | Lexical search (SPLADE, BM25) |
 | `TensorEngine` | Batch tensor operations | ML data loading |
 | `ModelRegistry` | Model versioning with checksums | Model management |
 | `Experiment` | Experiment tracking | MLOps workflows |

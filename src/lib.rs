@@ -25,6 +25,7 @@
 //! - **[`hnsw::HnswIndex`]** - O(log N) approximate nearest neighbor search
 //! - **[`gwi::GravityWellIndex`]** - Novel O(N) build time index (faster than HNSW)
 //! - **[`cascade::CascadeIndex`]** - Three-stage hybrid index (LSH + bucket tree + graph)
+//! - **[`sparse_vector_store::SparseVectorStore`]** - Inverted index for lexical embeddings (SPLADE, BM25, TF-IDF)
 //! - **[`distance`]** - Cosine, Euclidean, and Dot Product metrics
 //!
 //! ### AI/ML Platform
@@ -51,6 +52,7 @@
 //! | [`mmap_vector::MmapVectorStore`] | High-throughput vector ingestion |
 //! | [`gwi::GravityWellIndex`] | Fast-build vector index |
 //! | [`cascade::CascadeIndex`] | Hybrid three-stage index |
+//! | [`sparse_vector_store::SparseVectorStore`] | Lexical search (SPLADE, BM25) |
 //! | [`tensor::TensorEngine`] | Batch tensor operations |
 //! | [`model_registry::ModelRegistry`] | Model versioning with checksums |
 //! | [`experiment::ExperimentTracker`] | Experiment tracking |
@@ -218,6 +220,7 @@
 //!
 //! An in-memory index maps keys to file offsets for O(1) lookups.
 
+pub mod arch;
 pub mod cascade;
 pub mod compression;
 pub mod distance;
@@ -227,12 +230,15 @@ pub mod experiment;
 #[cfg(feature = "faiss")]
 pub mod faiss_index;
 pub mod ffi;
+pub mod ffi_sparse;
 pub mod gpu;
 pub mod gwi;
 pub mod hnsw;
 pub mod mmap;
 pub mod mmap_vector;
 pub mod model_registry;
+pub mod sparse_vector;
+pub mod sparse_vector_store;
 pub mod tensor;
 pub mod types;
 pub mod vector;
@@ -268,6 +274,12 @@ pub use hnsw::{HnswConfig, HnswIndex};
 
 // Re-export Gravity Well Index
 pub use gwi::GravityWellIndex;
+
+// Re-export Sparse Vector for lexical embeddings
+pub use sparse_vector::SparseVector;
+
+// Re-export Sparse Vector Store for inverted index retrieval
+pub use sparse_vector_store::{SparseIndexStats, SparseSearchResult, SparseVectorStore};
 
 // Re-export model registry types
 pub use model_registry::{ModelRegistry, ModelStage, ModelVersion};

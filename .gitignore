@@ -67,3 +67,10 @@ benchmarks/results/*.csv
 
 # Workspace files
 *.code-workspace
+
+# Demo data
+demos/python/examples/hybrid_rag_data/historical.cascade
+demos/python/examples/hybrid_rag_data/realtime.gwi
+
+# Benchmark data (large binary files)
+demos/python/examples/benchmark_data/

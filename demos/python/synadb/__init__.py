@@ -127,6 +127,7 @@ from .vector import VectorStore, SearchResult
 from .mmap_vector import MmapVectorStore, MmapSearchResult
 from .gwi import GravityWellIndex, GwiSearchResult
 from .cascade import CascadeIndex, SearchResult as CascadeSearchResult
+from .sparse_vector_store import SparseVectorStore, SparseSearchResult, SparseIndexStats, SparseVectorStoreError
 from .tensor import TensorEngine
 from .models import ModelRegistry, ModelVersion, ModelStage
 from .experiment import Experiment, Run, RunStatus
@@ -135,7 +136,7 @@ from .studio import launch as launch_studio, FLASK_AVAILABLE
 # Import integrations submodule
 from . import integrations
 
-__version__ = "1.0.6"
+__version__ = "1.1.0"
 
 
 # Lazy imports for integrations
@@ -349,6 +350,10 @@ __all__ = [
     "GwiSearchResult",
     "CascadeIndex",
     "CascadeSearchResult",
+    "SparseVectorStore",
+    "SparseSearchResult",
+    "SparseIndexStats",
+    "SparseVectorStoreError",
     "TensorEngine",
     "ModelRegistry",
     "ModelVersion",

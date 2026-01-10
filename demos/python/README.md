@@ -19,6 +19,8 @@ SynaDB uses a **modular architecture** where each component is a specialized cla
 | `MmapVectorStore` | High-throughput vector ingestion | Bulk embedding pipelines |
 | `GravityWellIndex` | Fast-build vector index | Streaming/real-time data |
 | `CascadeIndex` | Hybrid three-stage index | Balanced build/search (Experimental) |
+| `SparseVectorStore` | Inverted index for sparse vectors | Lexical search (SPLADE, BM25) |
+| `HybridVectorStore` | Hot/cold vector architecture | Ingestion + search combined |
 | `TensorEngine` | Batch tensor operations | ML data loading |
 | `ModelRegistry` | Model versioning with checksums | Model management |
 | `Experiment` | Experiment tracking | MLOps workflows |
@@ -53,6 +55,8 @@ pip install synadb[all]       # Everything
 | **HNSW Index** | O(log N) approximate nearest neighbor search for large-scale vectors |
 | **Gravity Well Index** | O(N) build time index, faster build than HNSW |
 | **Cascade Index** | Three-stage hybrid index (LSH + bucket tree + graph) with tunable recall (Experimental) |
+| **Sparse Vector Store** | Inverted index for lexical embeddings (SPLADE, BM25, TF-IDF) |
+| **HybridVectorStore** | Hot/cold architecture combining GWI (ingestion) + Cascade (search) |
 | **Tensor Engine** | Batch tensor operations for ML data loading |
 | **Model Registry** | Version and stage ML models with checksum verification |
 | **Experiment Tracking** | Log parameters, metrics, and artifacts |
@@ -256,6 +260,98 @@ index.close()
 - Need balanced build time and search speed
 - Want tunable recall/latency trade-off
 - Working with medium to large datasets (100K-10M vectors)
+
+### HybridVectorStore (Hot/Cold Architecture)
+
+Combines GWI (hot layer) with Cascade (cold layer) for optimal ingestion AND search:
+
+```python
+from synadb import HybridVectorStore
+import numpy as np
+
+# Create hybrid store with hot (GWI) and cold (Cascade) layers
+store = HybridVectorStore(
+    hot_path="vectors.gwi",
+    cold_path="vectors.cascade",
+    dimensions=768
+)
+
+# Initialize hot layer with sample vectors
+sample = np.random.randn(1000, 768).astype(np.float32)
+store.initialize_hot(sample)
+
+# Ingest to hot layer (real-time, O(1) appends)
+store.ingest("doc1", embedding)
+store.ingest_batch(keys, vectors)  # High throughput
+
+# Search both layers (results merged and deduplicated)
+results = store.search(query, k=10)
+for r in results:
+    print(f"{r.key}: {r.score:.4f} (from {r.source})")  # source: "hot" or "cold"
+
+# Promote hot data to cold layer (maintenance operation)
+promoted = store.promote_to_cold()
+print(f"Promoted {promoted} vectors to cold storage")
+
+# Layer-specific operations
+print(f"Hot: {store.hot_count()}, Cold: {store.cold_count()}")
+store.flush_hot()  # Persist hot layer
+store.save_cold()  # Persist cold layer
+```
+
+**Architecture:**
+
+| Layer | Index | Role | Write | Read |
+|-------|-------|------|-------|------|
+| Hot | GWI | Real-time buffer | O(1) sync | Fallback |
+| Cold | Cascade | Historical storage | Batch | Primary |
+
+**When to use HybridVectorStore:**
+- Need both high-throughput ingestion AND fast search
+- Streaming data with periodic archival
+- Want automatic hot→cold data lifecycle
+
+### Sparse Vector Store (Lexical Search)
+
+For lexical embeddings from sparse encoders like SPLADE, BM25, or TF-IDF:
+
+```python
+from synadb import SparseVectorStore
+
+# Create store with vocabulary size (e.g., BERT vocab = 30522)
+store = SparseVectorStore("lexical.svs", vocab_size=30522)
+
+# Index sparse vectors from any encoder (SPLADE, BM25, TF-IDF)
+store.index("doc1", indices=[101, 2054, 3000], values=[0.8, 0.5, 0.3])
+store.index("doc2", indices=[101, 5678, 9012], values=[0.9, 0.4, 0.1])
+
+# Search with sparse query
+results = store.search(query_indices=[101, 2054], query_values=[0.7, 0.6], k=10)
+for r in results:
+    print(f"{r.key}: {r.score:.4f}")
+
+# Get statistics
+stats = store.stats()
+print(f"Documents: {stats.num_vectors}, Avg NNZ: {stats.avg_nnz:.1f}")
+
+# Persistence
+store.save()
+store.close()
+
+# Reopen existing store
+store = SparseVectorStore.open("lexical.svs")
+```
+
+**When to use SparseVectorStore:**
+- Lexical/keyword search (BM25, TF-IDF)
+- Learned sparse representations (SPLADE, SPLADE++)
+- Hybrid search (combine with dense VectorStore)
+- High-dimensional sparse data
+
+**Architecture:**
+- Inverted index maps vocabulary terms to document postings
+- O(min(nnz)) search complexity (nnz = non-zero elements in query)
+- Exact search (100% recall)
 
 ### Tensor Engine (ML Data Loading)
 
@@ -729,6 +825,56 @@ index.get(key) -> Optional[np.ndarray]
 index.save()
 index.close()
 len(index) -> int
+```
+
+### SparseVectorStore
+
+```python
+from synadb import SparseVectorStore, SparseSearchResult, SparseIndexStats
+
+# Create new store
+store = SparseVectorStore(path, vocab_size=30522)
+
+# Open existing store
+store = SparseVectorStore.open(path)
+
+# Index sparse vectors (from any encoder: SPLADE, BM25, TF-IDF)
+store.index(key, indices: List[int], values: List[float])
+
+# Search
+results = store.search(query_indices: List[int], query_values: List[float], k=10) -> List[SparseSearchResult]
+# SparseSearchResult has: key, score
+
+# Operations
+store.delete(key) -> bool
+store.contains(key) -> bool
+stats = store.stats() -> SparseIndexStats  # num_vectors, vocab_size, total_postings, avg_nnz
+
+# Persistence
+store.save()
+store.close()
+len(store) -> int
+```
+
+### HybridVectorStore
+
+```python
+from synadb import HybridVectorStore
+
+store = HybridVectorStore(hot_path, cold_path, dimensions)
+
+store.initialize_hot(sample_vectors: np.ndarray)  # Required before ingest
+store.ingest(key, vector: np.ndarray)  # Insert to hot layer
+store.ingest_batch(keys: List[str], vectors: np.ndarray) -> int
+store.search(query: np.ndarray, k=10) -> List[HybridSearchResult]  # Both layers
+store.search_hot(query: np.ndarray, k=10) -> List[SearchResult]  # Hot only
+store.search_cold(query: np.ndarray, k=10) -> List[SearchResult]  # Cold only
+store.promote_to_cold() -> int  # Move hot data to cold layer
+store.hot_count() -> int
+store.cold_count() -> int
+store.flush_hot()  # Persist hot layer
+store.save_cold()  # Persist cold layer
+len(store) -> int  # Total across both layers
 ```
 
 ### TensorEngine

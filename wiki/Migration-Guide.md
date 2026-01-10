@@ -4,10 +4,55 @@ This guide helps you upgrade SynaDB between major versions.
 
 ## Table of Contents
 
+- [Upgrading from v1.0.x to v1.1.0](#upgrading-from-v10x-to-v110)
 - [Upgrading from v1.0.x to v1.0.6](#upgrading-from-v10x-to-v106)
 - [Upgrading from v0.5.x to v1.0.0](#upgrading-from-v05x-to-v100)
 - [Upgrading from v0.2.x to v0.5.x](#upgrading-from-v02x-to-v05x)
 - [Upgrading from v0.1.x to v0.2.x](#upgrading-from-v01x-to-v02x)
+
+---
+
+## Upgrading from v1.0.x to v1.1.0
+
+### Overview
+
+v1.1.0 adds SparseVectorStore for lexical/hybrid search capabilities.
+
+### New Features
+
+| Feature | Description |
+|---------|-------------|
+| SparseVectorStore | Inverted index for lexical embeddings (SPLADE, BM25, TF-IDF) |
+| Hybrid RAG Example | Amazon ESCI dataset with dense+sparse search |
+| Benchmark Script | Scale testing at 100K-500K vectors |
+
+### API Additions
+
+#### Python
+
+```python
+from synadb import SparseVectorStore
+
+# Create store
+store = SparseVectorStore("lexical.svs")
+
+# Index sparse vectors (from any encoder: SPLADE, BM25, TF-IDF)
+store.index("doc1", {101: 0.8, 2054: 0.5, 3000: 0.3})
+
+# Search
+results = store.search({101: 1.0, 2054: 0.5}, k=10)
+
+# Persistence
+store.save("index.svs")
+store.close()
+
+# Reopen
+store = SparseVectorStore.open("my_store", "index.svs")
+```
+
+### Breaking Changes
+
+None. v1.1.0 is fully backward compatible with v1.0.x.
 
 ---
 

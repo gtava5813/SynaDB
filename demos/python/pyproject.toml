@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "synadb"
-version = "1.0.6"
+version = "1.1.0"
 description = "AI-native embedded database for ML/AI applications - vectors, tensors, experiments, and model registry"
 readme = "README.md"
 license = {text = "SynaDB License"}

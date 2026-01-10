@@ -11,6 +11,7 @@ SynaDB uses a **modular architecture** where each component is a specialized cla
 | `MmapVectorStore` | High-throughput vector ingestion | Bulk embedding pipelines |
 | `GravityWellIndex` | Fast-build vector index (O(N) build) | Streaming/real-time data |
 | `CascadeIndex` | Hybrid three-stage index (Experimental) | Balanced build/search |
+| `SparseVectorStore` | Inverted index for sparse vectors | Lexical search (SPLADE, BM25) |
 | `TensorEngine` | Batch tensor operations | ML data loading |
 | `ModelRegistry` | Model versioning with checksums | Model management |
 | `ExperimentTracker` | Experiment tracking | MLOps workflows |
@@ -358,6 +359,7 @@ SynaDB provides multiple vector index implementations for different use cases:
 | `MmapVectorStore` | O(N log N) | O(log N) | 95%+ | High-throughput ingestion (490K/sec) |
 | `GravityWellIndex` | O(N) | O(N/k) | 98%+ | Fast build, streaming data |
 | `CascadeIndex` | O(N) | Sub-linear | 95%+ | Tunable recall/latency (Experimental) |
+| `SparseVectorStore` | O(N) | O(min(nnz)) | 100% | Lexical search (SPLADE, BM25, TF-IDF) |
 | FAISS (optional) | Varies | Varies | Varies | Billion-scale, GPU acceleration |
 
 **When to use which:**

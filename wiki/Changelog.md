@@ -4,6 +4,50 @@ This document contains the complete release history for SynaDB.
 
 ---
 
+## v1.1.0 - Sparse Vector Store
+
+**Released:** January 10, 2026  
+**PyPI:** [synadb 1.1.0](https://pypi.org/project/synadb/)  
+**Crates.io:** [synadb 1.1.0](https://crates.io/crates/synadb)
+
+### Highlights
+
+- **SparseVectorStore (SVS)** - New inverted index for lexical embeddings (SPLADE, BM25, TF-IDF)
+- **Hybrid RAG Example** - Amazon ESCI dataset with dense+sparse search
+- **Benchmark Script** - Scale testing showing GWI 13-29x faster than Cascade
+
+### New Features
+
+#### SparseVectorStore
+
+A new inverted index for lexical/sparse embeddings:
+
+```python
+from synadb import SparseVectorStore
+
+store = SparseVectorStore("lexical.svs")
+store.index("doc1", {101: 0.8, 2054: 0.5, 3000: 0.3})
+results = store.search({101: 1.0, 2054: 0.5}, k=10)
+store.save("index.svs")
+```
+
+#### Hybrid RAG Example
+
+Updated `hybrid_rag_bge_m3.py` with:
+- Amazon ESCI dataset (US locale) for product search
+- GWI (real-time dense) + Cascade (historical dense) + SVS (lexical sparse)
+- Reciprocal Rank Fusion (RRF) for hybrid search
+- BGE-M3 native sparse embeddings via FlagEmbedding
+
+#### Benchmark Results
+
+| Scale | GWI | Cascade | GWI/Cascade |
+|-------|-----|---------|-------------|
+| 100K | 28,513 vec/sec | 2,179 vec/sec | 13.1x |
+| 500K | 29,959 vec/sec | 1,033 vec/sec | 29.0x |
+
+---
+
 ## v1.0.6 - GWI Persistence Fix
 
 **Released:** January 2, 2026  

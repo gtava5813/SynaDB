@@ -14,10 +14,11 @@ Make SynaDB the **default database for AI/ML applications** - the SQLite of the 
 | v1.0.0 | Production Release | Jan 2026 | ✅ Complete |
 | v1.0.4 | MmapVectorStore, GWI | Jan 2026 | ✅ Complete |
 | v1.0.5 | Cascade Index | Jan 2026 | ✅ Complete |
-| v1.0.6 | GWI Persistence Fix | Jan 2026 | ✅ Current |
-| v1.1.0 | Query Language | - | 📋 Planned |
-| v1.2.0 | Feature Store | - | 📋 Planned |
-| v1.3.0 | Distributed Mode | - | 📋 Planned |
+| v1.0.6 | GWI Persistence Fix | Jan 2026 | ✅ Complete |
+| v1.1.0 | Sparse Vector Store | Jan 2026 | ✅ Current |
+| v1.2.0 | Query Language | - | 📋 Planned |
+| v1.3.0 | Feature Store | - | 📋 Planned |
+| v1.4.0 | Distributed Mode | - | 📋 Planned |
 
 ---
 
