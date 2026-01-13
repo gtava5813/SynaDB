@@ -46,6 +46,7 @@ When reporting a vulnerability, please include:
 ### What to Expect
 
 **If Accepted:**
+
 - We will confirm the vulnerability and work on a fix
 - You will be credited in the security advisory (unless you prefer to remain anonymous)
 - We will coordinate disclosure timing with you
@@ -62,6 +63,7 @@ When reporting a vulnerability, please include:
 When using SynaDB:
 
 ### FFI Safety
+
 - Always validate input at FFI boundaries
 - Never pass untrusted data directly to FFI functions without validation
 - Use the provided Python/C wrappers rather than raw FFI when possible
@@ -77,6 +79,7 @@ When using SynaDB:
 - Always free allocated memory using provided free functions
 
 ### Data Validation
+
 - Validate vector dimensions before insertion
 - Check model checksums after loading
 - Sanitize user input before using as keys
@@ -89,11 +92,13 @@ When using SynaDB:
 ## Known Security Considerations
 
 ### Append-Only Log
+
 - Deleted data is marked with tombstones, not physically removed
 - Use `compact()` to physically remove deleted data
 - Consider encryption for sensitive data
 
 ### FFI Boundary
+
 - C-ABI functions use integer error codes, not exceptions
 - Panics are caught at FFI boundary to prevent undefined behavior
 - Memory management is manual - always use provided free functions
@@ -114,6 +119,7 @@ Security updates will be:
 ## Acknowledgments
 
 We appreciate the security research community's efforts in responsibly disclosing vulnerabilities. Contributors who report valid security issues will be acknowledged in:
+
 - Security advisories
 - Release notes
 - This document (with permission)

@@ -35,6 +35,7 @@ SynaDB is an embedded, log-structured, columnar-mapped database engine written i
 - Updated: Comprehensive Rust documentation
 
 **v1.0.4-v1.0.5** - Performance Releases
+
 - MmapVectorStore - Ultra-high-throughput vector storage (7x faster than VectorStore)
 - Gravity Well Index (GWI) - O(N) build time, faster than HNSW
 - Cascade Index - Three-stage hybrid index (Experimental)

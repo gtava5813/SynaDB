@@ -209,6 +209,7 @@ results = gwi.search(query, k=10, nprobe=100)  # 100% recall, 0.8ms
 - Append-only storage required
 
 **When to use HNSW:**
+
 - Search latency is critical
 - Index built once, queried many times
 - Highest recall required
@@ -349,6 +350,7 @@ store = SparseVectorStore.open("lexical.svs")
 - High-dimensional sparse data
 
 **Architecture:**
+
 - Inverted index maps vocabulary terms to document postings
 - O(min(nnz)) search complexity (nnz = non-zero elements in query)
 - Exact search (100% recall)

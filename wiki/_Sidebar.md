@@ -1,6 +1,7 @@
 ## SynaDB Wiki
 
 **Getting Started**
+
 - [Home](Home)
 - [Getting Started](Getting-Started)
 
@@ -12,12 +13,14 @@
 - [Experiment Tracking](API-Reference#experimenttracker-python)
 
 **Reference**
+
 - [API Reference](API-Reference)
 - [Architecture](Architecture)
 - [Embedding Batch Size Guide](Embedding-Batch-Size-Guide)
 - [Error Codes](API-Reference#error-codes)
 
 **Project**
+
 - [Roadmap](Roadmap)
 - [Changelog](Changelog)
 - [Migration Guide](Migration-Guide)

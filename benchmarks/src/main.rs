@@ -18,6 +18,7 @@ mod vector_bench;
 mod tensor_bench;
 mod faiss_bench;
 mod cascade_bench;
+mod svs_bench;
 
 pub use config::*;
 pub use report::*;
@@ -194,6 +195,37 @@ enum Commands {
         /// Use mmap-optimized implementation (faster search, lower recall)
         #[arg(long, default_value = "false")]
         mmap: bool,
+    },
+    
+    /// Run SparseVectorStore benchmarks (inverted index for lexical search)
+    Svs {
+        /// Number of sparse vectors to insert
+        #[arg(long, default_value = "10000")]
+        num_vectors: usize,
+        
+        /// Average number of non-zero elements per vector
+        #[arg(long, default_value = "100")]
+        avg_nnz: usize,
+        
+        /// Maximum dimension index (vocabulary size)
+        #[arg(long, default_value = "30000")]
+        max_dim: u32,
+        
+        /// Number of search queries
+        #[arg(long, default_value = "100")]
+        num_queries: usize,
+        
+        /// Number of results to retrieve
+        #[arg(long, default_value = "10")]
+        k: usize,
+        
+        /// Run quick benchmark (10K vectors)
+        #[arg(long, default_value = "false")]
+        quick: bool,
+        
+        /// Run full benchmark suite (10K, 50K, 100K × 3 sparsity levels)
+        #[arg(long, default_value = "false")]
+        full: bool,
     },
     
     /// Run all benchmarks and generate report
@@ -577,6 +609,14 @@ fn main() {
                 results.push(cascade_bench::to_benchmark_result(result, &cascade_config));
             }
             
+            // Add SVS benchmarks
+            println!("\n=== Running SVS Benchmarks ===");
+            let svs_results = svs_bench::run_quick_svs_benchmark();
+            let svs_config = svs_bench::SvsBenchConfig::default();
+            for result in &svs_results {
+                results.push(svs_bench::to_benchmark_result(result, &svs_config));
+            }
+            
             report::generate_report(&results, &output);
             
             println!("\nReport generated in {}/", output);
@@ -648,6 +688,64 @@ fn main() {
                     println!("  ✓ Recall target met: >= 90% ({:.1}%)", result.recall_at_k * 100.0);
                 } else {
                     println!("  ✗ Recall target NOT met: < 90% ({:.1}%)", result.recall_at_k * 100.0);
+                }
+            }
+        }
+        
+        Commands::Svs { num_vectors, avg_nnz, max_dim, num_queries, k, quick, full } => {
+            println!("Running SparseVectorStore benchmarks...");
+            
+            if full {
+                // Run full benchmark suite
+                let results = svs_bench::run_full_svs_benchmark();
+                svs_bench::print_results_table(&results);
+                
+                println!("\n=== SVS Benchmark Complete ===");
+                println!("Total configurations tested: {}", results.len());
+            } else if quick {
+                // Run quick benchmark
+                let results = svs_bench::run_quick_svs_benchmark();
+                svs_bench::print_results_table(&results);
+            } else {
+                // Run specific configuration
+                let config = svs_bench::SvsBenchConfig {
+                    num_vectors,
+                    avg_nnz,
+                    max_dim,
+                    num_queries,
+                    k,
+                    warmup_iterations: 10,
+                };
+                
+                println!("  Vectors: {}", num_vectors);
+                println!("  Avg NNZ: {}", avg_nnz);
+                println!("  Max Dim: {}", max_dim);
+                println!("  Queries: {}", num_queries);
+                println!("  K: {}", k);
+                
+                let result = svs_bench::run_svs_search_benchmark(&config);
+                
+                println!("\n=== SVS Results ===");
+                println!("  Insert throughput: {:.0} vectors/sec", result.insert_throughput);
+                println!("  Build time: {:.2}s", result.build_time_secs);
+                println!("  Search latency p50: {:.2}ms", result.search_latency_p50_ms);
+                println!("  Search latency p95: {:.2}ms", result.search_latency_p95_ms);
+                println!("  Search latency p99: {:.2}ms", result.search_latency_p99_ms);
+                println!("  Queries/sec: {:.0}", result.queries_per_sec);
+                println!("  Storage: {:.2}MB", result.storage_mb);
+                
+                // Check targets
+                println!("\n=== Performance Target Check ===");
+                if result.insert_throughput >= 10_000.0 {
+                    println!("  ✓ Insert throughput target met: >= 10K vec/sec ({:.0})", result.insert_throughput);
+                } else {
+                    println!("  ✗ Insert throughput target NOT met: < 10K vec/sec ({:.0})", result.insert_throughput);
+                }
+                
+                if result.search_latency_p50_ms < 10.0 {
+                    println!("  ✓ Search latency target met: p50 < 10ms ({:.2}ms)", result.search_latency_p50_ms);
+                } else {
+                    println!("  ✗ Search latency target NOT met: p50 >= 10ms ({:.2}ms)", result.search_latency_p50_ms);
                 }
             }
         }

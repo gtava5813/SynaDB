@@ -409,6 +409,7 @@ results = gwi.search(query_embedding, k=10, nprobe=50)
 | 50K × 768 | 3.0s | 504s | 168x |
 
 **When to use which:**
+
 - **VectorStore**: General use, good all-around
 - **MmapVectorStore**: High-throughput ingestion, large datasets
 - **GWI**: Build time critical, streaming/real-time data
@@ -512,12 +513,14 @@ store.save()?;
 ```
 
 **When to use SVS:**
+
 - Lexical/keyword search (BM25, TF-IDF)
 - Learned sparse representations (SPLADE, SPLADE++)
 - Hybrid search (combine with dense vectors)
 - High-dimensional sparse data
 
 **Architecture:**
+
 - Inverted index maps vocabulary terms to document postings
 - O(min(nnz)) search complexity (nnz = non-zero elements in query)
 - Exact search (100% recall)
@@ -558,6 +561,7 @@ let promoted = store.promote_to_cold()?;
 | Cold | Cascade | Historical storage | Batch | Primary |
 
 **When to use:**
+
 - Streaming data with real-time search requirements
 - High-throughput ingestion with periodic batch optimization
 - Production systems needing both speed and quality
@@ -990,6 +994,7 @@ SynaDB uses relative benchmarks to ensure claims are hardware-independent:
 | HNSW vs Brute Force | Faster search | O(log N) vs O(N) |
 
 Run benchmarks on your own hardware:
+
 - **Google Colab**: [SynaDB Playground Notebook](https://colab.research.google.com/github/gtava5813/SynaDB/blob/main/demos/notebooks/SynaDB_Playground.ipynb)
 - **PythonAnywhere**: [Live Demo](https://gtava5813.pythonanywhere.com/)
 
