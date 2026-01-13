@@ -2,7 +2,7 @@
 
 Live interactive demo of SynaDB running on PythonAnywhere.
 
-**Live Demo:** https://gtava5813.pythonanywhere.com/
+**Live Demo:** <https://gtava5813.pythonanywhere.com/>
 
 ## Benchmarks
 
@@ -57,7 +57,7 @@ pip install -r requirements.txt
 python flask_app.py
 ```
 
-Open http://localhost:5000 in your browser.
+Open <http://localhost:5000> in your browser.
 
 ## API Endpoints
 

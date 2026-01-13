@@ -70,6 +70,7 @@ cargo test
 ```
 
 The compiled library will be at:
+
 - Linux: `target/release/libsynadb.so`
 - macOS: `target/release/libsynadb.dylib`
 - Windows: `target/release/synadb.dll`
@@ -454,6 +455,7 @@ index.close()
 | `fast_search` | Latency critical | Fast | Very Fast | 90%+ |
 
 **Architecture:**
+
 1. **LSH Layer** - Hyperplane-based locality-sensitive hashing with multi-probe
 2. **Bucket Tree** - Adaptive splitting when buckets exceed threshold
 3. **Sparse Graph** - Local neighbor connections for search refinement

@@ -45,6 +45,7 @@ pip install -r requirements.txt
 ```
 
 This installs:
+
 - `synadb` - The AI-native embedded database
 - `numpy` - Numerical computing
 - `pandas` - Data manipulation
@@ -58,6 +59,7 @@ pip install -r requirements-full.txt
 ```
 
 This adds comparison tools:
+
 - Vector stores: chromadb, faiss-cpu, qdrant-client, lancedb
 - Experiment tracking: mlflow, wandb, neptune, clearml
 - Data formats: h5py, zarr, lmdb, pyarrow
@@ -121,6 +123,7 @@ This adds comparison tools:
 ## Reproducibility
 
 All notebooks use:
+
 - **Deterministic seeds** for reproducible results
 - **System info reporting** before benchmarks
 - **Multiple iterations** with variance reporting

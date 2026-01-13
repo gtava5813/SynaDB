@@ -24,7 +24,7 @@ We take the security of SynaDB seriously. If you discover a security vulnerabili
 
 Instead, please report security issues via one of these methods:
 
-1. **Email:** Send details to security@synadb.ai
+1. **Email:** Send details to <security@synadb.ai>
 2. **GitHub Security Advisories:** Use the "Security" tab in the repository to privately report vulnerabilities
 
 ### What to Include
@@ -54,6 +54,7 @@ When reporting a vulnerability, please include:
 - Security patch will be released as soon as possible
 
 **If Declined:**
+
 - We will explain why the issue is not considered a security vulnerability
 - We may suggest alternative reporting channels if it's a bug rather than a security issue
 - You are free to disclose the issue publicly if you disagree with our assessment
@@ -69,11 +70,13 @@ When using SynaDB:
 - Use the provided Python/C wrappers rather than raw FFI when possible
 
 ### File Permissions
+
 - Database files should have appropriate file system permissions
 - Avoid storing databases in world-readable directories
 - Use encryption at rest for sensitive data
 
 ### Memory Safety
+
 - SynaDB is written in Rust for memory safety
 - FFI boundary uses `catch_unwind` to prevent panics
 - Always free allocated memory using provided free functions
@@ -85,6 +88,7 @@ When using SynaDB:
 - Sanitize user input before using as keys
 
 ### Dependency Security
+
 - Keep SynaDB updated to the latest version
 - Monitor security advisories for dependencies
 - Use `cargo audit` for Rust dependency scanning
@@ -104,6 +108,7 @@ When using SynaDB:
 - Memory management is manual - always use provided free functions
 
 ### Concurrent Access
+
 - Multiple processes can read simultaneously
 - Only one writer at a time (enforced by mutex)
 - No built-in authentication or authorization
@@ -111,6 +116,7 @@ When using SynaDB:
 ## Security Updates
 
 Security updates will be:
+
 - Released as patch versions (e.g., 0.5.1)
 - Announced in release notes with `[SECURITY]` prefix
 - Published to crates.io and PyPI immediately

@@ -34,6 +34,7 @@ store.save("index.svs")
 #### Hybrid RAG Example
 
 Updated `hybrid_rag_bge_m3.py` with:
+
 - Amazon ESCI dataset (US locale) for product search
 - GWI (real-time dense) + Cascade (historical dense) + SVS (lexical sparse)
 - Reciprocal Rank Fusion (RRF) for hybrid search
@@ -58,8 +59,8 @@ Updated `hybrid_rag_bge_m3.py` with:
 
 - **GWI Persistence Fix** - Critical bug fix for GravityWellIndex data persistence
 - **CascadeIndex Import Fix** - Fixed Python import error
--  **Benchmark Results** - GWI is 388x faster to build than HNSW
--  **Interactive Playground** - New web-based playground for validating SynaDB claims
+- **Benchmark Results** - GWI is 388x faster to build than HNSW
+- **Interactive Playground** - New web-based playground for validating SynaDB claims
 
 ### New Features
 
@@ -77,6 +78,7 @@ A new web-based playground for validating SynaDB's performance claims:
 - **Copy-Paste Benchmarks** - Ready-to-run Python and Rust code samples for local verification
 
 **Benchmarks Available:**
+
 - MmapVectorStore vs VectorStore (batch insert speed)
 - GWI vs HNSW (index build time)
 - HNSW vs Brute Force (search speed)
@@ -89,17 +91,20 @@ A new web-based playground for validating SynaDB's performance claims:
 **Issue:** GravityWellIndex data was not persisted correctly. After inserting vectors and closing, reopening the same file showed `len(gwi) = 0`.
 
 **Root Cause:**
+
 1. Missing `SYNA_gwi_open` FFI function - Python couldn't open existing files
 2. Python wrapper always called `SYNA_gwi_new` which truncates existing files
 3. Unsafe memory alignment in mmap reads caused undefined behavior
 
 **Fix:**
+
 - Added `SYNA_gwi_open` FFI function for opening existing GWI files
 - Python wrapper now detects existing files and opens them instead of truncating
 - Rewrote header serialization using safe byte-by-byte operations
 - Fixed `load_attractors`, `read_entry_at`, `rebuild_key_index` to read floats safely
 
 **Files Changed:**
+
 - `src/ffi.rs` - Added `SYNA_gwi_open` function
 - `src/gwi.rs` - Fixed header read/write, fixed mmap float reads
 - `demos/python/synadb/gwi.py` - Added open logic, `SYNA_gwi_open` binding
@@ -132,6 +137,7 @@ print(f"After reopen: len={len(gwi2)}")  # 1000 ✓
 **Fix:** Added local `_load_library()` function to `cascade.py`, consistent with other modules
 
 **Files Changed:**
+
 - `demos/python/synadb/cascade.py` - Added `_load_library()` function
 
 ### New Tests
@@ -196,6 +202,7 @@ results = index.search(query, k=10, num_probes=5, ef_search=100)  # Higher recal
 ```
 
 **Key Features:**
+
 - **O(N) build time** - No quadratic neighbor search during construction
 - **No initialization required** - Unlike GWI, no sample vectors needed
 - **Adaptive buckets** - Automatically splits as data grows

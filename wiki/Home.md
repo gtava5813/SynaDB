@@ -24,12 +24,14 @@ SynaDB is an embedded, log-structured, columnar-mapped database engine written i
 ## Current Version
 
 **v1.1.0** - Latest Release (January 2026)
+
 - New: SparseVectorStore (SVS) for lexical embeddings (SPLADE, BM25, TF-IDF)
 - New: Hybrid RAG example with Amazon ESCI dataset
 - New: Benchmark script with scale testing (100K-500K)
 - GWI 13-29x faster than Cascade for inserts (scales better)
 
 **v1.0.6** - GWI Persistence Fix (January 2026)
+
 - Fixed: GravityWellIndex persistence bug - data now correctly persists across close/reopen
 - Fixed: CascadeIndex Python import error
 - Updated: Comprehensive Rust documentation
@@ -42,6 +44,7 @@ SynaDB is an embedded, log-structured, columnar-mapped database engine written i
 - HNSW recall fix - improved from 0-20% to 100%
 
 **v1.0.0** - Production Release
+
 - Append-only log storage with schema-free data types
 - Vector Store with HNSW index for similarity search
 - Tensor Engine for batch ML data operations

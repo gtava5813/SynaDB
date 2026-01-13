@@ -56,12 +56,14 @@ Result:
 ## Best Practices
 
 ### 1. Start Small, Scale Up
+
 ```python
 # Start with 32, increase if GPU has headroom
 batch_size = 32
 ```
 
 ### 2. Monitor GPU Memory
+
 ```bash
 # Linux/Mac
 nvidia-smi -l 1

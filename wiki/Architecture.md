@@ -74,6 +74,7 @@ pub enum Atom {
 ```
 
 **Why Atom, not JSON?**
+
 - MongoDB: `{"type": "Float", "value": 3.14}` → 35 bytes
 - SynaDB: `[tag][f64]` → 9 bytes
 - **4x smaller, 10x faster to parse**
@@ -133,6 +134,7 @@ File: my_data.db
 ```
 
 **Benefits:**
+
 - Sequential I/O (fast on all storage)
 - Immutable history (perfect for ML versioning)
 - Crash-safe (partial writes are skipped on recovery)
@@ -228,6 +230,7 @@ With delta:     [72.5] [0.1] [0.1] [0.1]     → 8 + 3*1 = 11 bytes
 ```
 
 Applied when:
+
 - Same key as previous write
 - Both values are Float
 - Delta is small enough to benefit
@@ -235,6 +238,7 @@ Applied when:
 ### LZ4 Compression
 
 Applied to values > 64 bytes:
+
 - Fast compression/decompression
 - Good for text and large byte arrays
 - Transparent on read (flag-based)
@@ -242,11 +246,13 @@ Applied to values > 64 bytes:
 ## Concurrency Model
 
 ### Write Path
+
 - Single writer (mutex-protected)
 - Atomic append (header + key + value)
 - Optional fsync per write
 
 ### Read Path
+
 - Lock-free reads from index
 - Consistent snapshot at read time
 - Multiple concurrent readers
@@ -254,6 +260,7 @@ Applied to values > 64 bytes:
 ## Recovery Process
 
 On database open:
+
 1. Scan file from start to end
 2. Validate each LogHeader (reasonable lengths, valid flags)
 3. Skip corrupted entries (log warning)
@@ -363,6 +370,7 @@ SynaDB provides multiple vector index implementations for different use cases:
 | FAISS (optional) | Varies | Varies | Varies | Billion-scale, GPU acceleration |
 
 **When to use which:**
+
 - **VectorStore**: Default choice, good all-around performance
 - **MmapVectorStore**: Bulk ingestion pipelines, pre-allocated capacity
 - **GravityWellIndex**: Build time critical, faster than HNSW
@@ -404,6 +412,7 @@ SynaDB includes benchmarks comparing its native HNSW index against FAISS indexes
 | FAISS-IVF1024,Flat | 80K | 1ms | 2ms | 65 MB | 92% |
 
 **Key insights:**
+
 - **HNSW** provides the best balance of speed and recall for most use cases
 - **FAISS-Flat** offers exact search (100% recall) but O(n) complexity
 - **FAISS-IVF** is faster than HNSW for very large datasets (>10M vectors)

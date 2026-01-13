@@ -135,9 +135,11 @@ results = cascade.search(query, k=10)
 ### Bug Fixes to Be Aware Of
 
 #### HNSW Recall (v1.0.4)
+
 If you experienced poor search results with VectorStore or MmapVectorStore on clustered data, upgrade to v1.0.4+ for the fix.
 
 #### GWI Persistence (v1.0.6)
+
 If you used GravityWellIndex in v1.0.4 or v1.0.5 and experienced data loss on reopen, upgrade to v1.0.6 for the fix.
 
 ---

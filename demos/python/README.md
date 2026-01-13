@@ -116,6 +116,7 @@ for r in results:
 ```
 
 **Distance Metrics:**
+
 - `cosine` (default) - Best for text embeddings
 - `euclidean` - Best for image embeddings  
 - `dot_product` - Maximum inner product search
@@ -204,6 +205,7 @@ results = gwi.search(query, k=10, nprobe=100)  # 100% recall, 0.8ms
 | BERT (768d) | 3.0s | 504s | 168x |
 
 **When to use GWI:**
+
 - Index build time is critical
 - Data is streaming/real-time
 - Append-only storage required
@@ -253,11 +255,13 @@ index.close()
 | `fast_search` | Latency critical | Fast | Very Fast | 90%+ |
 
 **Architecture:**
+
 1. **LSH Layer** - Hyperplane-based locality-sensitive hashing with multi-probe
 2. **Bucket Tree** - Adaptive splitting when buckets exceed threshold
 3. **Sparse Graph** - Local neighbor refinement for final ranking
 
 **When to use Cascade Index:**
+
 - Need balanced build time and search speed
 - Want tunable recall/latency trade-off
 - Working with medium to large datasets (100K-10M vectors)
@@ -308,6 +312,7 @@ store.save_cold()  # Persist cold layer
 | Cold | Cascade | Historical storage | Batch | Primary |
 
 **When to use HybridVectorStore:**
+
 - Need both high-throughput ingestion AND fast search
 - Streaming data with periodic archival
 - Want automatic hot→cold data lifecycle
@@ -344,6 +349,7 @@ store = SparseVectorStore.open("lexical.svs")
 ```
 
 **When to use SparseVectorStore:**
+
 - Lexical/keyword search (BM25, TF-IDF)
 - Learned sparse representations (SPLADE, SPLADE++)
 - Hybrid search (combine with dense VectorStore)
@@ -658,6 +664,7 @@ python run_ui.py path/to/database.db
 ```
 
 **Features:**
+
 - Keys Explorer with search and type filtering
 - Model Registry dashboard
 - 3D Embedding Clusters visualization (PCA)

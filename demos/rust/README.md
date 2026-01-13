@@ -55,6 +55,7 @@ cargo run -- --list
 ### 1. Basic CRUD (`basic_crud.rs`)
 
 Demonstrates fundamental database operations:
+
 - Opening and closing databases
 - Writing all Atom types (Float, Int, Text, Bytes)
 - Reading values back
@@ -74,6 +75,7 @@ db.close()?;
 ### 2. Time-Series (`time_series.rs`)
 
 Shows time-series data patterns:
+
 - Appending sequential sensor readings
 - Extracting full history
 - Using `get_history_floats()` for ML
@@ -91,6 +93,7 @@ let history = db.get_history_floats("sensor/temp")?;
 ### 3. Compression (`compression.rs`)
 
 Compares compression strategies:
+
 - No compression (baseline)
 - LZ4 only (for large values)
 - Delta only (for float sequences)
@@ -101,6 +104,7 @@ Reports file sizes and compression ratios.
 ### 4. Concurrent Access (`concurrent.rs`)
 
 Demonstrates thread-safe operations:
+
 - 4 writer threads appending data
 - 4 reader threads reading data
 - Uses `std::thread::scope` for safe concurrency
@@ -122,6 +126,7 @@ std::thread::scope(|s| {
 ### 5. Recovery (`recovery.rs`)
 
 Shows crash recovery capabilities:
+
 - Write data, simulate crash (drop without close)
 - Reopen and verify all data recovered
 - Inject corruption and verify partial recovery
@@ -130,6 +135,7 @@ Shows crash recovery capabilities:
 ### 6. Tensor Extraction (`tensor_extraction.rs`)
 
 ML-focused tensor operations:
+
 - Store float sequences for multiple keys
 - Extract as raw pointers (simulating FFI)
 - Demonstrate memory management with `free_tensor`

@@ -6,6 +6,7 @@
 - [Getting Started](Getting-Started)
 
 **Features**
+
 - [Vector Store](API-Reference#vectorstore-python)
 - [Sparse Vector Store](API-Reference#sparsevectorstore)
 - [Tensor Engine](API-Reference#tensorengine-python)
@@ -27,6 +28,7 @@
 - [Contributing](Contributing)
 
 **Links**
+
 - [GitHub](https://github.com/gtava5813/SynaDB)
 - [PyPI](https://pypi.org/project/synadb/)
 - [Crates.io](https://crates.io/crates/synadb)

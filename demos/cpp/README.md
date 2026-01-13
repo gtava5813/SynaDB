@@ -12,6 +12,7 @@ cargo build --release
 ```
 
 This creates the shared library:
+
 - Linux: `target/release/libsynadb.so`
 - macOS: `target/release/libsynadb.dylib`
 - Windows: `target/release/synadb.dll`
@@ -23,6 +24,7 @@ This creates the shared library:
 **File:** `basic_usage.c`
 
 Demonstrates fundamental Syna operations in C:
+
 - Opening and closing databases
 - Writing all data types (float, int, text, bytes)
 - Reading values back
@@ -37,6 +39,7 @@ Demonstrates fundamental Syna operations in C:
 **File:** `raii_wrapper.cpp`
 
 A modern C++ wrapper with:
+
 - RAII semantics (automatic resource management)
 - Smart pointers for memory safety
 - Exception-safe operations
@@ -49,6 +52,7 @@ A modern C++ wrapper with:
 **Directory:** `cmake_example/`
 
 Shows how to integrate Syna into CMake projects:
+
 - Cross-platform CMakeLists.txt
 - Library detection and linking
 - RPATH configuration
@@ -59,6 +63,7 @@ Shows how to integrate Syna into CMake projects:
 **File:** `embedded_minimal.c`
 
 Optimized for constrained environments:
+
 - No dynamic allocation in hot paths
 - Fixed-size ring buffers
 - Stack-based operations

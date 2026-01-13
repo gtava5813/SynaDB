@@ -127,6 +127,7 @@ syna keys <database> [--pattern <pattern>]
 ```
 
 **Options:**
+
 - `--pattern`, `-p`: Filter keys by prefix or substring match
 
 **Examples:**
@@ -165,6 +166,7 @@ syna search <database> --query <vector> [--k <count>] [--dimensions <dims>]
 ```
 
 **Options:**
+
 - `--query`, `-q`: Query vector as comma-separated floats (required)
 - `--k`, `-k`: Number of results to return (default: 10)
 - `--dimensions`, `-d`: Vector dimensions (default: 768)

@@ -87,6 +87,7 @@ demos/
 ### Running Demos
 
 #### Rust Demos
+
 ```bash
 cd demos/rust
 
@@ -101,6 +102,7 @@ cargo run --example time_series
 See [demos/rust/README.md](rust/README.md) for details.
 
 #### Python Demos
+
 ```bash
 cd demos/python
 
@@ -114,6 +116,7 @@ python context_manager.py
 See [demos/python/README.md](python/README.md) for details.
 
 #### C/C++ Demos
+
 ```bash
 cd demos/cpp
 
@@ -129,6 +132,7 @@ make
 See [demos/cpp/README.md](cpp/README.md) for details.
 
 #### HuggingFace Demos
+
 ```bash
 # Dataset loaders
 cd demos/huggingface/datasets

@@ -24,6 +24,7 @@ cargo run --release -- faiss --quick  # FAISS vs HNSW comparison
 ### Write Benchmarks
 
 Tests sequential write throughput and latency:
+
 - Value sizes: 64B, 1KB, 64KB, 1MB
 - Sync modes: sync_on_write enabled/disabled
 - Metrics: ops/sec, p50/p95/p99 latency
@@ -31,6 +32,7 @@ Tests sequential write throughput and latency:
 ### Read Benchmarks
 
 Tests random read performance:
+
 - Point reads (single key lookup)
 - History/tensor extraction
 - Concurrent reads (1, 4, 8, 16 threads)
@@ -38,6 +40,7 @@ Tests random read performance:
 ### Mixed Workloads (YCSB)
 
 Standard YCSB workloads:
+
 - **A**: 50% read, 50% update (update heavy)
 - **B**: 95% read, 5% update (read mostly)
 - **C**: 100% read (read only)
@@ -48,6 +51,7 @@ Standard YCSB workloads:
 ### Storage Efficiency
 
 Measures disk usage:
+
 - Bytes per entry
 - Compression ratios (none, LZ4, delta, both)
 - Compaction effectiveness
@@ -55,6 +59,7 @@ Measures disk usage:
 ### Vector Benchmarks
 
 Tests vector store performance:
+
 - Insert throughput (vectors/sec)
 - Search latency (brute force and HNSW)
 - Recall@k accuracy
@@ -183,6 +188,7 @@ cache::try_flush_system_cache();
 ```
 
 Platform support:
+
 - **Linux**: `posix_fadvise` for files, `/proc/sys/vm/drop_caches` for system
 - **macOS**: `fcntl F_NOCACHE` for files, `purge` command for system
 - **Windows**: `FILE_FLAG_NO_BUFFERING` (limited effectiveness)
@@ -272,6 +278,7 @@ Higher is better. Measured in operations per second.
 ### Latency
 
 Lower is better. We report:
+
 - **p50**: Median latency (50th percentile) - typical case
 - **p95**: 95th percentile (tail latency) - occasional slow operations
 - **p99**: 99th percentile (worst case) - rare outliers
@@ -307,6 +314,7 @@ The benchmark suite automatically flags anomalies:
 ## Configuration
 
 Edit `benchmarks/src/config.rs` to customize:
+
 - Warmup iterations
 - Measurement iterations
 - Value sizes
@@ -330,6 +338,7 @@ BenchmarkConfig {
 This benchmark suite implements the following requirements:
 
 ### Requirement 7: Write Performance (7.1-7.6)
+
 - Sequential write throughput ✅
 - Write latency distribution ✅
 - Various value sizes ✅
@@ -338,6 +347,7 @@ This benchmark suite implements the following requirements:
 - Memory usage tracking ✅
 
 ### Requirement 8: Read Performance (8.1-8.6)
+
 - Point read throughput ✅
 - Read latency distribution ✅
 - Hot/cold read testing ✅
@@ -346,6 +356,7 @@ This benchmark suite implements the following requirements:
 - Concurrent read scaling ✅
 
 ### Requirement 9: Mixed Workloads (9.1-9.6)
+
 - YCSB-A (50/50) ✅
 - YCSB-B (95/5) ✅
 - YCSB-C (100% read) ✅
@@ -354,6 +365,7 @@ This benchmark suite implements the following requirements:
 - Separate read/write metrics ✅
 
 ### Requirement 10: Storage Efficiency (10.1-10.6)
+
 - Bytes per entry ✅
 - Compression comparison ✅
 - Compaction testing ✅
@@ -362,6 +374,7 @@ This benchmark suite implements the following requirements:
 - Compression ratios ✅
 
 ### Requirement 11: Reporting (11.1-11.6)
+
 - JSON report ✅
 - Markdown summary ✅
 - Charts (PNG) ✅
@@ -370,6 +383,7 @@ This benchmark suite implements the following requirements:
 - Anomaly detection ✅
 
 ### Requirement 12: Reproducibility (12.1-12.6)
+
 - Deterministic seeds ✅
 - Configurable phases ✅
 - Cache flushing ✅
