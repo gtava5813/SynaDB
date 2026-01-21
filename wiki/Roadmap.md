@@ -80,7 +80,7 @@ Major performance and reliability improvements.
 
 ---
 
-## v1.0.6 - GWI Persistence Fix ✅ CURRENT
+## v1.0.6 - GWI Persistence Fix ✅
 
 **Status:** Released January 2026
 
@@ -96,7 +96,24 @@ See [Changelog](Changelog) for full details.
 
 ---
 
-## v1.1.0 - Query Language 📋
+## v1.1.0 - Sparse Vector Store ✅ CURRENT
+
+**Status:** Released January 2026
+
+New sparse vector indexing for lexical/hybrid search.
+
+### New Features
+
+- ✅ SparseVectorStore (SVS) - Inverted index for lexical embeddings (SPLADE, BM25, TF-IDF)
+- ✅ Hybrid RAG Example - Amazon ESCI dataset with dense+sparse search
+- ✅ Reciprocal Rank Fusion (RRF) - Algorithm for combining dense and sparse results
+- ✅ Benchmark Script - Scale testing showing GWI 13-29x faster than Cascade
+
+See [Changelog](Changelog) for full details.
+
+---
+
+## v1.2.0 - Query Language 📋
 
 **Status:** Planned
 
@@ -111,14 +128,14 @@ See [Changelog](Changelog) for full details.
 
 ## Future
 
-### v1.2.0 - Feature Store 📋
+### v1.3.0 - Feature Store 📋
 
 - Feature schema definition
 - Point-in-time queries
 - Online serving (<1ms)
 - Training data generation
 
-### v1.3.0 - Distributed Mode 📋
+### v1.4.0 - Distributed Mode 📋
 
 - Multi-node replication
 - Sharding support
