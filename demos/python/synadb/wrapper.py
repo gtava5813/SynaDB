@@ -6,10 +6,9 @@ High-level Python interface using ctypes to call the Syna C-ABI.
 
 import ctypes
 from ctypes import c_char_p, c_double, c_int64, c_int32, c_size_t, c_uint8, POINTER, byref
-import os
 import platform
 from pathlib import Path
-from typing import Optional, List, Union
+from typing import Optional, List
 import numpy as np
 
 

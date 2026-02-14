@@ -551,4 +551,7 @@ def reset_results():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    import os
+    # Only enable debug mode if explicitly set via environment variable
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(debug=debug_mode)

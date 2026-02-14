@@ -21,7 +21,7 @@ import numpy as np
 from typing import List, Optional
 from dataclasses import dataclass
 
-from .wrapper import SynaDB, SynaError
+from .wrapper import SynaDB
 
 
 @dataclass
@@ -564,7 +564,7 @@ class VectorStore:
         """
         # Use the underlying database to get the vector directly
         # The vector is stored with prefix "vec/" by default
-        full_key = f"vec/{key}"
+        # full_key would be f"vec/{key}" but we don't use it directly
         
         # We need to access the underlying database
         # For now, we'll use a workaround by searching and filtering

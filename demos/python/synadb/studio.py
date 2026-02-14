@@ -1,9 +1,6 @@
 """Syna Studio - Web UI for database exploration."""
-import os
-import math
 import json
-import struct
-from typing import Tuple, Any, List, Dict
+from typing import Tuple, Any, Dict
 
 try:
     from flask import Flask, render_template_string, jsonify, request
@@ -590,7 +587,6 @@ app.init();
 def launch(db_path: str, port: int = 8501, debug: bool = False) -> None:
     """Launch Syna Studio web UI."""
     if not FLASK_AVAILABLE: raise ImportError("Flask not installed.")
-    import os
     from .wrapper import SynaDB
     
     global CURRENT_DB_PATH

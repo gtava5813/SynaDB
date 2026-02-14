@@ -21,13 +21,12 @@ Note:
 _Requirements: 6.1 (Accelerator Support)_
 """
 
-from typing import Iterator, Tuple, Optional, TYPE_CHECKING
+from typing import Iterator, Optional, TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
     import tensorflow as tf
     import jax
-
 
 def get_tensor_dataset(
     db_path: str,

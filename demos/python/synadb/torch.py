@@ -18,7 +18,7 @@ Example:
     ...     # train
 """
 
-from typing import Callable, List, Optional, Tuple, Any
+from typing import Callable, List, Optional, Tuple
 import fnmatch
 import numpy as np
 

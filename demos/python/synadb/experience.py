@@ -20,14 +20,13 @@ import hashlib
 import json
 import time
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 
-from .wrapper import SynaDB, SynaError
-
+from .wrapper import SynaDB
 
 @dataclass
 class Transition:
@@ -137,7 +136,6 @@ class ExperienceCollector:
     
     def _generate_machine_id(self) -> str:
         """Generate a unique machine identifier."""
-        import platform
         import socket
         try:
             hostname = socket.gethostname()[:10]

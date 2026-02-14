@@ -16,7 +16,7 @@ Example:
 
 import fnmatch
 import numpy as np
-from typing import Tuple, Optional, Iterator, List
+from typing import Tuple, Iterator, List
 
 from .wrapper import SynaDB, SynaError
 

@@ -22,8 +22,6 @@ _Requirements: 6.1, 6.2_
 
 from typing import Optional, TYPE_CHECKING
 
-import numpy as np
-
 if TYPE_CHECKING:
     import torch
 

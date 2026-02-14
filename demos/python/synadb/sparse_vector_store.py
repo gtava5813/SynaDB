@@ -7,12 +7,10 @@ Works with any sparse encoder (FLES-1, SPLADE, BM25, TF-IDF, etc.).
 
 import ctypes
 from ctypes import c_char_p, c_float, c_int32, c_int64, c_uint32, POINTER, byref
-import os
 import platform
 from pathlib import Path
-from typing import Optional, List, Dict, Tuple, Union
+from typing import List, Dict, Tuple, Union
 from dataclasses import dataclass
-import numpy as np
 
 
 class SparseVectorStoreError(Exception):

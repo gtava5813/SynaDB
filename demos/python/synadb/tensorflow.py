@@ -19,7 +19,7 @@ Example:
 Requirements: 13.3
 """
 
-from typing import Callable, List, Optional, Tuple, Any
+from typing import List, Optional, Tuple, Any
 import fnmatch
 import numpy as np
 

@@ -97,7 +97,7 @@ def load_esci_products(num_docs: int) -> List[str]:
 
 def encode_documents(texts: List[str], batch_size: int = 32) -> Tuple[np.ndarray, List[Dict[int, float]]]:
     """Encode documents with BGE-M3 (dense + sparse)."""
-    print(f"Loading BGE-M3 model...")
+    print("Loading BGE-M3 model...")
     model = BGEM3FlagModel("BAAI/bge-m3", use_fp16=True)
     
     print(f"Encoding {len(texts):,} documents...")
@@ -395,7 +395,7 @@ def run_consistency_test(data_dir: Path, args):
     print(f"  CONSISTENCY TEST RESULTS ({args.iterations} iterations)")
     print(f"{'='*70}")
     
-    print(f"\n📊 GWI Insert Speed (vec/sec):")
+    print("\n📊 GWI Insert Speed (vec/sec):")
     print(f"   Mean:   {np.mean(gwi_speeds):,.0f}")
     print(f"   Std:    {np.std(gwi_speeds):,.0f}")
     print(f"   Min:    {np.min(gwi_speeds):,.0f}")
@@ -403,7 +403,7 @@ def run_consistency_test(data_dir: Path, args):
     print(f"   CV:     {np.std(gwi_speeds)/np.mean(gwi_speeds)*100:.1f}%")
     
     if cascade_speeds:
-        print(f"\n📊 Cascade Insert Speed (vec/sec):")
+        print("\n📊 Cascade Insert Speed (vec/sec):")
         print(f"   Mean:   {np.mean(cascade_speeds):,.0f}")
         print(f"   Std:    {np.std(cascade_speeds):,.0f}")
         print(f"   Min:    {np.min(cascade_speeds):,.0f}")
@@ -411,20 +411,20 @@ def run_consistency_test(data_dir: Path, args):
         print(f"   CV:     {np.std(cascade_speeds)/np.mean(cascade_speeds)*100:.1f}%")
         
         speedups = [g/c for g, c in zip(gwi_speeds, cascade_speeds)]
-        print(f"\n🚀 GWI vs Cascade Speedup:")
+        print("\n🚀 GWI vs Cascade Speedup:")
         print(f"   Mean:   {np.mean(speedups):.1f}x")
         print(f"   Std:    {np.std(speedups):.2f}x")
         print(f"   Min:    {np.min(speedups):.1f}x")
         print(f"   Max:    {np.max(speedups):.1f}x")
     
-    print(f"\n📊 SVS Insert Speed (vec/sec):")
+    print("\n📊 SVS Insert Speed (vec/sec):")
     print(f"   Mean:   {np.mean(svs_speeds):,.0f}")
     print(f"   Std:    {np.std(svs_speeds):,.0f}")
     print(f"   Min:    {np.min(svs_speeds):,.0f}")
     print(f"   Max:    {np.max(svs_speeds):,.0f}")
     print(f"   CV:     {np.std(svs_speeds)/np.mean(svs_speeds)*100:.1f}%")
     
-    print(f"\n✅ Consistency test complete!")
+    print("\n✅ Consistency test complete!")
 
 
 def run_scale_test(data_dir: Path, args):
@@ -481,7 +481,7 @@ def run_scale_test(data_dir: Path, args):
     
     # Summary table
     print(f"\n{'='*70}")
-    print(f"  SCALE TEST RESULTS")
+    print("  SCALE TEST RESULTS")
     print(f"{'='*70}")
     
     print(f"\n{'Scale':<12} {'GWI (vec/s)':<15} {'Cascade (vec/s)':<18} {'SVS (vec/s)':<15} {'GWI/Cascade':<12}")
@@ -501,17 +501,17 @@ def run_scale_test(data_dir: Path, args):
     # Trend analysis
     if not args.skip_cascade and len(scale_results["gwi_cascade_ratio"]) > 1:
         ratios = [r for r in scale_results["gwi_cascade_ratio"] if r > 0]
-        print(f"\n📈 GWI vs Cascade Speedup Trend:")
+        print("\n📈 GWI vs Cascade Speedup Trend:")
         print(f"   Average: {np.mean(ratios):.1f}x")
         print(f"   Range:   {np.min(ratios):.1f}x - {np.max(ratios):.1f}x")
     
-    print(f"\n✅ Scale test complete!")
+    print("\n✅ Scale test complete!")
 
 
 def print_summary(results, search_results, num_vectors, data_dir):
     """Print benchmark summary."""
     print(f"\n{'='*70}")
-    print(f"  BENCHMARK SUMMARY")
+    print("  BENCHMARK SUMMARY")
     print(f"{'='*70}")
     print(f"\n📊 Insert Speed (same {num_vectors:,} vectors to each):")
     print("-" * 50)
@@ -522,7 +522,7 @@ def print_summary(results, search_results, num_vectors, data_dir):
         print(f"  {r.name:<10} {r.vectors_per_sec:>10,.0f} vec/sec  {bar}")
     
     if search_results:
-        print(f"\n⚡ Search Latency (k=10):")
+        print("\n⚡ Search Latency (k=10):")
         print("-" * 50)
         for metric, value in search_results.items():
             print(f"  {metric:<20} {value:>8.2f}")
