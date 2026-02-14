@@ -15,7 +15,8 @@ Make SynaDB the **default database for AI/ML applications** - the SQLite of the 
 | v1.0.4 | MmapVectorStore, GWI | Jan 2026 | ✅ Complete |
 | v1.0.5 | Cascade Index | Jan 2026 | ✅ Complete |
 | v1.0.6 | GWI Persistence Fix | Jan 2026 | ✅ Complete |
-| v1.1.0 | Sparse Vector Store | Jan 2026 | ✅ Current |
+| v1.1.0 | Sparse Vector Store | Jan 2026 | ✅ Complete |
+| v1.1.1 | Security Patch | Feb 2026 | ✅ Current |
 | v1.2.0 | Query Language | - | 📋 Planned |
 | v1.3.0 | Feature Store | - | 📋 Planned |
 | v1.4.0 | Distributed Mode | - | 📋 Planned |
@@ -96,7 +97,7 @@ See [Changelog](Changelog) for full details.
 
 ---
 
-## v1.1.0 - Sparse Vector Store ✅ CURRENT
+## v1.1.0 - Sparse Vector Store ✅
 
 **Status:** Released January 2026
 
@@ -108,6 +109,28 @@ New sparse vector indexing for lexical/hybrid search.
 - ✅ Hybrid RAG Example - Amazon ESCI dataset with dense+sparse search
 - ✅ Reciprocal Rank Fusion (RRF) - Algorithm for combining dense and sparse results
 - ✅ Benchmark Script - Scale testing showing GWI 13-29x faster than Cascade
+
+See [Changelog](Changelog) for full details.
+
+---
+
+## v1.1.1 - Security Patch ✅ CURRENT
+
+**Status:** Released February 14, 2026
+
+Security updates and documentation fixes.
+
+### Security Updates
+
+Updated 3 Python dependencies in `demos/v1.0.0/requirements-full.txt`:
+
+- ✅ `semantic-kernel>=1.39.3` - Arbitrary File Write fix
+- ✅ `mlflow>=3.5.0` - Unsafe deserialization + insecure temp permissions fix
+- ✅ `clearml>=2.0.2` - Path traversal fix
+
+### Documentation Fixes
+
+- ✅ Fixed markdown linting issues across 10 documentation files
 
 See [Changelog](Changelog) for full details.
 

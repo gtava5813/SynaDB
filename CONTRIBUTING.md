@@ -74,5 +74,3 @@ cargo test -- --nocapture
 
 Open an issue or start a discussion. We're happy to help!
 For any private inquiries email hello[at]synadb[dot]ai
-
-

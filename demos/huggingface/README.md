@@ -265,7 +265,6 @@ with strategy.scope():
 
 model.fit(dist_dataset, epochs=10)
 ```
-
 ### Training Loop (`models/training_loop.py`)
 
 Complete training example:

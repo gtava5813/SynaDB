@@ -46,41 +46,41 @@ Access the dashboard at `http://localhost:8501`.
 ### 1. Keys Explorer (The Core)
 
 *   **Search & Filter**: Real-time filtering by key name or data type (Float, Int, Text, Bytes, Vector).
-*   **Deep Inspection**: Click any key to view its raw value.
-    *   **Hex Viewer**: For binary (`bytes`) data, inspect the raw hex dump and ASCII representation side-by-side.
-    *   **Smart Preview**: Automatically formatted values for large texts or arrays.
+* **Deep Inspection**: Click any key to view its raw value.
+    * **Hex Viewer**: For binary (`bytes`) data, inspect the raw hex dump and ASCII representation side-by-side.
+    * **Smart Preview**: Automatically formatted values for large texts or arrays.
 
 ### 2. Model Registry Dashboard
 
 *   **Version Control**: View all ML models stored in the database.
-*   **Lineage**: See version history (v1, v2...) along with creation timestamps and stages (Dev, Staging, Prod).
-*   **Metadata**: Inspect training metrics (accuracy, loss) and hyperparameters directly from the UI.
+* **Lineage**: See version history (v1, v2...) along with creation timestamps and stages (Dev, Staging, Prod).
+* **Metadata**: Inspect training metrics (accuracy, loss) and hyperparameters directly from the UI.
 
 ### 3. 3D Embedding Clusters
 
-*   **Visualization**: Projects high-dimensional vectors (from `put_vector` or JSON arrays) into 3D space using PCA (Principal Component Analysis).
+* **Visualization**: Projects high-dimensional vectors (from `put_vector` or JSON arrays) into 3D space using PCA (Principal Component Analysis).
 *   **Interactive**: Rotate, zoom, and hover over points to see their key names. Ideal for debugging embedding clusters (e.g., verifying that "dog" and "cat" vectors are close).
 
 ### 4. Statistics
 
 The **Statistics** page provides deep insights into your database's performance and composition.
 
-*   **Default Metrics**: View Storage Usage (Treemap) and Key Type Distribution (Pie Chart).
-*   **Dynamic Dashboard**: Use the **"+ Add Plot"** button to create custom widgets such as:
-    *   **Key Length Distribution**: Analyze the spread of key lengths.
-    *   **Write Operations**: Visualize write throughput over time (Simulated).
-    *   **Memory Usage**: Monitor memory consumption trends.
+* **Default Metrics**: View Storage Usage (Treemap) and Key Type Distribution (Pie Chart).
+* **Dynamic Dashboard**: Use the **"+ Add Plot"** button to create custom widgets such as:
+    * **Key Length Distribution**: Analyze the spread of key lengths.
+    * **Write Operations**: Visualize write throughput over time (Simulated).
+    * **Memory Usage**: Monitor memory consumption trends.
 *   **Customization**: You can remove widgets to tailor the dashboard to your needs.
 
 ### 5. Custom Suite (Administrative Actions)
 
 Execute maintenance tasks and run custom scripts directly from the UI.
 
-*   **Compact Database**: Reclaims unused space.
-*   **Export to JSON**: Dumps the database content for backup.
-*   **Integrity Check**: Verifies data consistency.
-*   **Clear Cache**: Frees up internal memory caches.
-*   **Pattern Scanner**: Quickly search for keys matching specific patterns (e.g., `user/*`).
+* **Compact Database**: Reclaims unused space.
+* **Export to JSON**: Dumps the database content for backup.
+* **Integrity Check**: Verifies data consistency.
+* **Clear Cache**: Frees up internal memory caches.
+* **Pattern Scanner**: Quickly search for keys matching specific patterns (e.g., `user/*`).
 
 ### 6. Integrations
 
@@ -91,8 +91,8 @@ Seamlessly connect with modern AI frameworks. The Integrations tab scans your pr
 
 ### 7. Database Switcher
 
-*   **Hot-Swap**: Switch between different `.db` files instantly from the sidebar without restarting the server.
-*   **Recent Files**: Remembers your recently accessed databases.
+* **Hot-Swap**: Switch between different `.db` files instantly from the sidebar without restarting the server.
+* **Recent Files**: Remembers your recently accessed databases.
 
 ## Advanced Usage
 
@@ -123,7 +123,7 @@ registry.save("my_classifier", model_obj, metadata={"accuracy": "0.98"})
 ### Hot Keys
 
 *   `Esc`: Close modals.
-*   `Ctrl/Cmd + F`: Focus search bar.
+* `Ctrl/Cmd + F`: Focus search bar.
 
 ---
 *Built for High-Performance AI Engineering.*

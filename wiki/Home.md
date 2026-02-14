@@ -23,7 +23,12 @@ SynaDB is an embedded, log-structured, columnar-mapped database engine written i
 
 ## Current Version
 
-**v1.1.0** - Latest Release (January 2026)
+**v1.1.1** - Security Patch (February 2026)
+
+- Security: Updated 3 Python dependencies to fix critical vulnerabilities
+- Documentation: Fixed markdown linting issues across 10 files
+
+**v1.1.0** - Sparse Vector Store (January 2026)
 
 - New: SparseVectorStore (SVS) for lexical embeddings (SPLADE, BM25, TF-IDF)
 - New: Hybrid RAG example with Amazon ESCI dataset

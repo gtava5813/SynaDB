@@ -100,7 +100,6 @@ pub struct LogHeader {
 | 0 | `IS_DELTA` | Value is delta-encoded |
 | 1 | `IS_COMPRESSED` | Value is LZ4 compressed |
 | 2 | `IS_TOMBSTONE` | Entry marks deletion |
-
 ## Storage Layout
 
 ### Log Entry Format

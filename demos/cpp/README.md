@@ -164,4 +164,3 @@ int main() {
 - C11 compiler (GCC 4.9+, Clang 3.4+, MSVC 2015+)
 - C++17 compiler for RAII wrapper (GCC 7+, Clang 5+, MSVC 2017+)
 - CMake 3.14+ (for CMake example)
-

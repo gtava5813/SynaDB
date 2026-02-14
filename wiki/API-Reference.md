@@ -414,7 +414,6 @@ metrics = tracker.get_metric(run_id: str, metric_name: str) -> List[Tuple[int, f
 | `Failed` | Run encountered error |
 | `Killed` | Run manually terminated |
 
-
 ---
 
 ## MmapVectorStore (Python)

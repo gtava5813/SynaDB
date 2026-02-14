@@ -4,11 +4,56 @@ This guide helps you upgrade SynaDB between major versions.
 
 ## Table of Contents
 
+- [Upgrading from v1.1.0 to v1.1.1](#upgrading-from-v110-to-v111)
 - [Upgrading from v1.0.x to v1.1.0](#upgrading-from-v10x-to-v110)
 - [Upgrading from v1.0.x to v1.0.6](#upgrading-from-v10x-to-v106)
 - [Upgrading from v0.5.x to v1.0.0](#upgrading-from-v05x-to-v100)
 - [Upgrading from v0.2.x to v0.5.x](#upgrading-from-v02x-to-v05x)
 - [Upgrading from v0.1.x to v0.2.x](#upgrading-from-v01x-to-v02x)
+
+---
+
+## Upgrading from v1.1.0 to v1.1.1
+
+### Overview
+
+v1.1.1 is a security patch release that updates Python dependencies to fix critical vulnerabilities.
+
+### Security Updates
+
+| Package | Old Version | New Version | Vulnerability |
+|---------|-------------|-------------|---------------|
+| `semantic-kernel` | `>=0.4.0,<1.0.0` | `>=1.39.3` | Arbitrary File Write via AI Agent Function Calling |
+| `mlflow` | `>=2.8.0,<3.0.0` | `>=3.5.0` | Unsafe deserialization + insecure temp permissions |
+| `clearml` | `>=1.13.0,<2.0.0` | `>=2.0.2` | Path traversal in `safe_extract` |
+
+### Documentation Fixes
+
+Fixed markdown linting issues (Codacy) in 10 files:
+
+- `benchmarks/README.md`, `demos/cpp/README.md`, `demos/python/synadb/STUDIO_DOCS.md`
+- `demos/huggingface/README.md`, `demos/README.md`, `wiki/API-Reference.md`
+- `wiki/Architecture.md`, `wiki/Changelog.md`, `wiki/Contributing.md`, `CONTRIBUTING.md`
+
+### Breaking Changes
+
+None. v1.1.1 is fully backward compatible with v1.1.0.
+
+### Migration Steps
+
+1. **Update your dependencies:**
+
+   ```bash
+   # Python
+   pip install --upgrade synadb>=1.1.1
+   
+   # Rust
+   cargo update -p synadb
+   ```
+
+2. **No code changes required:**
+   - All v1.1.0 APIs remain compatible
+   - Existing databases work without modification
 
 ---
 
@@ -473,6 +518,8 @@ store.build_index()  # Creates new .hnsw file
 
 | Version | Release Date | Highlights |
 |---------|--------------|------------|
+| v1.1.1 | Feb 2026 | Security patch: semantic-kernel, mlflow, clearml dependency updates |
+| v1.1.0 | Jan 2026 | SparseVectorStore for lexical embeddings |
 | v1.0.6 | Jan 2026 | GWI persistence fix, CascadeIndex import fix, documentation updates |
 | v1.0.5 | Jan 2026 | Cascade Index (Experimental) |
 | v1.0.4 | Jan 2026 | MmapVectorStore, GWI, HNSW recall fix, sync_on_write |

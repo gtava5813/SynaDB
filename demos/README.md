@@ -329,4 +329,3 @@ cargo build --release
 - [Benchmarks README](../benchmarks/README.md) - Performance benchmarks
 - [API Reference](https://github.com/gtava5813/SynaDB/wiki/API-Reference) - Full API documentation
 - [Architecture](https://github.com/gtava5813/SynaDB/wiki/Architecture) - Technical design
-

@@ -4,6 +4,44 @@ This document contains the complete release history for SynaDB.
 
 ---
 
+## v1.1.1 - Security Patch
+
+**Released:** February 14, 2026  
+**PyPI:** [synadb 1.1.1](https://pypi.org/project/synadb/)  
+**Crates.io:** [synadb 1.1.1](https://crates.io/crates/synadb)
+
+### Highlights
+
+- **Security Fixes** - Updated 3 Python dependencies to address critical vulnerabilities
+- **Documentation** - Fixed markdown formatting issues across 10 files
+
+### Security Updates
+
+Updated dependencies in `demos/v1.0.0/requirements-full.txt`:
+
+| Package | Old Version | New Version | Vulnerability |
+|---------|-------------|-------------|---------------|
+| `semantic-kernel` | `>=0.4.0,<1.0.0` | `>=1.39.3` | Arbitrary File Write via AI Agent Function Calling |
+| `mlflow` | `>=2.8.0,<3.0.0` | `>=3.5.0` | Unsafe deserialization + insecure temp permissions |
+| `clearml` | `>=1.13.0,<2.0.0` | `>=2.0.2` | Path traversal in `safe_extract` |
+
+### Documentation Fixes
+
+Fixed markdown linting issues (Codacy) in:
+
+- `benchmarks/README.md`
+- `demos/cpp/README.md`
+- `demos/python/synadb/STUDIO_DOCS.md`
+- `demos/huggingface/README.md`
+- `demos/README.md`
+- `wiki/API-Reference.md`
+- `wiki/Architecture.md`
+- `wiki/Changelog.md`
+- `wiki/Contributing.md`
+- `CONTRIBUTING.md`
+
+---
+
 ## v1.1.0 - Sparse Vector Store
 
 **Released:** January 10, 2026  
@@ -327,6 +365,7 @@ results = gwi.search(query, k=10, nprobe=50)  # 98% recall
 | 100 | ~100% | 0.86ms |
 
 **When to use GWI vs HNSW:**
+
 - **GWI:** Index build time critical, streaming/real-time data, append-only required
 - **HNSW:** Search latency critical, index built once and queried many times
 
@@ -338,7 +377,8 @@ results = gwi.search(query, k=10, nprobe=50)  # 98% recall
 
 **Root Cause:** Entry point and `max_level` not updated when adding nodes with higher levels. In HNSW, the entry point must always be the node with the highest level.
 
-**Fix:** 
+**Fix:**
+
 - Added `set_max_level()` method to `HnswIndex`
 - Correctly update both entry point AND max_level in `add_node_to_index()`
 - Fixed in both `VectorStore` and `MmapVectorStore`
@@ -367,7 +407,8 @@ results = gwi.search(query, k=10, nprobe=50)  # 98% recall
 
 **Issue:** HNSW index was not saved/loaded on close/open, requiring rebuild on every reopen.
 
-**Fix:** 
+**Fix:**
+
 - Auto-load existing `.hnsw` index files on open
 - Auto-save index after `build_index()`
 - Added `save_index()` and `flush()` methods
@@ -431,11 +472,13 @@ store = VectorStore("vectors.db", dimensions=768, sync_on_write=False)
 ### Fixed
 
 #### PyPI Native Library Bundling
+
 - **Fixed:** `pip install synadb` now works on all platforms (Linux, macOS, Windows)
 - **Issue:** Previous releases only bundled the Linux x86_64 native library
 - **Solution:** Release workflow now copies all platform libraries into the PyPI package
 
 #### Platform Support
+
 | Platform | Library |
 |----------|---------|
 | Linux x86_64 | `libsynadb.so` |
@@ -444,6 +487,7 @@ store = VectorStore("vectors.db", dimensions=768, sync_on_write=False)
 | Windows x86_64 | `synadb.dll` |
 
 #### Python Wrapper
+
 - Enhanced `_find_library()` to detect platform AND architecture
 - macOS ARM64 (Apple Silicon) now correctly loads ARM-specific library
 - Library search now checks inside installed package directory first
@@ -455,6 +499,7 @@ store = VectorStore("vectors.db", dimensions=768, sync_on_write=False)
 **Released:** January 2026
 
 ### Fixed
+
 - Minor bug fixes and stability improvements
 
 ---
@@ -555,6 +600,7 @@ syna export mydata.db out.json  # Export to JSON
 ##### Syna Studio Web UI
 
 Web-based database explorer with:
+
 - Keys Explorer with search and type filtering
 - Model Registry dashboard
 - 3D Embedding Clusters visualization (PCA)
@@ -764,6 +810,7 @@ runs = tracker.query_runs("mnist", status="Completed", sort_by="accuracy")
 ```
 
 **Features:**
+
 - UUID-based run IDs
 - Parameter and metric logging with step numbers
 - Artifact storage (models, plots, configs)
@@ -870,6 +917,7 @@ for r in results:
 ```
 
 **Features:**
+
 - `Atom::Vector(Vec<f32>, u16)` type for embedding storage
 - Brute-force k-NN search (HNSW added in v0.5.0)
 - Distance metrics: Cosine, Euclidean, DotProduct
@@ -917,6 +965,7 @@ with SynaDB("my.db") as db:
 ```
 
 **Features:**
+
 - `Atom` enum: Null, Float, Int, Text, Bytes
 - Append-only log storage with crash recovery
 - In-memory index with O(1) key lookup

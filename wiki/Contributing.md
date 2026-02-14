@@ -101,7 +101,6 @@ cargo test test_name
 cargo test -- --nocapture
 ```
 
-
 ## Pull Request Process
 
 1. **Fork** the repository
