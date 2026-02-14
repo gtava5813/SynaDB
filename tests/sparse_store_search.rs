@@ -9,9 +9,11 @@ use synadb::{SparseVector, SparseVectorStore};
 
 /// Strategy to generate arbitrary sparse vectors
 fn arb_sparse_vector() -> impl Strategy<Value = SparseVector> {
-    prop::collection::vec((0u32..10000u32, 0.001f32..10.0f32), 1..50).prop_map(|pairs| {
+    prop::collection::vec((0u32..10000u32, 1u32..10000u32), 1..50).prop_map(|pairs| {
         let mut vec = SparseVector::new();
-        for (term_id, weight) in pairs {
+        for (term_id, weight_int) in pairs {
+            // Convert integer to float to avoid proptest float sampler bug
+            let weight = (weight_int as f32) / 1000.0;
             vec.add(term_id, weight);
         }
         vec

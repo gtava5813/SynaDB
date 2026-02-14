@@ -1,7 +1,7 @@
 # SynaDB
 
 [![CI](https://github.com/gtava5813/SynaDB/actions/workflows/ci.yml/badge.svg)](https://github.com/gtava5813/SynaDB/actions/workflows/ci.yml)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/gtava5813/SynaDB)](https://app.codacy.com/gh/gtava5813/SynaDB/dashboard)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/38dd835fd7e240199044cbbce120f3e8)](https://app.codacy.com/gh/gtava5813/SynaDB/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![PyPI](https://img.shields.io/pypi/v/synadb.svg)](https://pypi.org/project/synadb/)
 [![License](https://img.shields.io/badge/License-SynaDB-blue.svg)](https://github.com/gtava5813/SynaDB/blob/main/LICENSE)
 
