@@ -228,7 +228,11 @@ impl MmapReader {
         let bytes = &self.mmap[offset..offset + byte_len];
         // Safe alignment check — align_to verifies at runtime
         let (prefix, floats, _) = unsafe { bytes.align_to::<f32>() };
-        debug_assert!(prefix.is_empty(), "mmap data misaligned for f32 at offset {}", offset);
+        debug_assert!(
+            prefix.is_empty(),
+            "mmap data misaligned for f32 at offset {}",
+            offset
+        );
         &floats[..count]
     }
 
@@ -334,7 +338,11 @@ impl MmapReader {
         let byte_len = count * std::mem::size_of::<f64>();
         let bytes = &self.mmap[offset..offset + byte_len];
         let (prefix, doubles, _) = unsafe { bytes.align_to::<f64>() };
-        debug_assert!(prefix.is_empty(), "mmap data misaligned for f64 at offset {}", offset);
+        debug_assert!(
+            prefix.is_empty(),
+            "mmap data misaligned for f64 at offset {}",
+            offset
+        );
         &doubles[..count]
     }
 
@@ -415,7 +423,11 @@ impl MmapReader {
         let byte_len = count * std::mem::size_of::<i32>();
         let bytes = &self.mmap[offset..offset + byte_len];
         let (prefix, ints, _) = unsafe { bytes.align_to::<i32>() };
-        debug_assert!(prefix.is_empty(), "mmap data misaligned for i32 at offset {}", offset);
+        debug_assert!(
+            prefix.is_empty(),
+            "mmap data misaligned for i32 at offset {}",
+            offset
+        );
         &ints[..count]
     }
 
@@ -438,7 +450,11 @@ impl MmapReader {
         let byte_len = count * std::mem::size_of::<i64>();
         let bytes = &self.mmap[offset..offset + byte_len];
         let (prefix, longs, _) = unsafe { bytes.align_to::<i64>() };
-        debug_assert!(prefix.is_empty(), "mmap data misaligned for i64 at offset {}", offset);
+        debug_assert!(
+            prefix.is_empty(),
+            "mmap data misaligned for i64 at offset {}",
+            offset
+        );
         &longs[..count]
     }
 

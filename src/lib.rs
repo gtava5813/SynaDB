@@ -217,8 +217,6 @@
 //! - The value serialized with bincode
 //!
 //! An in-memory index maps keys to file offsets for O(1) lookups.
-//!
-//! An in-memory index maps keys to file offsets for O(1) lookups.
 
 pub mod arch;
 pub mod cascade;

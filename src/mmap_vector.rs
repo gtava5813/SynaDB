@@ -307,12 +307,24 @@ impl MmapVectorStore {
         }
 
         let vector_count = u64::from_le_bytes([
-            self.mmap[16], self.mmap[17], self.mmap[18], self.mmap[19],
-            self.mmap[20], self.mmap[21], self.mmap[22], self.mmap[23],
+            self.mmap[16],
+            self.mmap[17],
+            self.mmap[18],
+            self.mmap[19],
+            self.mmap[20],
+            self.mmap[21],
+            self.mmap[22],
+            self.mmap[23],
         ]);
         let write_offset = u64::from_le_bytes([
-            self.mmap[24], self.mmap[25], self.mmap[26], self.mmap[27],
-            self.mmap[28], self.mmap[29], self.mmap[30], self.mmap[31],
+            self.mmap[24],
+            self.mmap[25],
+            self.mmap[26],
+            self.mmap[27],
+            self.mmap[28],
+            self.mmap[29],
+            self.mmap[30],
+            self.mmap[31],
         ]);
 
         self.vector_count.store(vector_count, Ordering::SeqCst);
@@ -569,8 +581,7 @@ impl MmapVectorStore {
         let dims = self.config.dimensions as usize;
 
         // Read key length
-        let key_len =
-            u16::from_le_bytes([self.mmap[offset], self.mmap[offset + 1]]) as usize;
+        let key_len = u16::from_le_bytes([self.mmap[offset], self.mmap[offset + 1]]) as usize;
 
         // Read vector
         let vector_start = offset + 2 + key_len;

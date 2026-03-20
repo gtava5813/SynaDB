@@ -1804,7 +1804,10 @@ impl MmapTensorRef {
         // These files are written as contiguous f32 arrays, so alignment
         // is expected. The unsafe is only in align_to's implementation.
         let (prefix, floats, suffix) = unsafe { self.mmap[..].align_to::<f32>() };
-        debug_assert!(prefix.is_empty() && suffix.is_empty(), "mmap tensor data misaligned for f32");
+        debug_assert!(
+            prefix.is_empty() && suffix.is_empty(),
+            "mmap tensor data misaligned for f32"
+        );
         floats
     }
 
@@ -1814,7 +1817,10 @@ impl MmapTensorRef {
     #[inline]
     pub fn as_f64_slice(&self) -> &[f64] {
         let (prefix, doubles, suffix) = unsafe { self.mmap[..].align_to::<f64>() };
-        debug_assert!(prefix.is_empty() && suffix.is_empty(), "mmap tensor data misaligned for f64");
+        debug_assert!(
+            prefix.is_empty() && suffix.is_empty(),
+            "mmap tensor data misaligned for f64"
+        );
         doubles
     }
 
@@ -1822,7 +1828,10 @@ impl MmapTensorRef {
     #[inline]
     pub fn as_i32_slice(&self) -> &[i32] {
         let (prefix, ints, suffix) = unsafe { self.mmap[..].align_to::<i32>() };
-        debug_assert!(prefix.is_empty() && suffix.is_empty(), "mmap tensor data misaligned for i32");
+        debug_assert!(
+            prefix.is_empty() && suffix.is_empty(),
+            "mmap tensor data misaligned for i32"
+        );
         ints
     }
 
@@ -1830,7 +1839,10 @@ impl MmapTensorRef {
     #[inline]
     pub fn as_i64_slice(&self) -> &[i64] {
         let (prefix, longs, suffix) = unsafe { self.mmap[..].align_to::<i64>() };
-        debug_assert!(prefix.is_empty() && suffix.is_empty(), "mmap tensor data misaligned for i64");
+        debug_assert!(
+            prefix.is_empty() && suffix.is_empty(),
+            "mmap tensor data misaligned for i64"
+        );
         longs
     }
 

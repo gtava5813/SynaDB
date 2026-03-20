@@ -165,12 +165,24 @@ impl MmapVectorStorage {
         }
 
         let vector_count = u64::from_le_bytes([
-            self.mmap[16], self.mmap[17], self.mmap[18], self.mmap[19],
-            self.mmap[20], self.mmap[21], self.mmap[22], self.mmap[23],
+            self.mmap[16],
+            self.mmap[17],
+            self.mmap[18],
+            self.mmap[19],
+            self.mmap[20],
+            self.mmap[21],
+            self.mmap[22],
+            self.mmap[23],
         ]);
         let write_offset = u64::from_le_bytes([
-            self.mmap[24], self.mmap[25], self.mmap[26], self.mmap[27],
-            self.mmap[28], self.mmap[29], self.mmap[30], self.mmap[31],
+            self.mmap[24],
+            self.mmap[25],
+            self.mmap[26],
+            self.mmap[27],
+            self.mmap[28],
+            self.mmap[29],
+            self.mmap[30],
+            self.mmap[31],
         ]);
 
         self.vector_count.store(vector_count, Ordering::SeqCst);
@@ -192,7 +204,12 @@ impl MmapVectorStorage {
             let o = offset as usize;
 
             // Read entry: [id: u32][key_len: u16][key][vector]
-            let id = u32::from_le_bytes([self.mmap[o], self.mmap[o + 1], self.mmap[o + 2], self.mmap[o + 3]]);
+            let id = u32::from_le_bytes([
+                self.mmap[o],
+                self.mmap[o + 1],
+                self.mmap[o + 2],
+                self.mmap[o + 3],
+            ]);
             let key_len = u16::from_le_bytes([self.mmap[o + 4], self.mmap[o + 5]]) as usize;
 
             let key = String::from_utf8(self.mmap[o + 6..o + 6 + key_len].to_vec())

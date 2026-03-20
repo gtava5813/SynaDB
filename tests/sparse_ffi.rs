@@ -128,7 +128,6 @@ fn test_svs_index_and_search() {
     svs_close(path.as_ptr());
 }
 
-
 #[test]
 fn test_svs_delete() {
     let path = CString::new("test_svs_delete.db").unwrap();

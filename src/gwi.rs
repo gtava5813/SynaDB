@@ -276,7 +276,12 @@ impl GravityWellIndex {
             .map_err(|e| SynaError::InvalidPath(e.to_string()))?;
 
         // Parse header fields manually to avoid alignment issues with packed struct
-        let magic: [u8; 4] = [header_bytes[0], header_bytes[1], header_bytes[2], header_bytes[3]];
+        let magic: [u8; 4] = [
+            header_bytes[0],
+            header_bytes[1],
+            header_bytes[2],
+            header_bytes[3],
+        ];
         if magic != GWI_MAGIC {
             return Err(SynaError::InvalidPath(
                 "Invalid GWI file format".to_string(),
@@ -285,7 +290,10 @@ impl GravityWellIndex {
 
         // Read fields using little-endian byte order
         let _version = u32::from_le_bytes([
-            header_bytes[4], header_bytes[5], header_bytes[6], header_bytes[7],
+            header_bytes[4],
+            header_bytes[5],
+            header_bytes[6],
+            header_bytes[7],
         ]);
         let dimensions = u16::from_le_bytes([header_bytes[8], header_bytes[9]]);
         let branching_factor = u16::from_le_bytes([header_bytes[10], header_bytes[11]]);
@@ -293,24 +301,54 @@ impl GravityWellIndex {
         let metric = header_bytes[13];
         // flags at 14, reserved at 15
         let vector_count = u64::from_le_bytes([
-            header_bytes[16], header_bytes[17], header_bytes[18], header_bytes[19],
-            header_bytes[20], header_bytes[21], header_bytes[22], header_bytes[23],
+            header_bytes[16],
+            header_bytes[17],
+            header_bytes[18],
+            header_bytes[19],
+            header_bytes[20],
+            header_bytes[21],
+            header_bytes[22],
+            header_bytes[23],
         ]);
         let write_offset = u64::from_le_bytes([
-            header_bytes[24], header_bytes[25], header_bytes[26], header_bytes[27],
-            header_bytes[28], header_bytes[29], header_bytes[30], header_bytes[31],
+            header_bytes[24],
+            header_bytes[25],
+            header_bytes[26],
+            header_bytes[27],
+            header_bytes[28],
+            header_bytes[29],
+            header_bytes[30],
+            header_bytes[31],
         ]);
         let attractor_table_offset = u64::from_le_bytes([
-            header_bytes[32], header_bytes[33], header_bytes[34], header_bytes[35],
-            header_bytes[36], header_bytes[37], header_bytes[38], header_bytes[39],
+            header_bytes[32],
+            header_bytes[33],
+            header_bytes[34],
+            header_bytes[35],
+            header_bytes[36],
+            header_bytes[37],
+            header_bytes[38],
+            header_bytes[39],
         ]);
         let _cluster_index_offset = u64::from_le_bytes([
-            header_bytes[40], header_bytes[41], header_bytes[42], header_bytes[43],
-            header_bytes[44], header_bytes[45], header_bytes[46], header_bytes[47],
+            header_bytes[40],
+            header_bytes[41],
+            header_bytes[42],
+            header_bytes[43],
+            header_bytes[44],
+            header_bytes[45],
+            header_bytes[46],
+            header_bytes[47],
         ]);
         let data_offset = u64::from_le_bytes([
-            header_bytes[48], header_bytes[49], header_bytes[50], header_bytes[51],
-            header_bytes[52], header_bytes[53], header_bytes[54], header_bytes[55],
+            header_bytes[48],
+            header_bytes[49],
+            header_bytes[50],
+            header_bytes[51],
+            header_bytes[52],
+            header_bytes[53],
+            header_bytes[54],
+            header_bytes[55],
         ]);
 
         // Reconstruct config
