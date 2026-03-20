@@ -16,7 +16,8 @@ Make SynaDB the **default database for AI/ML applications** - the SQLite of the 
 | v1.0.5 | Cascade Index | Jan 2026 | ✅ Complete |
 | v1.0.6 | GWI Persistence Fix | Jan 2026 | ✅ Complete |
 | v1.1.0 | Sparse Vector Store | Jan 2026 | ✅ Complete |
-| v1.1.1 | Security Patch | Feb 2026 | ✅ Current |
+| v1.1.1 | Security Patch | Feb 2026 | ✅ Complete |
+| v1.1.2 | Safety & Correctness Audit | Mar 2026 | ✅ Current |
 | v1.2.0 | Query Language | - | 📋 Planned |
 | v1.3.0 | Feature Store | - | 📋 Planned |
 | v1.4.0 | Distributed Mode | - | 📋 Planned |
@@ -114,7 +115,34 @@ See [Changelog](Changelog) for full details.
 
 ---
 
-## v1.1.1 - Security Patch ✅ CURRENT
+## v1.1.2 - Safety & Correctness Audit ✅ CURRENT
+
+**Status:** Released March 20, 2026
+
+Internal audit with no public API changes. Comprehensive hardening of Rust source, tests, and C/C++ demos.
+
+### Phase 0: Test Hygiene
+- Removed 46 unnecessary `unsafe` blocks in `tests/sparse_ffi.rs`
+- Deleted empty test file `tests/sparse_vector_roundtrip.rs`
+
+### Phase 1: Unsafe Elimination
+- Safe byte-level mmap writes in `gwi.rs`, `mmap_vector.rs`, `cascade/mmap_store.rs`
+- `align_to` for slice reinterpretation in `mmap.rs`, `tensor.rs`
+
+### Phase 2: unwrap() Removal
+- All library-code `unwrap()` calls replaced with safe alternatives
+- 32 locations across 11 files
+
+### Phase 3: C/C++ Demo Audit
+- Fixed old `entangle_*` function names in `basic_usage.c`, `embedded_minimal.c`
+- Fixed lowercase `syna_*` → uppercase `SYNA_*` in `raii_wrapper.cpp`, `cmake_example/main.cpp`
+- Fixed Makefile library name and README documentation
+
+See [Changelog](Changelog) for full details.
+
+---
+
+## v1.1.1 - Security Patch ✅
 
 **Status:** Released February 14, 2026
 

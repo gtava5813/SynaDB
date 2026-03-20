@@ -4,7 +4,45 @@ This guide helps you upgrade SynaDB between major versions.
 
 ## Table of Contents
 
+- [Upgrading from v1.1.1 to v1.1.2](#upgrading-from-v111-to-v112)
 - [Upgrading from v1.1.0 to v1.1.1](#upgrading-from-v110-to-v111)
+
+---
+
+## Upgrading from v1.1.1 to v1.1.2
+
+### Overview
+
+v1.1.2 is an internal audit release focused on safety and correctness hardening. No public API changes.
+
+### What Changed
+
+- Removed unnecessary `unsafe` blocks in tests and library code
+- Replaced `unwrap()` calls in library code with safe alternatives
+- Fixed potential ARM alignment UB in mmap writes
+- Fixed all C/C++ demo files to use correct `SYNA_*` FFI function names
+
+### Breaking Changes
+
+None. v1.1.2 is fully backward compatible with v1.1.1.
+
+### Migration Steps
+
+1. **Update your dependencies:**
+
+   ```bash
+   # Python
+   pip install --upgrade synadb>=1.1.2
+
+   # Rust
+   cargo update -p synadb
+   ```
+
+2. **No code changes required:**
+   - All v1.1.1 APIs remain compatible
+   - Existing databases work without modification
+
+3. **C/C++ users:** If you copied demo files from `demos/cpp/`, re-copy them — function names have been corrected to match the actual `SYNA_*` FFI exports.
 - [Upgrading from v1.0.x to v1.1.0](#upgrading-from-v10x-to-v110)
 - [Upgrading from v1.0.x to v1.0.6](#upgrading-from-v10x-to-v106)
 - [Upgrading from v0.5.x to v1.0.0](#upgrading-from-v05x-to-v100)
@@ -518,6 +556,7 @@ store.build_index()  # Creates new .hnsw file
 
 | Version | Release Date | Highlights |
 |---------|--------------|------------|
+| v1.1.2 | Mar 2026 | Internal audit: safety hardening, unsafe elimination, C/C++ demo fixes |
 | v1.1.1 | Feb 2026 | Security patch: semantic-kernel, mlflow, clearml dependency updates |
 | v1.1.0 | Jan 2026 | SparseVectorStore for lexical embeddings |
 | v1.0.6 | Jan 2026 | GWI persistence fix, CascadeIndex import fix, documentation updates |

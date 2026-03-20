@@ -136,7 +136,7 @@ from .studio import launch as launch_studio, FLASK_AVAILABLE
 # Import integrations submodule
 from . import integrations
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 
 # Lazy imports for integrations

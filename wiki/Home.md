@@ -23,6 +23,13 @@ SynaDB is an embedded, log-structured, columnar-mapped database engine written i
 
 ## Current Version
 
+**v1.1.2** - Internal Audit: Safety & Correctness Hardening (March 2026)
+
+- Unsafe elimination: Safe byte-level mmap writes, `align_to` for slice reinterpretation
+- unwrap() removal: All library-code unwraps replaced with safe alternatives
+- C/C++ demo fixes: Fixed broken function names from old project rename
+- Test hygiene: Removed 46 unnecessary unsafe blocks, deleted empty test file
+
 **v1.1.1** - Security Patch (February 2026)
 
 - Security: Updated 3 Python dependencies to fix critical vulnerabilities

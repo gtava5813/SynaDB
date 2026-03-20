@@ -45,7 +45,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 
 ```toml
 [dependencies]
-synadb = "1.1.1"
+synadb = "1.1.2"
 ```
 
 ### Python
