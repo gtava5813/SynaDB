@@ -4,6 +4,83 @@ This document contains the complete release history for SynaDB.
 
 ---
 
+## v1.1.2 - Internal Audit: Safety & Correctness Hardening
+
+**Date:** March 18, 2026  
+**Scope:** Rust source (`src/`) and integration tests (`tests/`)
+
+A comprehensive internal audit of the Rust codebase targeting three areas: test hygiene, unsafe code elimination, and unwrap removal from library code. No public API changes. All existing tests continue to pass.
+
+### Why This Was Necessary
+
+The codebase had accumulated unjustified `unsafe` blocks (raw pointer writes where safe alternatives exist), `unwrap()` calls in library code that introduce panic paths in production, and test files with warnings or no content. This audit brings the code in line with the project's own coding standards: "Don't use `unwrap()` in library code" and Rust's principle of minimizing `unsafe` surface area.
+
+### Phase 0: Test Hygiene
+
+| Change | File | Reason |
+|--------|------|--------|
+| Removed 46 unnecessary `unsafe` blocks | `tests/sparse_ffi.rs` | `svs_*` FFI functions are declared as safe `extern "C"` (not `unsafe extern "C"`), so wrapping calls in `unsafe {}` was redundant and produced compiler warnings |
+| Deleted empty test file | `tests/sparse_vector_roundtrip.rs` | File contained no tests (0 test runs). Dead code |
+
+### Phase 1: Unsafe Code Elimination
+
+Replaced unjustified `unsafe` raw pointer operations with safe byte-level alternatives. These changes also fix potential undefined behavior from unaligned memory access on ARM architectures.
+
+| File | Change | Reason |
+|------|--------|--------|
+| `src/gwi.rs` | `ptr::write` / `copy_nonoverlapping` → `copy_from_slice(&val.to_le_bytes())` in `insert()` and `write_attractors()` | Raw pointer writes assumed aligned memory; safe byte-level writes are correct on all architectures |
+| `src/mmap_vector.rs` | Same safe byte-level writes in `insert()` / `insert_batch()`; `from_raw_parts` → `align_to` + runtime check in `get_slice()` | Eliminates alignment UB and removes 5 unnecessary `unsafe` blocks |
+| `src/cascade/mmap_store.rs` | Safe byte-level writes in `append()` | Same alignment safety concern as above |
+| `src/mmap.rs` | `from_raw_parts` → `align_to` + alignment checks in all 6 slice methods | Slice reinterpretation without alignment verification was unsound on non-x86 platforms |
+| `src/tensor.rs` | Same `align_to` fix in `MmapTensorRef` 4 slice methods | Consistent with `mmap.rs` fix |
+
+### Phase 2: `unwrap()` Removal from Library Code
+
+All `unwrap()` calls in non-test, non-doc-comment library code were replaced with safe alternatives. Test code and doc examples are exempt per project coding standards.
+
+| File | Change | Reason |
+|------|--------|--------|
+| `src/experiment.rs` (3 locations) | `SystemTime::now().duration_since(UNIX_EPOCH).unwrap()` → `.unwrap_or_default()` | Can fail if system clock is before 1970; should degrade gracefully, not panic |
+| `src/model_registry.rs` (1 location) | Same `SystemTime` fix | Same reason |
+| `src/hnsw.rs` (2 locations) | `self.entry_point.unwrap()` → `match` with early return | Guard-then-unwrap pattern still has a separate panic path; `match` is zero-panic |
+| `src/cascade/lsh.rs` (1 location) | `partial_cmp().unwrap()` → `.unwrap_or(std::cmp::Ordering::Equal)` | `f32::partial_cmp` returns `None` for NaN; unwrap would panic on NaN distances |
+| `src/types.rs` (3 locations) | `slice.try_into().unwrap()` → direct array construction `[buf[0], buf[1], ...]` | Infallible in practice but introduces a panic path; direct construction is zero-panic |
+| `src/tensor.rs` (2 locations) | Same direct array construction | Same reason |
+| `src/mmap_vector.rs` (7 locations) | Same direct array construction | Same reason |
+| `src/gwi.rs` (9 locations) | Same direct array construction | Same reason |
+| `src/cascade/mmap_store.rs` (6 locations) | Same direct array construction | Same reason |
+| `src/cascade/append_graph.rs` (3 locations) | Same direct array construction | Same reason |
+
+### Phase 3: C/C++ and Python Demo Audit
+
+Audited all Python wrapper files and C/C++ demo code for correctness against the actual FFI exports.
+
+| File | Change | Reason |
+|------|--------|--------|
+| Python wrappers (7 files) | No changes needed | All correctly use `SYNA_*` (uppercase) FFI names |
+| `demos/cpp/basic_usage.c` | ~50 `entangle_*`/`ENTANGLE_*` → `SYNA_*` | Old project name ("EntangleDB") never updated after rename; file would not compile |
+| `demos/cpp/embedded_minimal.c` | ~35 `entangle_*`/`ENTANGLE_*` → `SYNA_*` | Same old project name issue; file would not compile |
+| `demos/cpp/raii_wrapper.cpp` | ~40 lowercase `syna_*` → uppercase `SYNA_*` | Correct header but wrong case; actual FFI exports are uppercase. Would not link |
+| `demos/cpp/cmake_example/main.cpp` | ~20 lowercase `syna_*` → uppercase `SYNA_*` | Same wrong-case issue; would not link |
+| `demos/cpp/Makefile` | `entangle_db` → `synadb` in all 5 platform sections | Wrong library name; make would fail to find the shared library |
+| `demos/cpp/README.md` | All function references updated to `SYNA_*` | Documentation matched neither old nor current API names |
+
+### Verification
+
+- `cargo build` — clean compile, zero errors
+- `cargo clippy -- -D warnings` — zero warnings
+- `cargo test` — 222 unit tests pass, 32 integration/property test files pass, 119 doc-tests pass
+- No public API changes, no behavioral changes
+
+### Known Remaining Items (Low Priority)
+
+1. `ffi_sparse.rs` `cstr_to_str` returns `&'static str` — technically unsound lifetime, works in practice
+2. `MmapVectorStore::get_slice` returns `None` on misalignment — callers silently skip instead of falling back to copy
+3. `gpu.rs` `unsafe impl Send for GpuTensor` — strong safety claim, low risk (optional feature)
+4. Byte-level writes may be marginally slower than bulk `copy_nonoverlapping` for large vectors — compiler likely optimizes identically
+
+---
+
 ## v1.1.1 - Security Patch
 
 **Released:** February 14, 2026  

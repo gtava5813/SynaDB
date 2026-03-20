@@ -544,11 +544,10 @@ impl HnswIndex {
     /// **Requirements:** 1.4, 1.5
     pub fn search(&self, query: &[f32], k: usize) -> Vec<(String, f32)> {
         // Return empty if no entry point
-        if self.entry_point.is_none() {
-            return Vec::new();
-        }
-
-        let mut ep = self.entry_point.unwrap();
+        let mut ep = match self.entry_point {
+            Some(ep) => ep,
+            None => return Vec::new(),
+        };
 
         // Traverse from top level to level 1, finding the closest node at each level
         for lc in (1..=self.max_level).rev() {
@@ -663,11 +662,10 @@ impl HnswIndex {
     /// A vector of (key, distance) pairs, sorted by distance (closest first).
     pub fn search_with_ef(&self, query: &[f32], k: usize, ef_search: usize) -> Vec<(String, f32)> {
         // Return empty if no entry point
-        if self.entry_point.is_none() {
-            return Vec::new();
-        }
-
-        let mut ep = self.entry_point.unwrap();
+        let mut ep = match self.entry_point {
+            Some(ep) => ep,
+            None => return Vec::new(),
+        };
 
         // Traverse from top level to level 1
         for lc in (1..=self.max_level).rev() {

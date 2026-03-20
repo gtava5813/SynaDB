@@ -154,7 +154,7 @@ impl HyperplaneLSH {
         }
 
         // Sort by distance (closest hyperplanes first - most likely to flip)
-        bit_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        bit_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
         // Generate probes by flipping bits in order of closeness
         // First: single bit flips

@@ -276,7 +276,7 @@ impl GravityWellIndex {
             .map_err(|e| SynaError::InvalidPath(e.to_string()))?;
 
         // Parse header fields manually to avoid alignment issues with packed struct
-        let magic: [u8; 4] = header_bytes[0..4].try_into().unwrap();
+        let magic: [u8; 4] = [header_bytes[0], header_bytes[1], header_bytes[2], header_bytes[3]];
         if magic != GWI_MAGIC {
             return Err(SynaError::InvalidPath(
                 "Invalid GWI file format".to_string(),
@@ -284,17 +284,34 @@ impl GravityWellIndex {
         }
 
         // Read fields using little-endian byte order
-        let _version = u32::from_le_bytes(header_bytes[4..8].try_into().unwrap());
-        let dimensions = u16::from_le_bytes(header_bytes[8..10].try_into().unwrap());
-        let branching_factor = u16::from_le_bytes(header_bytes[10..12].try_into().unwrap());
+        let _version = u32::from_le_bytes([
+            header_bytes[4], header_bytes[5], header_bytes[6], header_bytes[7],
+        ]);
+        let dimensions = u16::from_le_bytes([header_bytes[8], header_bytes[9]]);
+        let branching_factor = u16::from_le_bytes([header_bytes[10], header_bytes[11]]);
         let num_levels = header_bytes[12];
         let metric = header_bytes[13];
         // flags at 14, reserved at 15
-        let vector_count = u64::from_le_bytes(header_bytes[16..24].try_into().unwrap());
-        let write_offset = u64::from_le_bytes(header_bytes[24..32].try_into().unwrap());
-        let attractor_table_offset = u64::from_le_bytes(header_bytes[32..40].try_into().unwrap());
-        let _cluster_index_offset = u64::from_le_bytes(header_bytes[40..48].try_into().unwrap());
-        let data_offset = u64::from_le_bytes(header_bytes[48..56].try_into().unwrap());
+        let vector_count = u64::from_le_bytes([
+            header_bytes[16], header_bytes[17], header_bytes[18], header_bytes[19],
+            header_bytes[20], header_bytes[21], header_bytes[22], header_bytes[23],
+        ]);
+        let write_offset = u64::from_le_bytes([
+            header_bytes[24], header_bytes[25], header_bytes[26], header_bytes[27],
+            header_bytes[28], header_bytes[29], header_bytes[30], header_bytes[31],
+        ]);
+        let attractor_table_offset = u64::from_le_bytes([
+            header_bytes[32], header_bytes[33], header_bytes[34], header_bytes[35],
+            header_bytes[36], header_bytes[37], header_bytes[38], header_bytes[39],
+        ]);
+        let _cluster_index_offset = u64::from_le_bytes([
+            header_bytes[40], header_bytes[41], header_bytes[42], header_bytes[43],
+            header_bytes[44], header_bytes[45], header_bytes[46], header_bytes[47],
+        ]);
+        let data_offset = u64::from_le_bytes([
+            header_bytes[48], header_bytes[49], header_bytes[50], header_bytes[51],
+            header_bytes[52], header_bytes[53], header_bytes[54], header_bytes[55],
+        ]);
 
         // Reconstruct config
         let config = GwiConfig {
@@ -537,31 +554,28 @@ impl GravityWellIndex {
             .as_mut()
             .ok_or_else(|| SynaError::InvalidPath("mmap not initialized".to_string()))?;
 
-        // Write entry
-        let offset = self.write_offset;
-        unsafe {
-            let ptr = mmap.as_mut_ptr().add(offset as usize);
+        // Write entry using safe byte-level operations (no alignment issues)
+        let offset = self.write_offset as usize;
 
-            // Write key length (u16)
-            std::ptr::write(ptr as *mut u16, key.len() as u16);
+        // Write key length (u16, little-endian)
+        mmap[offset..offset + 2].copy_from_slice(&(key.len() as u16).to_le_bytes());
 
-            // Write cluster ID (u16)
-            std::ptr::write(ptr.add(2) as *mut u16, cluster_id as u16);
+        // Write cluster ID (u16, little-endian)
+        mmap[offset + 2..offset + 4].copy_from_slice(&(cluster_id as u16).to_le_bytes());
 
-            // Write key bytes
-            std::ptr::copy_nonoverlapping(key.as_ptr(), ptr.add(4), key.len());
+        // Write key bytes
+        mmap[offset + 4..offset + 4 + key.len()].copy_from_slice(key.as_bytes());
 
-            // Write vector
-            std::ptr::copy_nonoverlapping(
-                vector.as_ptr() as *const u8,
-                ptr.add(4 + key.len()),
-                vector.len() * 4,
-            );
+        // Write vector (f32 → little-endian bytes)
+        let vec_start = offset + 4 + key.len();
+        for (i, &val) in vector.iter().enumerate() {
+            let byte_offset = vec_start + i * 4;
+            mmap[byte_offset..byte_offset + 4].copy_from_slice(&val.to_le_bytes());
         }
 
         // Update metadata
         self.key_to_location
-            .insert(key.to_string(), (cluster_id, offset));
+            .insert(key.to_string(), (cluster_id, offset as u64));
         self.cluster_keys[cluster_id].push(key.to_string());
         self.cluster_info[cluster_id].1 += 1;
         self.write_offset += entry_size as u64;
@@ -1114,15 +1128,10 @@ impl GravityWellIndex {
 
         for level_attractors in &self.attractors {
             for attractor in level_attractors {
-                unsafe {
-                    let ptr = mmap.as_mut_ptr().add(offset);
-                    std::ptr::copy_nonoverlapping(
-                        attractor.as_ptr() as *const u8,
-                        ptr,
-                        attractor.len() * 4,
-                    );
+                for &val in attractor {
+                    mmap[offset..offset + 4].copy_from_slice(&val.to_le_bytes());
+                    offset += 4;
                 }
-                offset += attractor.len() * 4;
             }
         }
 

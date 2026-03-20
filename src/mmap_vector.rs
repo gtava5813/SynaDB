@@ -283,14 +283,14 @@ impl MmapVectorStore {
     /// Loads existing data from the mmap file.
     fn load_existing(&mut self) -> Result<()> {
         // Validate header
-        let magic = u32::from_le_bytes(self.mmap[0..4].try_into().unwrap());
+        let magic = u32::from_le_bytes([self.mmap[0], self.mmap[1], self.mmap[2], self.mmap[3]]);
         if magic != MMAP_MAGIC {
             return Err(SynaError::CorruptedIndex(
                 "Invalid mmap vector file magic".to_string(),
             ));
         }
 
-        let version = u32::from_le_bytes(self.mmap[4..8].try_into().unwrap());
+        let version = u32::from_le_bytes([self.mmap[4], self.mmap[5], self.mmap[6], self.mmap[7]]);
         if version != MMAP_VERSION {
             return Err(SynaError::CorruptedIndex(format!(
                 "Unsupported mmap vector file version: {}",
@@ -298,7 +298,7 @@ impl MmapVectorStore {
             )));
         }
 
-        let dimensions = u16::from_le_bytes(self.mmap[8..10].try_into().unwrap());
+        let dimensions = u16::from_le_bytes([self.mmap[8], self.mmap[9]]);
         if dimensions != self.config.dimensions {
             return Err(SynaError::DimensionMismatch {
                 expected: self.config.dimensions,
@@ -306,8 +306,14 @@ impl MmapVectorStore {
             });
         }
 
-        let vector_count = u64::from_le_bytes(self.mmap[16..24].try_into().unwrap());
-        let write_offset = u64::from_le_bytes(self.mmap[24..32].try_into().unwrap());
+        let vector_count = u64::from_le_bytes([
+            self.mmap[16], self.mmap[17], self.mmap[18], self.mmap[19],
+            self.mmap[20], self.mmap[21], self.mmap[22], self.mmap[23],
+        ]);
+        let write_offset = u64::from_le_bytes([
+            self.mmap[24], self.mmap[25], self.mmap[26], self.mmap[27],
+            self.mmap[28], self.mmap[29], self.mmap[30], self.mmap[31],
+        ]);
 
         self.vector_count.store(vector_count, Ordering::SeqCst);
         self.write_offset.store(write_offset, Ordering::SeqCst);
@@ -422,12 +428,11 @@ impl MmapVectorStore {
         self.mmap[offset..offset + 2].copy_from_slice(&(key_len as u16).to_le_bytes());
         // Key bytes
         self.mmap[offset + 2..offset + 2 + key_len].copy_from_slice(key_bytes);
-        // Vector data (f32 array)
+        // Vector data (f32 array, safe byte-level write)
         let vector_start = offset + 2 + key_len;
-        unsafe {
-            let src = vector.as_ptr() as *const u8;
-            let dst = self.mmap.as_mut_ptr().add(vector_start);
-            std::ptr::copy_nonoverlapping(src, dst, vector.len() * 4);
+        for (i, &val) in vector.iter().enumerate() {
+            let byte_offset = vector_start + i * 4;
+            self.mmap[byte_offset..byte_offset + 4].copy_from_slice(&val.to_le_bytes());
         }
 
         // Update write offset
@@ -513,10 +518,9 @@ impl MmapVectorStore {
             self.mmap[offset + 2..offset + 2 + key_len].copy_from_slice(key_bytes);
 
             let vector_start = offset + 2 + key_len;
-            unsafe {
-                let src = vector.as_ptr() as *const u8;
-                let dst = self.mmap.as_mut_ptr().add(vector_start);
-                std::ptr::copy_nonoverlapping(src, dst, dims * 4);
+            for (i, &val) in vector.iter().enumerate() {
+                let byte_offset = vector_start + i * 4;
+                self.mmap[byte_offset..byte_offset + 4].copy_from_slice(&val.to_le_bytes());
             }
 
             // Update in-memory index
@@ -566,7 +570,7 @@ impl MmapVectorStore {
 
         // Read key length
         let key_len =
-            u16::from_le_bytes(self.mmap[offset..offset + 2].try_into().unwrap()) as usize;
+            u16::from_le_bytes([self.mmap[offset], self.mmap[offset + 1]]) as usize;
 
         // Read vector
         let vector_start = offset + 2 + key_len;
@@ -575,7 +579,7 @@ impl MmapVectorStore {
         // Convert bytes to f32 slice
         let vector: Vec<f32> = vector_bytes
             .chunks_exact(4)
-            .map(|chunk| f32::from_le_bytes(chunk.try_into().unwrap()))
+            .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
             .collect();
 
         Ok(Some(vector))
@@ -596,8 +600,17 @@ impl MmapVectorStore {
         let vector_start = offset + 2 + key_len;
         let vector_bytes = &self.mmap[vector_start..vector_start + dims * 4];
 
-        // Safety: We ensure bounds are valid and data was written as f32
-        Some(unsafe { std::slice::from_raw_parts(vector_bytes.as_ptr() as *const f32, dims) })
+        // Safety: align_to checks alignment at runtime. If the mmap region
+        // isn't 4-byte aligned at this offset, the prefix/suffix will be
+        // non-empty and we fall back to None. In practice, our write layout
+        // ensures f32-aligned vector data.
+        let (prefix, floats, suffix) = unsafe { vector_bytes.align_to::<f32>() };
+        if prefix.is_empty() && suffix.is_empty() && floats.len() == dims {
+            Some(floats)
+        } else {
+            // Misaligned — caller should use get() which copies
+            None
+        }
     }
 
     /// Searches for the k nearest neighbors.

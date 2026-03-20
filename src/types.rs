@@ -315,9 +315,11 @@ impl LogHeader {
     /// assert_eq!(orig_val_len, rest_val_len);
     /// ```
     pub fn from_bytes(buf: &[u8; HEADER_SIZE]) -> Self {
-        let timestamp = u64::from_le_bytes(buf[0..8].try_into().unwrap());
-        let key_len = u16::from_le_bytes(buf[8..10].try_into().unwrap());
-        let val_len = u32::from_le_bytes(buf[10..14].try_into().unwrap());
+        let timestamp = u64::from_le_bytes([
+            buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7],
+        ]);
+        let key_len = u16::from_le_bytes([buf[8], buf[9]]);
+        let val_len = u32::from_le_bytes([buf[10], buf[11], buf[12], buf[13]]);
         let flags = buf[14];
         Self {
             timestamp,

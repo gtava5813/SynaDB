@@ -1,10 +1,10 @@
-# Syna C/C++ Demos
+# SynaDB C/C++ Demos
 
-This directory contains C and C++ examples demonstrating how to use the Syna database.
+This directory contains C and C++ examples demonstrating how to use the SynaDB database.
 
 ## Prerequisites
 
-Before building the demos, you must build the Syna library:
+Before building the demos, you must build the SynaDB library:
 
 ```bash
 # From the repository root
@@ -23,7 +23,7 @@ This creates the shared library:
 
 **File:** `basic_usage.c`
 
-Demonstrates fundamental Syna operations in C:
+Demonstrates fundamental SynaDB operations in C:
 
 - Opening and closing databases
 - Writing all data types (float, int, text, bytes)
@@ -51,7 +51,7 @@ A modern C++ wrapper with:
 
 **Directory:** `cmake_example/`
 
-Shows how to integrate Syna into CMake projects:
+Shows how to integrate SynaDB into CMake projects:
 
 - Cross-platform CMakeLists.txt
 - Library detection and linking
@@ -112,10 +112,10 @@ When using the C API, you must free memory returned by these functions:
 
 | Function | Free With |
 |----------|-----------|
-| `syna_get_text()` | `syna_free_text()` |
-| `syna_get_bytes()` | `syna_free_bytes()` |
-| `syna_get_history_tensor()` | `syna_free_tensor()` |
-| `syna_keys()` | `syna_free_keys()` |
+| `SYNA_get_text()` | `SYNA_free_text()` |
+| `SYNA_get_bytes()` | `SYNA_free_bytes()` |
+| `SYNA_get_history_tensor()` | `SYNA_free_tensor()` |
+| `SYNA_keys()` | `SYNA_free_keys()` |
 
 The C++ RAII wrapper handles this automatically using smart pointers.
 
@@ -123,38 +123,38 @@ The C++ RAII wrapper handles this automatically using smart pointers.
 
 | Code | Constant | Meaning |
 |------|----------|---------|
-| 1 | `syna_SUCCESS` | Operation succeeded |
-| 0 | `syna_ERR_GENERIC` | Generic error |
-| -1 | `syna_ERR_DB_NOT_FOUND` | Database not in registry |
-| -2 | `syna_ERR_INVALID_PATH` | Invalid path or UTF-8 |
-| -3 | `syna_ERR_IO` | I/O error |
-| -4 | `syna_ERR_SERIALIZATION` | Serialization error |
-| -5 | `syna_ERR_KEY_NOT_FOUND` | Key not found |
-| -6 | `syna_ERR_TYPE_MISMATCH` | Wrong type for key |
-| -7 | `syna_ERR_EMPTY_KEY` | Empty key not allowed |
-| -8 | `syna_ERR_KEY_TOO_LONG` | Key exceeds 65535 bytes |
-| -100 | `syna_ERR_INTERNAL_PANIC` | Internal error |
+| 1 | `SYNA_SUCCESS` | Operation succeeded |
+| 0 | `SYNA_ERR_GENERIC` | Generic error |
+| -1 | `SYNA_ERR_DB_NOT_FOUND` | Database not in registry |
+| -2 | `SYNA_ERR_INVALID_PATH` | Invalid path or UTF-8 |
+| -3 | `SYNA_ERR_IO` | I/O error |
+| -4 | `SYNA_ERR_SERIALIZATION` | Serialization error |
+| -5 | `SYNA_ERR_KEY_NOT_FOUND` | Key not found |
+| -6 | `SYNA_ERR_TYPE_MISMATCH` | Wrong type for key |
+| -7 | `SYNA_ERR_EMPTY_KEY` | Empty key not allowed |
+| -8 | `SYNA_ERR_KEY_TOO_LONG` | Key exceeds 65535 bytes |
+| -100 | `SYNA_ERR_INTERNAL_PANIC` | Internal error |
 
 ## Example: Quick Start
 
 ```c
-#include "Syna.h"
+#include "synadb.h"
 
 int main() {
     // Open database
-    syna_open("my.db");
+    SYNA_open("my.db");
     
     // Write values
-    syna_put_float("my.db", "temperature", 23.5);
-    syna_put_int("my.db", "count", 42);
+    SYNA_put_float("my.db", "temperature", 23.5);
+    SYNA_put_int("my.db", "count", 42);
     
     // Read values
     double temp;
-    syna_get_float("my.db", "temperature", &temp);
+    SYNA_get_float("my.db", "temperature", &temp);
     printf("Temperature: %f\n", temp);
     
     // Close database
-    syna_close("my.db");
+    SYNA_close("my.db");
     return 0;
 }
 ```

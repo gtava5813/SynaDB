@@ -39,18 +39,18 @@ public:
     
     static std::string code_to_string(int32_t code) {
         switch (code) {
-            case syna_SUCCESS:          return "Success";
-            case syna_ERR_GENERIC:      return "Generic error";
-            case syna_ERR_DB_NOT_FOUND: return "Database not found";
-            case syna_ERR_INVALID_PATH: return "Invalid path";
-            case syna_ERR_IO:           return "I/O error";
-            case syna_ERR_SERIALIZATION: return "Serialization error";
-            case syna_ERR_KEY_NOT_FOUND: return "Key not found";
-            case syna_ERR_TYPE_MISMATCH: return "Type mismatch";
-            case syna_ERR_EMPTY_KEY:    return "Empty key";
-            case syna_ERR_KEY_TOO_LONG: return "Key too long";
-            case syna_ERR_INTERNAL_PANIC: return "Internal panic";
-            default:                        return "Unknown error";
+            case SYNA_SUCCESS:            return "Success";
+            case SYNA_ERR_GENERIC:        return "Generic error";
+            case SYNA_ERR_DB_NOT_FOUND:   return "Database not found";
+            case SYNA_ERR_INVALID_PATH:   return "Invalid path";
+            case SYNA_ERR_IO:             return "I/O error";
+            case SYNA_ERR_SERIALIZATION:  return "Serialization error";
+            case SYNA_ERR_KEY_NOT_FOUND:  return "Key not found";
+            case SYNA_ERR_TYPE_MISMATCH:  return "Type mismatch";
+            case SYNA_ERR_EMPTY_KEY:      return "Empty key";
+            case SYNA_ERR_KEY_TOO_LONG:   return "Key too long";
+            case SYNA_ERR_INTERNAL_PANIC: return "Internal panic";
+            default:                      return "Unknown error";
         }
     }
 
@@ -68,7 +68,7 @@ struct TensorDeleter {
     
     void operator()(double* ptr) const {
         if (ptr && length > 0) {
-            syna_free_tensor(ptr, length);
+            SYNA_free_tensor(ptr, length);
         }
     }
 };
@@ -83,7 +83,7 @@ struct TextDeleter {
     
     void operator()(char* ptr) const {
         if (ptr) {
-            syna_free_text(ptr, length);
+            SYNA_free_text(ptr, length);
         }
     }
 };
@@ -98,7 +98,7 @@ struct BytesDeleter {
     
     void operator()(uint8_t* ptr) const {
         if (ptr && length > 0) {
-            syna_free_bytes(ptr, length);
+            SYNA_free_bytes(ptr, length);
         }
     }
 };
@@ -113,7 +113,7 @@ struct KeysDeleter {
     
     void operator()(char** ptr) const {
         if (ptr && length > 0) {
-            syna_free_keys(ptr, length);
+            SYNA_free_keys(ptr, length);
         }
     }
 };
@@ -181,8 +181,8 @@ public:
      * @throws SynaException if database cannot be opened
      */
     explicit SynaDB(const std::string& path) : path_(path), is_open_(false) {
-        int32_t result = syna_open(path_.c_str());
-        if (result != syna_SUCCESS) {
+        int32_t result = SYNA_open(path_.c_str());
+        if (result != SYNA_SUCCESS) {
             throw SynaException(result, 
                 "Failed to open database: " + SynaException::code_to_string(result));
         }
@@ -194,7 +194,7 @@ public:
      */
     ~SynaDB() noexcept {
         if (is_open_) {
-            syna_close(path_.c_str());
+            SYNA_close(path_.c_str());
         }
     }
     
@@ -210,7 +210,7 @@ public:
     SynaDB& operator=(SynaDB&& other) noexcept {
         if (this != &other) {
             if (is_open_) {
-                syna_close(path_.c_str());
+                SYNA_close(path_.c_str());
             }
             path_ = std::move(other.path_);
             is_open_ = other.is_open_;
@@ -226,7 +226,7 @@ public:
      * @return Byte offset where entry was written
      */
     int64_t put(const std::string& key, double value) {
-        int64_t result = syna_put_float(path_.c_str(), key.c_str(), value);
+        int64_t result = SYNA_put_float(path_.c_str(), key.c_str(), value);
         if (result < 0) {
             throw SynaException(static_cast<int32_t>(result),
                 "Failed to put float: " + SynaException::code_to_string(static_cast<int32_t>(result)));
@@ -239,7 +239,7 @@ public:
      * @return Byte offset where entry was written
      */
     int64_t put(const std::string& key, int64_t value) {
-        int64_t result = syna_put_int(path_.c_str(), key.c_str(), value);
+        int64_t result = SYNA_put_int(path_.c_str(), key.c_str(), value);
         if (result < 0) {
             throw SynaException(static_cast<int32_t>(result),
                 "Failed to put int: " + SynaException::code_to_string(static_cast<int32_t>(result)));
@@ -252,7 +252,7 @@ public:
      * @return Byte offset where entry was written
      */
     int64_t put(const std::string& key, const std::string& value) {
-        int64_t result = syna_put_text(path_.c_str(), key.c_str(), value.c_str());
+        int64_t result = SYNA_put_text(path_.c_str(), key.c_str(), value.c_str());
         if (result < 0) {
             throw SynaException(static_cast<int32_t>(result),
                 "Failed to put text: " + SynaException::code_to_string(static_cast<int32_t>(result)));
@@ -265,7 +265,7 @@ public:
      * @return Byte offset where entry was written
      */
     int64_t put(const std::string& key, const std::vector<uint8_t>& value) {
-        int64_t result = syna_put_bytes(path_.c_str(), key.c_str(), 
+        int64_t result = SYNA_put_bytes(path_.c_str(), key.c_str(), 
                                             value.data(), value.size());
         if (result < 0) {
             throw SynaException(static_cast<int32_t>(result),
@@ -283,11 +283,11 @@ public:
      */
     std::optional<double> get_float(const std::string& key) {
         double value;
-        int32_t result = syna_get_float(path_.c_str(), key.c_str(), &value);
+        int32_t result = SYNA_get_float(path_.c_str(), key.c_str(), &value);
         
-        if (result == syna_SUCCESS) {
+        if (result == SYNA_SUCCESS) {
             return value;
-        } else if (result == syna_ERR_KEY_NOT_FOUND) {
+        } else if (result == SYNA_ERR_KEY_NOT_FOUND) {
             return std::nullopt;
         } else {
             throw SynaException(result,
@@ -302,11 +302,11 @@ public:
      */
     std::optional<int64_t> get_int(const std::string& key) {
         int64_t value;
-        int32_t result = syna_get_int(path_.c_str(), key.c_str(), &value);
+        int32_t result = SYNA_get_int(path_.c_str(), key.c_str(), &value);
         
-        if (result == syna_SUCCESS) {
+        if (result == SYNA_SUCCESS) {
             return value;
-        } else if (result == syna_ERR_KEY_NOT_FOUND) {
+        } else if (result == SYNA_ERR_KEY_NOT_FOUND) {
             return std::nullopt;
         } else {
             throw SynaException(result,
@@ -321,7 +321,7 @@ public:
      */
     std::optional<std::string> get_text(const std::string& key) {
         size_t len;
-        char* ptr = syna_get_text(path_.c_str(), key.c_str(), &len);
+        char* ptr = SYNA_get_text(path_.c_str(), key.c_str(), &len);
         
         if (ptr != nullptr) {
             // Use smart pointer for automatic cleanup
@@ -338,7 +338,7 @@ public:
      */
     std::optional<std::vector<uint8_t>> get_bytes(const std::string& key) {
         size_t len;
-        uint8_t* ptr = syna_get_bytes(path_.c_str(), key.c_str(), &len);
+        uint8_t* ptr = SYNA_get_bytes(path_.c_str(), key.c_str(), &len);
         
         if (ptr != nullptr && len > 0) {
             // Use smart pointer for automatic cleanup
@@ -354,7 +354,7 @@ public:
      */
     Tensor get_history_tensor(const std::string& key) {
         size_t len;
-        double* ptr = syna_get_history_tensor(path_.c_str(), key.c_str(), &len);
+        double* ptr = SYNA_get_history_tensor(path_.c_str(), key.c_str(), &len);
         
         if (ptr != nullptr && len > 0) {
             return Tensor(ptr, len);
@@ -368,8 +368,8 @@ public:
      * @brief Deletes a key
      */
     void remove(const std::string& key) {
-        int32_t result = syna_delete(path_.c_str(), key.c_str());
-        if (result != syna_SUCCESS) {
+        int32_t result = SYNA_delete(path_.c_str(), key.c_str());
+        if (result != SYNA_SUCCESS) {
             throw SynaException(result,
                 "Failed to delete: " + SynaException::code_to_string(result));
         }
@@ -379,7 +379,7 @@ public:
      * @brief Checks if a key exists
      */
     bool exists(const std::string& key) {
-        int32_t result = syna_exists(path_.c_str(), key.c_str());
+        int32_t result = SYNA_exists(path_.c_str(), key.c_str());
         if (result < 0) {
             throw SynaException(result,
                 "Failed to check exists: " + SynaException::code_to_string(result));
@@ -392,7 +392,7 @@ public:
      */
     std::vector<std::string> keys() {
         size_t len;
-        char** ptr = syna_keys(path_.c_str(), &len);
+        char** ptr = SYNA_keys(path_.c_str(), &len);
         
         std::vector<std::string> result;
         if (ptr != nullptr && len > 0) {
@@ -412,8 +412,8 @@ public:
      * @brief Compacts the database
      */
     void compact() {
-        int32_t result = syna_compact(path_.c_str());
-        if (result != syna_SUCCESS) {
+        int32_t result = SYNA_compact(path_.c_str());
+        if (result != SYNA_SUCCESS) {
             throw SynaException(result,
                 "Failed to compact: " + SynaException::code_to_string(result));
         }
@@ -602,7 +602,7 @@ void demo_move_semantics() {
 }
 
 int main() {
-    std::cout << "Syna C++ RAII Wrapper Demo" << std::endl;
+    std::cout << "SynaDB C++ RAII Wrapper Demo" << std::endl;
     std::cout << "==============================" << std::endl;
     
     try {
@@ -628,4 +628,3 @@ int main() {
     
     return 0;
 }
-

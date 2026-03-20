@@ -2,7 +2,7 @@
  * @file embedded_minimal.c
  * @brief Minimal memory footprint demo for embedded/constrained environments
  * 
- * This demo shows how to use Entangle with minimal memory overhead:
+ * This demo shows how to use SynaDB with minimal memory overhead:
  * - No dynamic allocation in the hot path (after initial setup)
  * - Stack-based buffers for reading data
  * - Careful memory management
@@ -10,7 +10,7 @@
  * 
  * Memory Requirements:
  * - Stack: ~256 bytes for local variables
- * - Heap: Managed by Entangle library (configurable)
+ * - Heap: Managed by SynaDB library (configurable)
  * - The library itself requires ~1-2 MB for the shared object
  * 
  * Build: See Makefile in this directory
@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include "../../include/entangle.h"
+#include "../../include/synadb.h"
 
 /* ============================================================================
  * Configuration for Embedded Systems
@@ -119,7 +119,7 @@ static void print_memory_usage(void) {
     printf("  Key buffer (static):   %d bytes\n", MAX_KEY_LEN);
     printf("  Total stack usage:     ~%zu bytes\n", 
            sizeof(SensorBuffer) + MAX_KEY_LEN + 64);
-    printf("\n  Note: Entangle library manages its own heap allocation\n");
+    printf("\n  Note: SynaDB library manages its own heap allocation\n");
     printf("  for index structures and file I/O buffers.\n");
 }
 
@@ -146,8 +146,8 @@ static int demo_sensor_logger(const char* db_path) {
     buffer_init(&buffer);
     
     /* Open database */
-    result = entangle_open(db_path);
-    if (result != ENTANGLE_SUCCESS) {
+    result = SYNA_open(db_path);
+    if (result != SYNA_SUCCESS) {
         fprintf(stderr, "Failed to open database: %d\n", result);
         return 1;
     }
@@ -179,7 +179,7 @@ static int demo_sensor_logger(const char* db_path) {
                 const char* key = build_key("sensor", r->sensor_id);
                 
                 /* Write to database */
-                int64_t offset = entangle_put_float(db_path, key, (double)r->value);
+                int64_t offset = SYNA_put_float(db_path, key, (double)r->value);
                 if (offset < 0) {
                     fprintf(stderr, "Write failed: %lld\n", (long long)offset);
                 }
@@ -198,7 +198,7 @@ static int demo_sensor_logger(const char* db_path) {
             uint8_t idx = (buffer.head + j) % SENSOR_BUFFER_SIZE;
             SensorReading* r = &buffer.readings[idx];
             const char* key = build_key("sensor", r->sensor_id);
-            entangle_put_float(db_path, key, (double)r->value);
+            SYNA_put_float(db_path, key, (double)r->value);
         }
     }
     
@@ -207,18 +207,18 @@ static int demo_sensor_logger(const char* db_path) {
     for (uint16_t sensor_id = 0; sensor_id < 3; sensor_id++) {
         const char* key = build_key("sensor", sensor_id);
         size_t len;
-        double* tensor = entangle_get_history_tensor(db_path, key, &len);
+        double* tensor = SYNA_get_history_tensor(db_path, key, &len);
         
         if (tensor != NULL && len > 0) {
             printf("  -> %s: %zu readings, latest=%.1f\n", 
                    key, len, tensor[len - 1]);
-            entangle_free_tensor(tensor, len);
+            SYNA_free_tensor(tensor, len);
         }
     }
     
     /* Close database */
-    result = entangle_close(db_path);
-    if (result != ENTANGLE_SUCCESS) {
+    result = SYNA_close(db_path);
+    if (result != SYNA_SUCCESS) {
         fprintf(stderr, "Failed to close database: %d\n", result);
         return 1;
     }
@@ -234,7 +234,7 @@ static int demo_sensor_logger(const char* db_path) {
  * @brief Demonstrates operations using only stack memory
  * 
  * All local variables are on the stack. The only heap usage
- * is internal to the Entangle library.
+ * is internal to the SynaDB library.
  */
 static int demo_stack_only(const char* db_path) {
     int32_t result;
@@ -244,49 +244,49 @@ static int demo_stack_only(const char* db_path) {
     printf("\n=== Demo: Stack-Only Operations ===\n");
     
     /* Open database */
-    result = entangle_open(db_path);
-    if (result != ENTANGLE_SUCCESS) {
+    result = SYNA_open(db_path);
+    if (result != SYNA_SUCCESS) {
         return 1;
     }
     
     /* Write operations - no heap allocation needed */
     printf("\nWriting values (stack-only):\n");
     
-    entangle_put_float(db_path, "temp", 25.5);
+    SYNA_put_float(db_path, "temp", 25.5);
     printf("  -> temp = 25.5\n");
     
-    entangle_put_int(db_path, "count", 100);
+    SYNA_put_int(db_path, "count", 100);
     printf("  -> count = 100\n");
     
     /* Read operations - output to stack variables */
     printf("\nReading values (stack-only):\n");
     
-    result = entangle_get_float(db_path, "temp", &float_value);
-    if (result == ENTANGLE_SUCCESS) {
+    result = SYNA_get_float(db_path, "temp", &float_value);
+    if (result == SYNA_SUCCESS) {
         printf("  -> temp = %.1f\n", float_value);
     }
     
-    result = entangle_get_int(db_path, "count", &int_value);
-    if (result == ENTANGLE_SUCCESS) {
+    result = SYNA_get_int(db_path, "count", &int_value);
+    if (result == SYNA_SUCCESS) {
         printf("  -> count = %lld\n", (long long)int_value);
     }
     
     /* Check existence - no allocation */
     printf("\nChecking key existence:\n");
-    result = entangle_exists(db_path, "temp");
+    result = SYNA_exists(db_path, "temp");
     printf("  -> 'temp' exists: %s\n", result == 1 ? "yes" : "no");
     
-    result = entangle_exists(db_path, "missing");
+    result = SYNA_exists(db_path, "missing");
     printf("  -> 'missing' exists: %s\n", result == 1 ? "yes" : "no");
     
     /* Delete - no allocation */
     printf("\nDeleting 'count':\n");
-    result = entangle_delete(db_path, "count");
+    result = SYNA_delete(db_path, "count");
     printf("  -> Delete result: %s\n", 
-           result == ENTANGLE_SUCCESS ? "success" : "failed");
+           result == SYNA_SUCCESS ? "success" : "failed");
     
     /* Close database */
-    entangle_close(db_path);
+    SYNA_close(db_path);
     
     return 0;
 }
@@ -309,8 +309,8 @@ static int demo_careful_memory(const char* db_path) {
     printf("\n=== Demo: Careful Memory Management ===\n");
     
     /* Open database */
-    result = entangle_open(db_path);
-    if (result != ENTANGLE_SUCCESS) {
+    result = SYNA_open(db_path);
+    if (result != SYNA_SUCCESS) {
         return 1;
     }
     
@@ -319,14 +319,14 @@ static int demo_careful_memory(const char* db_path) {
     for (int i = 0; i < 5; i++) {
         char key[MAX_KEY_LEN];
         snprintf(key, MAX_KEY_LEN, "item/%d", i);
-        entangle_put_int(db_path, key, i * 10);
+        SYNA_put_int(db_path, key, i * 10);
     }
     
     /* Process keys one at a time to minimize memory usage */
     printf("\nProcessing keys (one at a time):\n");
     
     size_t num_keys;
-    char** keys = entangle_keys(db_path, &num_keys);
+    char** keys = SYNA_keys(db_path, &num_keys);
     
     if (keys != NULL && num_keys > 0) {
         /* Process each key immediately */
@@ -341,7 +341,7 @@ static int demo_careful_memory(const char* db_path) {
         }
         
         /* Free keys immediately after use */
-        entangle_free_keys(keys, num_keys);
+        SYNA_free_keys(keys, num_keys);
         keys = NULL;  /* Prevent accidental reuse */
         num_keys = 0;
         
@@ -353,11 +353,11 @@ static int demo_careful_memory(const char* db_path) {
     
     /* Write time-series data */
     for (int i = 0; i < 20; i++) {
-        entangle_put_float(db_path, "series", (double)i);
+        SYNA_put_float(db_path, "series", (double)i);
     }
     
     size_t tensor_len;
-    double* tensor = entangle_get_history_tensor(db_path, "series", &tensor_len);
+    double* tensor = SYNA_get_history_tensor(db_path, "series", &tensor_len);
     
     if (tensor != NULL && tensor_len > 0) {
         /* Process in place - calculate statistics without extra allocation */
@@ -377,7 +377,7 @@ static int demo_careful_memory(const char* db_path) {
                sum / tensor_len, min, max);
         
         /* Free immediately */
-        entangle_free_tensor(tensor, tensor_len);
+        SYNA_free_tensor(tensor, tensor_len);
         tensor = NULL;
         tensor_len = 0;
         
@@ -385,7 +385,7 @@ static int demo_careful_memory(const char* db_path) {
     }
     
     /* Close database */
-    entangle_close(db_path);
+    SYNA_close(db_path);
     
     return 0;
 }
@@ -403,7 +403,7 @@ int main(int argc, char* argv[]) {
         db_path = argv[1];
     }
     
-    printf("Entangle Embedded Minimal Demo\n");
+    printf("SynaDB Embedded Minimal Demo\n");
     printf("==============================\n");
     printf("Database path: %s\n", db_path);
     

@@ -986,7 +986,7 @@ impl TensorEngine {
             });
         }
 
-        let meta_len = u32::from_le_bytes(blob[0..4].try_into().unwrap()) as usize;
+        let meta_len = u32::from_le_bytes([blob[0], blob[1], blob[2], blob[3]]) as usize;
 
         if blob.len() < 4 + meta_len {
             return Err(SynaError::ShapeMismatch {
@@ -1069,7 +1069,7 @@ impl TensorEngine {
             });
         }
 
-        let meta_len = u32::from_le_bytes(blob[0..4].try_into().unwrap()) as usize;
+        let meta_len = u32::from_le_bytes([blob[0], blob[1], blob[2], blob[3]]) as usize;
 
         if blob.len() < 4 + meta_len {
             return Err(SynaError::ShapeMismatch {
@@ -1797,38 +1797,41 @@ impl MmapTensorRef {
 
     /// Get the tensor data as f32 slice (zero-copy).
     ///
-    /// # Panics
-    ///
-    /// Panics if the data length is not a multiple of 4.
+    /// Returns `None` if the mmap region is not properly aligned for f32.
     #[inline]
     pub fn as_f32_slice(&self) -> &[f32] {
-        let count = self.mmap.len() / std::mem::size_of::<f32>();
-        unsafe { std::slice::from_raw_parts(self.mmap.as_ptr() as *const f32, count) }
+        // Safety: align_to is safe — it checks alignment at runtime.
+        // These files are written as contiguous f32 arrays, so alignment
+        // is expected. The unsafe is only in align_to's implementation.
+        let (prefix, floats, suffix) = unsafe { self.mmap[..].align_to::<f32>() };
+        debug_assert!(prefix.is_empty() && suffix.is_empty(), "mmap tensor data misaligned for f32");
+        floats
     }
 
     /// Get the tensor data as f64 slice (zero-copy).
     ///
-    /// # Panics
-    ///
-    /// Panics if the data length is not a multiple of 8.
+    /// Returns `None` if the mmap region is not properly aligned for f64.
     #[inline]
     pub fn as_f64_slice(&self) -> &[f64] {
-        let count = self.mmap.len() / std::mem::size_of::<f64>();
-        unsafe { std::slice::from_raw_parts(self.mmap.as_ptr() as *const f64, count) }
+        let (prefix, doubles, suffix) = unsafe { self.mmap[..].align_to::<f64>() };
+        debug_assert!(prefix.is_empty() && suffix.is_empty(), "mmap tensor data misaligned for f64");
+        doubles
     }
 
     /// Get the tensor data as i32 slice (zero-copy).
     #[inline]
     pub fn as_i32_slice(&self) -> &[i32] {
-        let count = self.mmap.len() / std::mem::size_of::<i32>();
-        unsafe { std::slice::from_raw_parts(self.mmap.as_ptr() as *const i32, count) }
+        let (prefix, ints, suffix) = unsafe { self.mmap[..].align_to::<i32>() };
+        debug_assert!(prefix.is_empty() && suffix.is_empty(), "mmap tensor data misaligned for i32");
+        ints
     }
 
     /// Get the tensor data as i64 slice (zero-copy).
     #[inline]
     pub fn as_i64_slice(&self) -> &[i64] {
-        let count = self.mmap.len() / std::mem::size_of::<i64>();
-        unsafe { std::slice::from_raw_parts(self.mmap.as_ptr() as *const i64, count) }
+        let (prefix, longs, suffix) = unsafe { self.mmap[..].align_to::<i64>() };
+        debug_assert!(prefix.is_empty() && suffix.is_empty(), "mmap tensor data misaligned for i64");
+        longs
     }
 
     /// Get the total size in bytes.

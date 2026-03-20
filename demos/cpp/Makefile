@@ -1,4 +1,4 @@
-# Makefile for Entangle C/C++ Demos
+# Makefile for SynaDB C/C++ Demos
 #
 # This Makefile supports building on Linux, macOS, and Windows (with MinGW)
 #
@@ -11,7 +11,7 @@
 #   make run          - Build and run all demos
 #
 # Prerequisites:
-#   - Build the Entangle library first: cargo build --release
+#   - Build the SynaDB library first: cargo build --release
 #   - GCC/Clang for C demos
 #   - G++/Clang++ for C++ demos
 
@@ -29,7 +29,7 @@ UNAME_S := $(shell uname -s 2>/dev/null || echo Windows)
 
 ifeq ($(UNAME_S),Linux)
     LIB_DIR = ../../target/release
-    LIB_NAME = entangle_db
+    LIB_NAME = synadb
     LDFLAGS = -L$(LIB_DIR) -l$(LIB_NAME) -Wl,-rpath,$(LIB_DIR) -lpthread -ldl -lm
     LIB_FILE = $(LIB_DIR)/lib$(LIB_NAME).so
     EXE_EXT =
@@ -37,7 +37,7 @@ endif
 
 ifeq ($(UNAME_S),Darwin)
     LIB_DIR = ../../target/release
-    LIB_NAME = entangle_db
+    LIB_NAME = synadb
     LDFLAGS = -L$(LIB_DIR) -l$(LIB_NAME) -Wl,-rpath,@executable_path/$(LIB_DIR)
     LIB_FILE = $(LIB_DIR)/lib$(LIB_NAME).dylib
     EXE_EXT =
@@ -46,7 +46,7 @@ endif
 # Windows (MinGW)
 ifeq ($(findstring MINGW,$(UNAME_S)),MINGW)
     LIB_DIR = ../../target/release
-    LIB_NAME = entangle_db
+    LIB_NAME = synadb
     LDFLAGS = -L$(LIB_DIR) -l$(LIB_NAME)
     LIB_FILE = $(LIB_DIR)/$(LIB_NAME).dll
     EXE_EXT = .exe
@@ -54,7 +54,7 @@ endif
 
 ifeq ($(findstring MSYS,$(UNAME_S)),MSYS)
     LIB_DIR = ../../target/release
-    LIB_NAME = entangle_db
+    LIB_NAME = synadb
     LDFLAGS = -L$(LIB_DIR) -l$(LIB_NAME)
     LIB_FILE = $(LIB_DIR)/$(LIB_NAME).dll
     EXE_EXT = .exe
@@ -63,7 +63,7 @@ endif
 # Windows detection fallback
 ifeq ($(OS),Windows_NT)
     LIB_DIR = ../../target/release
-    LIB_NAME = entangle_db
+    LIB_NAME = synadb
     LDFLAGS = -L$(LIB_DIR) -l$(LIB_NAME)
     LIB_FILE = $(LIB_DIR)/$(LIB_NAME).dll
     EXE_EXT = .exe
@@ -77,7 +77,7 @@ TARGETS = basic_usage$(EXE_EXT) raii_wrapper$(EXE_EXT) embedded_minimal$(EXE_EXT
 all: check-lib $(TARGETS)
 
 help:
-	@echo "Entangle C/C++ Demos Makefile"
+	@echo "SynaDB C/C++ Demos Makefile"
 	@echo ""
 	@echo "Targets:"
 	@echo "  all           - Build all demos (default)"
@@ -89,12 +89,12 @@ help:
 	@echo "  check-lib     - Verify library is built"
 	@echo ""
 	@echo "Prerequisites:"
-	@echo "  Build the Entangle library first:"
+	@echo "  Build the SynaDB library first:"
 	@echo "    cd ../.. && cargo build --release"
 
 check-lib:
 	@if [ ! -f "$(LIB_FILE)" ]; then \
-		echo "Error: Entangle library not found at $(LIB_FILE)"; \
+		echo "Error: SynaDB library not found at $(LIB_FILE)"; \
 		echo "Please build the library first:"; \
 		echo "  cd ../.. && cargo build --release"; \
 		exit 1; \

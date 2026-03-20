@@ -226,9 +226,10 @@ impl MmapReader {
     pub fn as_f32_slice(&self, offset: usize, count: usize) -> &[f32] {
         let byte_len = count * std::mem::size_of::<f32>();
         let bytes = &self.mmap[offset..offset + byte_len];
-        // Safety: We ensure bounds are valid above. The caller is responsible
-        // for ensuring the data was written as f32 values.
-        unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const f32, count) }
+        // Safe alignment check — align_to verifies at runtime
+        let (prefix, floats, _) = unsafe { bytes.align_to::<f32>() };
+        debug_assert!(prefix.is_empty(), "mmap data misaligned for f32 at offset {}", offset);
+        &floats[..count]
     }
 
     /// Try to get tensor data as f32 slice (zero-copy).
@@ -279,8 +280,15 @@ impl MmapReader {
         }
 
         let bytes = &self.mmap[offset..end];
-        // Safety: We've verified bounds above
-        Ok(unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const f32, count) })
+        // Safe alignment check
+        let (prefix, floats, _) = unsafe { bytes.align_to::<f32>() };
+        if !prefix.is_empty() {
+            return Err(SynaError::ShapeMismatch {
+                data_size: offset,
+                expected_size: 0, // alignment error
+            });
+        }
+        Ok(&floats[..count])
     }
 
     /// Get tensor data as f64 slice (zero-copy).
@@ -325,9 +333,9 @@ impl MmapReader {
     pub fn as_f64_slice(&self, offset: usize, count: usize) -> &[f64] {
         let byte_len = count * std::mem::size_of::<f64>();
         let bytes = &self.mmap[offset..offset + byte_len];
-        // Safety: We ensure bounds are valid above. The caller is responsible
-        // for ensuring the data was written as f64 values.
-        unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const f64, count) }
+        let (prefix, doubles, _) = unsafe { bytes.align_to::<f64>() };
+        debug_assert!(prefix.is_empty(), "mmap data misaligned for f64 at offset {}", offset);
+        &doubles[..count]
     }
 
     /// Try to get tensor data as f64 slice (zero-copy).
@@ -378,8 +386,14 @@ impl MmapReader {
         }
 
         let bytes = &self.mmap[offset..end];
-        // Safety: We've verified bounds above
-        Ok(unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const f64, count) })
+        let (prefix, doubles, _) = unsafe { bytes.align_to::<f64>() };
+        if !prefix.is_empty() {
+            return Err(SynaError::ShapeMismatch {
+                data_size: offset,
+                expected_size: 0,
+            });
+        }
+        Ok(&doubles[..count])
     }
 
     /// Get tensor data as i32 slice (zero-copy).
@@ -400,7 +414,9 @@ impl MmapReader {
     pub fn as_i32_slice(&self, offset: usize, count: usize) -> &[i32] {
         let byte_len = count * std::mem::size_of::<i32>();
         let bytes = &self.mmap[offset..offset + byte_len];
-        unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const i32, count) }
+        let (prefix, ints, _) = unsafe { bytes.align_to::<i32>() };
+        debug_assert!(prefix.is_empty(), "mmap data misaligned for i32 at offset {}", offset);
+        &ints[..count]
     }
 
     /// Get tensor data as i64 slice (zero-copy).
@@ -421,7 +437,9 @@ impl MmapReader {
     pub fn as_i64_slice(&self, offset: usize, count: usize) -> &[i64] {
         let byte_len = count * std::mem::size_of::<i64>();
         let bytes = &self.mmap[offset..offset + byte_len];
-        unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const i64, count) }
+        let (prefix, longs, _) = unsafe { bytes.align_to::<i64>() };
+        debug_assert!(prefix.is_empty(), "mmap data misaligned for i64 at offset {}", offset);
+        &longs[..count]
     }
 
     /// Get the raw pointer to the memory-mapped data.

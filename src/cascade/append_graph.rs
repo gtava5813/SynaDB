@@ -141,9 +141,9 @@ impl AppendGraph {
         let mut buf = [0u8; 12]; // 4 + 4 + 4 bytes per edge
 
         while reader.read_exact(&mut buf).is_ok() {
-            let from = u32::from_le_bytes(buf[0..4].try_into().unwrap());
-            let to = u32::from_le_bytes(buf[4..8].try_into().unwrap());
-            let distance = f32::from_le_bytes(buf[8..12].try_into().unwrap());
+            let from = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
+            let to = u32::from_le_bytes([buf[4], buf[5], buf[6], buf[7]]);
+            let distance = f32::from_le_bytes([buf[8], buf[9], buf[10], buf[11]]);
 
             // Add to in-memory index
             self.neighbors.entry(from).or_default().push((to, distance));

@@ -149,14 +149,14 @@ impl MmapVectorStorage {
     /// Load existing data
     fn load_existing(&mut self) -> Result<()> {
         // Validate header
-        let magic = u32::from_le_bytes(self.mmap[0..4].try_into().unwrap());
+        let magic = u32::from_le_bytes([self.mmap[0], self.mmap[1], self.mmap[2], self.mmap[3]]);
         if magic != MMAP_MAGIC {
             return Err(SynaError::CorruptedIndex(
                 "Invalid cascade mmap magic".into(),
             ));
         }
 
-        let dimensions = u16::from_le_bytes(self.mmap[8..10].try_into().unwrap());
+        let dimensions = u16::from_le_bytes([self.mmap[8], self.mmap[9]]);
         if dimensions != self.config.dimensions {
             return Err(SynaError::DimensionMismatch {
                 expected: self.config.dimensions,
@@ -164,8 +164,14 @@ impl MmapVectorStorage {
             });
         }
 
-        let vector_count = u64::from_le_bytes(self.mmap[16..24].try_into().unwrap());
-        let write_offset = u64::from_le_bytes(self.mmap[24..32].try_into().unwrap());
+        let vector_count = u64::from_le_bytes([
+            self.mmap[16], self.mmap[17], self.mmap[18], self.mmap[19],
+            self.mmap[20], self.mmap[21], self.mmap[22], self.mmap[23],
+        ]);
+        let write_offset = u64::from_le_bytes([
+            self.mmap[24], self.mmap[25], self.mmap[26], self.mmap[27],
+            self.mmap[28], self.mmap[29], self.mmap[30], self.mmap[31],
+        ]);
 
         self.vector_count.store(vector_count, Ordering::SeqCst);
         self.write_offset.store(write_offset, Ordering::SeqCst);
@@ -186,8 +192,8 @@ impl MmapVectorStorage {
             let o = offset as usize;
 
             // Read entry: [id: u32][key_len: u16][key][vector]
-            let id = u32::from_le_bytes(self.mmap[o..o + 4].try_into().unwrap());
-            let key_len = u16::from_le_bytes(self.mmap[o + 4..o + 6].try_into().unwrap()) as usize;
+            let id = u32::from_le_bytes([self.mmap[o], self.mmap[o + 1], self.mmap[o + 2], self.mmap[o + 3]]);
+            let key_len = u16::from_le_bytes([self.mmap[o + 4], self.mmap[o + 5]]) as usize;
 
             let key = String::from_utf8(self.mmap[o + 6..o + 6 + key_len].to_vec())
                 .map_err(|_| SynaError::CorruptedIndex("Invalid UTF-8 key".into()))?;
@@ -241,12 +247,11 @@ impl MmapVectorStorage {
         self.mmap[offset + 4..offset + 6].copy_from_slice(&(key_len as u16).to_le_bytes());
         self.mmap[offset + 6..offset + 6 + key_len].copy_from_slice(key_bytes);
 
-        // Write vector (zero-copy via pointer)
+        // Write vector (safe byte-level write)
         let vec_start = offset + 6 + key_len;
-        unsafe {
-            let src = vector.as_ptr() as *const u8;
-            let dst = self.mmap.as_mut_ptr().add(vec_start);
-            std::ptr::copy_nonoverlapping(src, dst, vector.len() * 4);
+        for (i, &val) in vector.iter().enumerate() {
+            let byte_offset = vec_start + i * 4;
+            self.mmap[byte_offset..byte_offset + 4].copy_from_slice(&val.to_le_bytes());
         }
 
         // Update state

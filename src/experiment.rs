@@ -319,7 +319,7 @@ impl ExperimentTracker {
         // Get current timestamp
         let started_at = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs();
 
         // Create run metadata
@@ -436,7 +436,7 @@ impl ExperimentTracker {
         let step_num = step.unwrap_or_else(|| {
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_micros() as u64
         });
 
@@ -628,7 +628,7 @@ impl ExperimentTracker {
         run.ended_at = Some(
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_secs(),
         );
 
