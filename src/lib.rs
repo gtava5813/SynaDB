@@ -38,6 +38,12 @@
 //! - **[`gpu::GpuContext`]** - GPU Direct memory access (optional `gpu` feature)
 //! - **[`faiss_index`](faiss_index/index.html)** - FAISS integration for billion-scale search (optional `faiss` feature)
 //!
+//! ### Decay-Aware Storage (Experimental)
+//! - **[`davo`]** - DAVO: Decay-Aware Value Optimization (optional `davo` feature)
+//!   - [`davo::DAVOAtom`] - Values with decay metadata
+//!   - [`davo::FreshnessIndexV2`] - O(k + log N) staleness queries via Forward Decay
+//!   - [`davo::DecayPredictor`] - Bayesian learning of optimal decay rates
+//!
 //! ### FFI
 //! - **[`ffi`]** - C-ABI interface for Python, Node.js, C++, or any FFI-capable language
 //!
@@ -56,6 +62,7 @@
 //! | [`tensor::TensorEngine`] | Batch tensor operations |
 //! | [`model_registry::ModelRegistry`] | Model versioning with checksums |
 //! | [`experiment::ExperimentTracker`] | Experiment tracking |
+//! | [`davo`] | Decay-aware value optimization (Experimental, `davo` feature) |
 //!
 //! ## Quick Start
 //!
