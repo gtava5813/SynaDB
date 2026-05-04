@@ -23,14 +23,15 @@ SynaDB is an embedded, log-structured, columnar-mapped database engine written i
 
 ## Current Version
 
+**v1.2.0** - DAVO: Decay-Aware Value Optimization (May 2026)
+
+- New optional feature (`--features davo`) adding decay-aware storage
+- Every value carries a decay rate λ, freshness degrades as `e^(-λ × age)`
+- Bayesian learning of optimal decay rates with Thompson Sampling
+- O(k + log N) staleness queries via Forward Decay deadline index
+- 14 FFI functions, Python wrappers, 6 property tests, real-data demo
+
 **v1.1.2** - Internal Audit: Safety & Correctness Hardening (March 2026)
-
-- Unsafe elimination: Safe byte-level mmap writes, `align_to` for slice reinterpretation
-- unwrap() removal: All library-code unwraps replaced with safe alternatives
-- C/C++ demo fixes: Fixed broken function names from old project rename
-- Test hygiene: Removed 46 unnecessary unsafe blocks, deleted empty test file
-
-**v1.1.1** - Security Patch (February 2026)
 
 - Security: Updated 3 Python dependencies to fix critical vulnerabilities
 - Documentation: Fixed markdown linting issues across 10 files

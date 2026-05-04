@@ -136,7 +136,15 @@ from .studio import launch as launch_studio, FLASK_AVAILABLE
 # Import integrations submodule
 from . import integrations
 
-__version__ = "1.1.2"
+# DAVO (Experimental) — only available when library built with --features davo
+try:
+    from .davo import FreshnessIndex as DavoFreshnessIndex
+    from .davo import DecayPredictor as DavoDecayPredictor
+    _DAVO_AVAILABLE = True
+except Exception:
+    _DAVO_AVAILABLE = False
+
+__version__ = "1.2.0"
 
 
 # Lazy imports for integrations
@@ -336,6 +344,28 @@ def get_tpu():
     return tpu
 
 
+def get_davo():
+    """
+    Lazy load DAVO (Decay-Aware Value Optimization) module.
+
+    Requires the SynaDB shared library built with ``--features davo``.
+
+    Returns:
+        The davo module with FreshnessIndex and DecayPredictor classes.
+
+    Raises:
+        ImportError: If the library was not built with the davo feature.
+
+    Example:
+        >>> davo = synadb.get_davo()
+        >>> with davo.FreshnessIndex("idx") as idx:
+        ...     idx.insert("sensor/temp", decay_rate=0.01)
+        ...     print(idx.get_freshness("sensor/temp"))
+    """
+    from . import davo
+    return davo
+
+
 __all__ = [
     "SynaDB",
     "SynaError",
@@ -372,6 +402,7 @@ __all__ = [
     "get_jupyter",
     "get_gpu",
     "get_tpu",
+    "get_davo",
     "launch_studio",
     "FLASK_AVAILABLE",
 ]

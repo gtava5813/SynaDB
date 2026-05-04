@@ -17,10 +17,11 @@ Make SynaDB the **default database for AI/ML applications** - the SQLite of the 
 | v1.0.6 | GWI Persistence Fix | Jan 2026 | ✅ Complete |
 | v1.1.0 | Sparse Vector Store | Jan 2026 | ✅ Complete |
 | v1.1.1 | Security Patch | Feb 2026 | ✅ Complete |
-| v1.1.2 | Safety & Correctness Audit | Mar 2026 | ✅ Current |
-| v1.2.0 | Query Language | - | 📋 Planned |
-| v1.3.0 | Feature Store | - | 📋 Planned |
-| v1.4.0 | Distributed Mode | - | 📋 Planned |
+| v1.1.2 | Safety & Correctness Audit | Mar 2026 | ✅ Complete |
+| v1.2.0 | DAVO: Decay-Aware Value Optimization | May 2026 | ✅ Current |
+| v1.3.0 | Query Language | - | 📋 Planned |
+| v1.4.0 | Feature Store | - | 📋 Planned |
+| v1.5.0 | Distributed Mode | - | 📋 Planned |
 
 ---
 
@@ -115,7 +116,7 @@ See [Changelog](Changelog) for full details.
 
 ---
 
-## v1.1.2 - Safety & Correctness Audit ✅ CURRENT
+## v1.1.2 - Safety & Correctness Audit ✅
 
 **Status:** Released March 20, 2026
 
@@ -164,29 +165,43 @@ See [Changelog](Changelog) for full details.
 
 ---
 
-## v1.2.0 - Query Language 📋
+## v1.2.0 - DAVO: Decay-Aware Value Optimization ✅ CURRENT
 
-**Status:** Planned
+**Released:** May 4, 2026
 
-### Goals
+New optional feature (`--features davo`) adding decay-aware storage where every value carries a decay rate λ and freshness degrades as `e^(-λ × age)`.
+
+### What's Included
+
+- **DAVOAtom** — Values with decay metadata (Static, Decaying, SelfImproving, Thunk)
+- **FreshnessIndexV2** — O(k + log N) staleness queries via Forward Decay deadline index
+- **DecayPredictor** — Bayesian learning of optimal decay rates with Thompson Sampling
+- **OutcomeTracker** — Asymmetric loss tracking (FN weighted 10× over FP)
+- **Thunk/ThunkRegistry** — Lazy evaluation with probation-based garbage collection
+- **FFI** — 14 C-ABI functions for FreshnessIndex and DecayPredictor
+- **Python** — `FreshnessIndex` and `DecayPredictor` ctypes wrappers
+- **Property Tests** — 6 properties (19–24) with 100–200 iterations each
+- **Demos** — Rust, Python synthetic, and Python real-data (Intel Berkeley Lab)
+
+---
+
+## Future
+
+### v1.3.0 - Query Language 📋
 
 - SQL-like syntax (EQL)
 - MongoDB-like syntax (EMQ)
 - Aggregations
 - Time-series operations
 
----
-
-## Future
-
-### v1.3.0 - Feature Store 📋
+### v1.4.0 - Feature Store 📋
 
 - Feature schema definition
 - Point-in-time queries
 - Online serving (<1ms)
 - Training data generation
 
-### v1.4.0 - Distributed Mode 📋
+### v1.5.0 - Distributed Mode 📋
 
 - Multi-node replication
 - Sharding support

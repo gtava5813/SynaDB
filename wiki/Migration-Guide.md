@@ -4,8 +4,48 @@ This guide helps you upgrade SynaDB between major versions.
 
 ## Table of Contents
 
+- [Upgrading from v1.1.2 to v1.2.0](#upgrading-from-v112-to-v120)
 - [Upgrading from v1.1.1 to v1.1.2](#upgrading-from-v111-to-v112)
 - [Upgrading from v1.1.0 to v1.1.1](#upgrading-from-v110-to-v111)
+
+---
+
+## Upgrading from v1.1.2 to v1.2.0
+
+### Overview
+
+v1.2.0 adds DAVO (Decay-Aware Value Optimization) as an optional feature behind `--features davo`. No breaking changes — all v1.1.2 APIs remain fully compatible.
+
+### New Feature: DAVO
+
+DAVO adds decay semantics to stored values. Enable it with:
+
+```bash
+# Rust
+cargo build --features davo
+
+# Python (requires library built with davo feature)
+from synadb.davo import FreshnessIndex, DecayPredictor
+```
+
+### Breaking Changes
+
+None. v1.2.0 is fully backward compatible with v1.1.2.
+
+### Migration Steps
+
+1. Update your dependencies:
+   ```bash
+   pip install --upgrade synadb>=1.2.0
+   ```
+   ```toml
+   [dependencies]
+   synadb = "1.2.0"
+   ```
+
+2. No code changes required — all existing APIs work identically.
+
+3. To use DAVO, add `features = ["davo"]` to your Cargo.toml dependency.
 
 ---
 

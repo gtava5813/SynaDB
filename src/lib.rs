@@ -207,6 +207,7 @@
 //! |---------|-------------|
 //! | `gpu` | Enable GPU Direct memory access (requires CUDA) |
 //! | `faiss` | Enable FAISS integration for billion-scale search |
+//! | `davo` | Enable DAVO: Decay-Aware Value Optimization (Experimental) |
 //! | `async` | Enable async runtime for parallel operations |
 //!
 //! ## Storage Architecture
@@ -221,6 +222,8 @@
 pub mod arch;
 pub mod cascade;
 pub mod compression;
+#[cfg(feature = "davo")]
+pub mod davo;
 pub mod distance;
 pub mod engine;
 pub mod error;
@@ -228,6 +231,8 @@ pub mod experiment;
 #[cfg(feature = "faiss")]
 pub mod faiss_index;
 pub mod ffi;
+#[cfg(feature = "davo")]
+pub mod ffi_davo;
 pub mod ffi_sparse;
 pub mod gpu;
 pub mod gwi;

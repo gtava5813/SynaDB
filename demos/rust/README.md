@@ -49,6 +49,7 @@ cargo run -- --list
 | `concurrent` | `concurrent.rs` | Multi-threaded read/write access |
 | `recovery` | `recovery.rs` | Crash recovery simulation |
 | `tensor_extraction` | `tensor_extraction.rs` | ML-ready float array extraction |
+| `davo_freshness` | `davo_freshness.rs` | Decay-aware value optimization (Experimental) |
 
 ## Demo Details
 
@@ -195,6 +196,26 @@ demos/rust/
 ├── compression.rs          # Compression comparison
 ├── concurrent.rs           # Multi-threaded access
 ├── recovery.rs             # Crash recovery
-└── tensor_extraction.rs    # ML tensor extraction
+├── tensor_extraction.rs    # ML tensor extraction
+└── davo_freshness.rs       # DAVO decay-aware storage (Experimental)
+```
+
+## DAVO: Decay-Aware Value Optimization (Experimental)
+
+DAVO adds decay semantics to stored values. Every value carries a decay rate λ, and freshness degrades over time as `e^(-λ × age)`. This lets the database distinguish between data that goes stale in seconds (sensor readings) and data that stays relevant for hours (model weights) — without manual TTL configuration.
+
+The `davo_freshness` demo covers:
+
+1. **DAVOAtom** — Static vs decaying values with freshness computation
+2. **FreshnessIndexV2** — Scalable staleness queries using Forward Decay (O(k + log N) instead of O(N))
+3. **DecayPredictor** — Bayesian learning of optimal decay rates with Thompson Sampling
+4. **OutcomeTracker** — Asymmetric loss tracking (false negatives 10× worse than false positives)
+5. **SelfImproving** — Atoms that look up learned decay rates from a predictor registry
+
+Requires the `davo` feature flag:
+
+```bash
+# The demos/rust/Cargo.toml already enables it
+cargo run --example davo_freshness
 ```
 

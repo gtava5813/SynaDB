@@ -26,10 +26,6 @@ starter_context.txt
 # Internal docs
 aifactory_needs/
 
-# DAVO (highly experimental - not ready for release)
-src/davo/
-demos/python/synadb/davo/
-
 # Python
 __pycache__/
 *.py[cod]
@@ -46,8 +42,10 @@ venv/
 ENV/
 .synadb-py-win-env/
 
-# Example data (downloaded from HuggingFace)
-demos/python/examples/data/
+# Example data (downloaded at runtime)
+demos/python/examples/data/*
+!demos/python/examples/data/.gitkeep
+!demos/python/examples/data/README.md
 
 # Coverage
 *.gcno

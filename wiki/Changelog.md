@@ -4,6 +4,69 @@ This document contains the complete release history for SynaDB.
 
 ---
 
+## v1.2.0 - DAVO: Decay-Aware Value Optimization
+
+**Date:** May 4, 2026
+**PyPI:** [synadb 1.2.0](https://pypi.org/project/synadb/)
+**Crates.io:** [synadb 1.2.0](https://crates.io/crates/synadb)
+
+### Highlights
+
+- **DAVO** — New optional feature (`--features davo`) adding decay-aware storage
+- **Bayesian Learning** — Automatic decay rate prediction with Thompson Sampling
+- **Forward Decay** — O(k + log N) staleness queries instead of O(N)
+- **Real-Data Demo** — Intel Berkeley Lab sensor dataset (50K readings)
+
+### New Features
+
+#### DAVO Module (`src/davo/`) (Experimental)
+
+Every value can carry a decay rate λ, and freshness degrades over time as `e^(-λ × age_seconds)`. The system learns optimal decay rates automatically from observed data.
+
+**Core Types:**
+
+- `DAVOAtom` — Values with decay metadata (Static, Decaying, SelfImproving, Thunk)
+- `FreshnessIndexV2` — Deadline-based BTreeMap index for scalable staleness queries
+- `DecayPredictor` — Gamma conjugate prior with Thompson Sampling for exploration
+- `OutcomeTracker` — TP/FP/TN/FN classification with asymmetric loss (FN = 10× FP)
+- `Thunk` / `ThunkRegistry` — Lazy evaluation with probation-based garbage collection
+
+**FFI Layer (14 functions):**
+
+- `SYNA_davo_freshness_index_new`, `_insert`, `_get_freshness`, `_query_stale`, `_evict_stale`, `_len`, `_close`, `_free_keys`
+- `SYNA_davo_predictor_new`, `_observe`, `_predict`, `_sample`, `_uncertainty`, `_close`
+
+**Python Wrapper:**
+
+```python
+from synadb.davo import FreshnessIndex, DecayPredictor
+
+with FreshnessIndex("sensors", threshold=0.5) as idx:
+    idx.insert("sensor/temp", decay_rate=0.001)
+    print(idx.get_freshness("sensor/temp"))  # ~1.0
+
+with DecayPredictor("learner") as pred:
+    for _ in range(100):
+        pred.observe(0.05)
+    print(pred.predict())  # ~0.05
+```
+
+**Tests:** 49 total (19 unit + 8 FFI + 7 property + 2 doc + 13 Python)
+
+**Demos:**
+
+- `demos/rust/davo_freshness.rs` — All DAVO components with synthetic data
+- `demos/python/examples/davo_freshness.py` — IoT and cache scenarios
+- `demos/python/examples/davo_intel_lab.py` — Real Intel Berkeley Lab sensor data
+
+### Build
+
+- Feature flag: `cargo build --features davo`
+- Default builds completely unaffected
+- `FreshnessIndex` V1 deprecated in favor of V2
+
+---
+
 ## v1.1.2 - Internal Audit: Safety & Correctness Hardening
 
 **Date:** March 18, 2026  
@@ -178,10 +241,6 @@ Updated `hybrid_rag_bge_m3.py` with:
 - **Interactive Playground** - New web-based playground for validating SynaDB claims
 
 ### New Features
-
-#### DAVO Module (`src/davo/`)
-
-Experimental freshness-aware data primitives for time-sensitive workloads.(It is gitignored for now, you can request access at hello[at]synadb[dot]ai)
 
 #### Interactive Playground (`website/playground.html`)
 

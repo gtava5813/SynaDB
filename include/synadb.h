@@ -1270,6 +1270,164 @@ int32_t svs_save(const char* path, const char* file_path);
  */
 int32_t svs_open(const char* path, const char* file_path);
 
+/* ============================================================================
+ * DAVO Functions (Decay-Aware Value Optimization) — Experimental
+ *
+ * Requires the library to be built with --features davo.
+ * ============================================================================ */
+
+#ifdef SYNA_DAVO
+
+/* ── DAVO Error Codes ─────────────────────────────────────────────── */
+
+/** DAVO operation succeeded */
+#define DAVO_SUCCESS          1
+/** Null pointer argument */
+#define DAVO_ERR_NULL_PTR    -1
+/** Invalid UTF-8 string */
+#define DAVO_ERR_INVALID_UTF8 -2
+/** Registry entry or key not found */
+#define DAVO_ERR_NOT_FOUND   -3
+/** Registry entry already exists */
+#define DAVO_ERR_ALREADY_EXISTS -4
+/** Internal panic */
+#define DAVO_ERR_INTERNAL    -100
+
+/* ── FreshnessIndexV2 ─────────────────────────────────────────────── */
+
+/**
+ * Creates a new FreshnessIndexV2 and registers it under the given path.
+ *
+ * @param path       Unique identifier (registry key)
+ * @param threshold  Staleness threshold in (0,1). Pass 0.0 for default (0.5).
+ * @return           DAVO_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_davo_freshness_index_new(const char* path, double threshold);
+
+/**
+ * Inserts or updates a key in the freshness index.
+ *
+ * @param path        Registry key for the index
+ * @param key         Data key to track
+ * @param decay_rate  Decay rate λ (per second). 0.0 = static (never stale).
+ * @return            DAVO_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_davo_freshness_index_insert(const char* path, const char* key,
+                                          double decay_rate);
+
+/**
+ * Gets the freshness of a key (0.0 – 1.0).
+ *
+ * @param path            Registry key for the index
+ * @param key             Data key to query
+ * @param out_freshness   Pointer to write the freshness value
+ * @return                DAVO_SUCCESS if found, DAVO_ERR_NOT_FOUND otherwise
+ */
+int32_t SYNA_davo_freshness_index_get_freshness(const char* path, const char* key,
+                                                 double* out_freshness);
+
+/**
+ * Queries all stale keys (freshness below threshold).
+ *
+ * @param path       Registry key for the index
+ * @param out_keys   Pointer to write an allocated array of C strings
+ * @param out_count  Pointer to write the number of stale keys
+ * @return           DAVO_SUCCESS on success, error code on failure
+ *
+ * @warning The returned array MUST be freed with SYNA_davo_free_keys()
+ */
+int32_t SYNA_davo_freshness_index_query_stale(const char* path,
+                                               char*** out_keys, size_t* out_count);
+
+/**
+ * Evicts all stale entries from the index.
+ *
+ * @param path       Registry key for the index
+ * @param out_count  Pointer to write the number of evicted entries
+ * @return           DAVO_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_davo_freshness_index_evict_stale(const char* path, size_t* out_count);
+
+/**
+ * Returns the number of tracked keys in the freshness index.
+ *
+ * @param path  Registry key for the index
+ * @return      Number of keys (>= 0), or -1 on error
+ */
+int64_t SYNA_davo_freshness_index_len(const char* path);
+
+/**
+ * Closes and removes a freshness index from the registry.
+ *
+ * @param path  Registry key for the index
+ * @return      DAVO_SUCCESS on success, DAVO_ERR_NOT_FOUND if not open
+ */
+int32_t SYNA_davo_freshness_index_close(const char* path);
+
+/**
+ * Frees an array of C strings returned by SYNA_davo_freshness_index_query_stale().
+ *
+ * @param keys   Pointer returned by query_stale in out_keys
+ * @param count  Count returned by query_stale in out_count
+ */
+void SYNA_davo_free_keys(char** keys, size_t count);
+
+/* ── DecayPredictor ───────────────────────────────────────────────── */
+
+/**
+ * Creates a new DecayPredictor with default Gamma prior and registers it.
+ *
+ * @param path  Unique identifier (registry key)
+ * @return      DAVO_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_davo_predictor_new(const char* path);
+
+/**
+ * Feeds an observed decay rate to update the posterior.
+ *
+ * @param path          Registry key for the predictor
+ * @param actual_decay  Observed decay rate (must be > 0 to update)
+ * @return              DAVO_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_davo_predictor_observe(const char* path, double actual_decay);
+
+/**
+ * Gets the point-estimate prediction (posterior mean α/β).
+ *
+ * @param path            Registry key for the predictor
+ * @param out_prediction  Pointer to write the predicted decay rate
+ * @return                DAVO_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_davo_predictor_predict(const char* path, double* out_prediction);
+
+/**
+ * Samples a decay rate from the posterior (Thompson Sampling).
+ *
+ * @param path        Registry key for the predictor
+ * @param out_sample  Pointer to write the sampled decay rate
+ * @return            DAVO_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_davo_predictor_sample(const char* path, double* out_sample);
+
+/**
+ * Gets the posterior uncertainty (variance α/β²).
+ *
+ * @param path             Registry key for the predictor
+ * @param out_uncertainty  Pointer to write the uncertainty value
+ * @return                 DAVO_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_davo_predictor_uncertainty(const char* path, double* out_uncertainty);
+
+/**
+ * Closes and removes a predictor from the registry.
+ *
+ * @param path  Registry key for the predictor
+ * @return      DAVO_SUCCESS on success, DAVO_ERR_NOT_FOUND if not open
+ */
+int32_t SYNA_davo_predictor_close(const char* path);
+
+#endif /* SYNA_DAVO */
+
 #ifdef __cplusplus
 }
 #endif

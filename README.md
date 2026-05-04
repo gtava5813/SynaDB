@@ -34,6 +34,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 - **Studio Web UI** - Visual database explorer with 3D embedding clusters
 - **GPU Direct** - CUDA tensor loading (optional feature)
 - **FAISS Integration** - Billion-scale vector search (optional feature)
+- **DAVO** - Decay-Aware Value Optimization with Bayesian learning (Experimental, optional feature)
 - **C-ABI interface** - Use from Python, Node.js, C++, or any FFI-capable language
 - **Delta & LZ4 compression** - Minimize storage for time-series data
 - **Crash recovery** - Automatic index rebuild on open
@@ -45,7 +46,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 
 ```toml
 [dependencies]
-synadb = "1.1.2"
+synadb = "1.2.0"
 ```
 
 ### Python

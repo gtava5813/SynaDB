@@ -9,7 +9,7 @@ name = "syna_demos"
 path = "main.rs"
 
 [dependencies]
-synadb = { path = "../.." }
+synadb = { path = "../..", features = ["davo"] }
 
 [[example]]
 name = "basic_crud"
@@ -35,3 +35,7 @@ path = "recovery.rs"
 name = "tensor_extraction"
 path = "tensor_extraction.rs"
 
+
+[[example]]
+name = "davo_freshness"
+path = "davo_freshness.rs"

@@ -25,6 +25,8 @@ SynaDB uses a **modular architecture** where each component is a specialized cla
 | `TensorEngine` | Batch tensor operations | ML data loading |
 | `ModelRegistry` | Model versioning with checksums | Model management |
 | `Experiment` | Experiment tracking | MLOps workflows |
+| `FreshnessIndex` | Decay-aware staleness tracking | IoT, caching, embeddings (Experimental) |
+| `DecayPredictor` | Bayesian decay rate learning | Auto-tuning staleness (Experimental) |
 
 **Why modular?** Each component can be used independently or together, manages its own storage file, and is optimized for its specific workload.
 
