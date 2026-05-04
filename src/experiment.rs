@@ -1028,7 +1028,7 @@ impl ExperimentTracker {
         }
 
         // Sort by start time (newest first)
-        runs.sort_by(|a: &Run, b: &Run| b.started_at.cmp(&a.started_at));
+        runs.sort_by_key(|r| std::cmp::Reverse(r.started_at));
         Ok(runs)
     }
 }
