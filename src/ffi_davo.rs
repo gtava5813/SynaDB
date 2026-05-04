@@ -76,10 +76,7 @@ unsafe fn cstr_to_str(ptr: *const c_char) -> Option<&'static str> {
 /// # Returns
 /// `DAVO_SUCCESS` on success, or an error code.
 #[no_mangle]
-pub extern "C" fn SYNA_davo_freshness_index_new(
-    path: *const c_char,
-    threshold: c_double,
-) -> c_int {
+pub extern "C" fn SYNA_davo_freshness_index_new(path: *const c_char, threshold: c_double) -> c_int {
     std::panic::catch_unwind(|| {
         let path = match unsafe { cstr_to_str(path) } {
             Some(p) => p,

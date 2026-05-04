@@ -40,7 +40,11 @@ fn test_freshness_index_lifecycle() {
         &mut freshness as *mut f64,
     );
     assert_eq!(rc, DAVO_SUCCESS);
-    assert!(freshness > 0.99, "freshness should be ~1.0, got {}", freshness);
+    assert!(
+        freshness > 0.99,
+        "freshness should be ~1.0, got {}",
+        freshness
+    );
 
     // Len should be 1
     let len = SYNA_davo_freshness_index_len(path.as_ptr());
