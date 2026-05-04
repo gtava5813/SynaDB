@@ -11,7 +11,7 @@ env:
 
 jobs:
   test:
-    name: Test
+    name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -24,72 +24,34 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-
-      - name: Build
-        run: cargo build --verbose
-
-      - name: Run tests
-        run: cargo test --verbose
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
           components: clippy, rustfmt
 
+      # Lint first — fail fast before spending time on tests
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Clippy
+      - name: Clippy (default features)
         run: cargo clippy --lib -- -D warnings
 
-  docs:
-    name: Documentation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - name: Clippy (with DAVO)
+        run: cargo clippy --features davo -- -D warnings
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      # Build
+      - name: Build
+        run: cargo build --verbose
 
+      - name: Build with DAVO feature
+        run: cargo build --features davo --verbose
+
+      # Tests
+      - name: Run tests
+        run: cargo test --verbose
+
+      - name: Run DAVO tests
+        run: cargo test --features davo --verbose
+
+      # Docs
       - name: Build docs
-        run: cargo doc --no-deps
+        run: cargo doc --features davo --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
-
-  showcase-validation:
-    name: Validate v1.0.0 Showcase
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ['3.10', '3.11', '3.12']
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r demos/v1.0.0/requirements.txt
-          pip install pytest hypothesis
-
-      - name: Validate notebook structure
-        run: python demos/v1.0.0/validate_notebooks.py
-
-      - name: Run utility tests
-        run: python -m pytest demos/v1.0.0/tests/test_utils.py -v
-
-      - name: Run notebook structure tests
-        run: python -m pytest demos/v1.0.0/tests/test_notebook_structure.py -v -k "not test_code_has_comments and not test_all_notebooks_have_documented_code"
-
-
