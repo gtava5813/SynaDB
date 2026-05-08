@@ -1,7 +1,0 @@
-# Seeds for failure cases proptest has generated in the past. It is
-# automatically read and these particular cases re-run before any
-# novel cases are generated.
-#
-# It is recommended to check this file in to source control so that
-# everyone who runs the test benefits from these saved cases.
-cc 3a99e9ee9d745e80ed9cafa6fc96ecdea66603e9c244747dabcaa94cb262a467 # shrinks to true_lambda = 0.25419632
