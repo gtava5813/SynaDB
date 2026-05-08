@@ -90,6 +90,13 @@ enum Commands {
         /// Path to database
         path: String,
     },
+    /// Execute an EQL query (SQL-like syntax)
+    Query {
+        /// Path to database
+        path: String,
+        /// EQL query string (e.g., SELECT * FROM "sensor/*" WHERE value > 10)
+        query: String,
+    },
 }
 
 fn main() {
@@ -117,6 +124,7 @@ fn main() {
             output,
         } => cmd_export(&path, &format, &output),
         Commands::Compact { path } => cmd_compact(&path),
+        Commands::Query { path, query } => cmd_query(&path, &query),
     };
 
     if let Err(e) = result {
@@ -670,4 +678,70 @@ fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
                 .map_err(|_| format!("Invalid hex at position {}", i).into())
         })
         .collect()
+}
+
+/// Execute an EQL query against the database
+fn cmd_query(path: &str, query: &str) -> Result<(), Box<dyn std::error::Error>> {
+    use synadb::query::executor::QueryExecutor;
+    use synadb::query::optimizer::optimize;
+    use synadb::query::parser::parse_eql;
+    use synadb::query::planner::QueryPlan;
+
+    if !Path::new(path).exists() {
+        return Err(format!("Database not found: {}", path).into());
+    }
+
+    let mut db = SynaDB::new(path)?;
+
+    // Parse
+    let ast = parse_eql(query).map_err(|e| format!("Parse error: {}", e))?;
+
+    // Plan
+    let total_keys = db.keys().len() as u64;
+    let mut plan =
+        QueryPlan::from_ast(&ast, total_keys).map_err(|e| format!("Plan error: {}", e))?;
+
+    // Optimize
+    let optimizations = optimize(&mut plan);
+
+    // Execute
+    let mut executor = QueryExecutor::new(&mut db);
+    let result = executor.execute(plan).map_err(|e| format!("Execution error: {}", e))?;
+
+    // Output results
+    println!("┌─────────────────────────────────────────────────────────────┐");
+    println!("│ Query Results                                                │");
+    println!("├─────────────────────────────────────────────────────────────┤");
+
+    if result.rows.is_empty() {
+        println!("│ (no results)                                                 │");
+    } else {
+        for row in &result.rows {
+            let value_str = format_atom(&row.value);
+            println!("│ {:30} │ {:>26} │", row.key, value_str);
+        }
+    }
+
+    println!("├─────────────────────────────────────────────────────────────┤");
+    println!(
+        "│ {} rows returned, {} scanned in {}μs{}│",
+        result.metadata.rows_returned,
+        result.metadata.rows_scanned,
+        result.metadata.execution_time_us,
+        if result.metadata.index_used {
+            " (index used) "
+        } else {
+            "              "
+        }
+    );
+    if !optimizations.is_empty() {
+        println!(
+            "│ Optimizations: {:44}│",
+            optimizations.join(", ")
+        );
+    }
+    println!("└─────────────────────────────────────────────────────────────┘");
+
+    db.close()?;
+    Ok(())
 }

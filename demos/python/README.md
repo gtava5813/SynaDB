@@ -27,6 +27,7 @@ SynaDB uses a **modular architecture** where each component is a specialized cla
 | `Experiment` | Experiment tracking | MLOps workflows |
 | `FreshnessIndex` | Decay-aware staleness tracking | IoT, caching, embeddings (Experimental) |
 | `DecayPredictor` | Bayesian decay rate learning | Auto-tuning staleness (Experimental) |
+| `query` | SQL-like query language (EQL) | Declarative data access, aggregations, analytics |
 
 **Why modular?** Each component can be used independently or together, manages its own storage file, and is optimized for its specific workload.
 

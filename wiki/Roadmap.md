@@ -19,8 +19,8 @@ Make SynaDB the **default database for AI/ML applications** - the SQLite of the 
 | v1.1.1 | Security Patch | Feb 2026 | ✅ Complete |
 | v1.1.2 | Safety & Correctness Audit | Mar 2026 | ✅ Complete |
 | v1.2.0 | DAVO: Decay-Aware Value Optimization | May 2026 | ✅ Complete |
-| v1.2.1 | Security + DAVO Persistence | May 2026 | ✅ Current |
-| v1.3.0 | Query Language | - | 📋 Planned |
+| v1.2.1 | Security + DAVO Persistence | May 2026 | ✅ Complete |
+| v1.3.0 | Query Language (EQL/EMQ) | May 2026 | ✅ Current |
 | v1.4.0 | Feature Store | - | 📋 Planned |
 | v1.5.0 | Distributed Mode | - | 📋 Planned |
 
@@ -188,12 +188,31 @@ New optional feature (`--features davo`) adding decay-aware storage where every 
 
 ## Future
 
-### v1.3.0 - Query Language 📋
+### v1.3.0 - Syna Query Language ✅ CURRENT
 
-- SQL-like syntax (EQL)
-- MongoDB-like syntax (EMQ)
-- Aggregations
-- Time-series operations
+**Released:** May 2026
+
+Full SQL-like (EQL) and MongoDB-like (EMQ) query language with advanced analytics:
+
+- **EQL Parser** — SELECT, FROM, WHERE, ORDER BY, LIMIT/OFFSET, GROUP BY, EXPLAIN
+- **EMQ Parser** — JSON filter documents with $eq/$ne/$gt/$gte/$lt/$lte/$in/$nin/$regex/$and/$or/$not
+- **Query Planner** — Scan type selection (IndexExact, IndexPrefix, PatternScan, FullScan), cost estimation
+- **Query Optimizer** — Predicate pushdown, limit propagation, filter reordering
+- **Query Executor** — Full pipeline with metadata (execution time, rows scanned, index used)
+- **Aggregation Engine** — COUNT, SUM, AVG, MIN, MAX, FIRST, LAST with GROUP BY key/time bucket
+- **Time-Series Ops** — DIFF, RATE, MOVING_AVG, RESAMPLE (linear interpolation)
+- **Temporal Joins** — Exact, ASOF (with tolerance), Interpolated, ForwardFill
+- **Anomaly Detection** — Z-score, IQR, Moving Average Deviation
+- **Pattern Matching** — Spike, Dip, Rising, Falling, Plateau detection
+- **Predictive Queries** — Linear regression, Exponential Smoothing, Moving Average with confidence intervals
+- **Correlation Analysis** — Pearson, Cross-correlation with lag, Find Correlated
+- **Streaming Windows** — Tumbling, Sliding, Session, Count-based
+- **Query Explanation** — EXPLAIN with plan tree and cost estimates
+- **Query Macros** — User-defined reusable query patterns with defaults
+- **Data Lineage** — Track provenance and transformations
+- **FFI** — SYNA_query_eql, SYNA_query_emq, SYNA_query_free_result
+- **CLI** — `syna query mydb.db "SELECT * FROM 'sensor/*' WHERE value > 30"`
+- **320 tests** — 99 query-specific + 221 existing, zero clippy warnings
 
 ### v1.4.0 - Feature Store 📋
 

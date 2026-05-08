@@ -23,6 +23,13 @@ SynaDB is an embedded, log-structured, columnar-mapped database engine written i
 
 ## Current Version
 
+**v1.3.0** - Syna Query Language (May 2026)
+
+- SQL-like (EQL) and MongoDB-like (EMQ) query interfaces
+- Aggregations, temporal joins, anomaly detection, pattern matching, predictions, correlation
+- CLI: `syna query mydb.db "SELECT * FROM 'sensor/*' WHERE value > 30"`
+- 18 submodules, 320 tests, zero clippy warnings
+
 **v1.2.1** - Security Hardening + DAVO Persistence (May 2026)
 
 - Attribution: project owned by Mindoval, Inc

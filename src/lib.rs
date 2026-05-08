@@ -44,6 +44,16 @@
 //!   - [`davo::FreshnessIndexV2`] - O(k + log N) staleness queries via Forward Decay
 //!   - [`davo::DecayPredictor`] - Bayesian learning of optimal decay rates
 //!
+//! ### Query Language
+//! - **[`query`]** - SQL-like (EQL) and MongoDB-like (EMQ) query interface
+//!   - [`query::parser`] - EQL parser (SELECT, WHERE, ORDER BY, GROUP BY, EXPLAIN)
+//!   - [`query::emq_parser`] - EMQ parser (JSON filter documents)
+//!   - [`query::executor`] - Full query execution pipeline
+//!   - [`query::anomaly`] - Built-in anomaly detection (Z-score, IQR)
+//!   - [`query::temporal_join`] - Temporal joins (ASOF, interpolated, forward-fill)
+//!   - [`query::predict`] - Predictive queries (linear, exponential smoothing)
+//!   - [`query::correlation`] - Correlation analysis (Pearson, cross-correlation)
+//!
 //! ### FFI
 //! - **[`ffi`]** - C-ABI interface for Python, Node.js, C++, or any FFI-capable language
 //!
@@ -63,6 +73,7 @@
 //! | [`model_registry::ModelRegistry`] | Model versioning with checksums |
 //! | [`experiment::ExperimentTracker`] | Experiment tracking |
 //! | [`davo`] | Decay-aware value optimization (Experimental, `davo` feature) |
+//! | [`query`] | SQL-like (EQL) and MongoDB-like (EMQ) query language |
 //!
 //! ## Quick Start
 //!
@@ -247,6 +258,7 @@ pub mod hnsw;
 pub mod mmap;
 pub mod mmap_vector;
 pub mod model_registry;
+pub mod query;
 pub mod sparse_vector;
 pub mod sparse_vector_store;
 pub mod tensor;
@@ -290,6 +302,9 @@ pub use sparse_vector::SparseVector;
 
 // Re-export Sparse Vector Store for inverted index retrieval
 pub use sparse_vector_store::{SparseIndexStats, SparseSearchResult, SparseVectorStore};
+
+// Re-export Syna Query types (Task 1)
+pub use query::{ParseError as QueryParseError, QueryAst, QueryError, QueryResult};
 
 // Re-export model registry types
 pub use model_registry::{ModelRegistry, ModelStage, ModelVersion};

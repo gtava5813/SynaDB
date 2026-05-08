@@ -35,6 +35,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 - **GPU Direct** - CUDA tensor loading (optional feature)
 - **FAISS Integration** - Billion-scale vector search (optional feature)
 - **DAVO** - Decay-Aware Value Optimization with Bayesian learning (Experimental, optional feature)
+- **Syna Query (EQL)** - SQL-like query language with aggregations, temporal joins, anomaly detection, pattern matching, predictions, and correlation analysis
 - **C-ABI interface** - Use from Python, Node.js, C++, or any FFI-capable language
 - **Delta & LZ4 compression** - Minimize storage for time-series data
 - **Crash recovery** - Automatic index rebuild on open
@@ -46,7 +47,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 
 ```toml
 [dependencies]
-synadb = "1.2.1"
+synadb = "1.3.0"
 ```
 
 ### Python
@@ -909,6 +910,49 @@ best_baseline = exp.query(
     ascending=False
 )
 ```
+
+## Query Language (EQL)
+
+SynaDB includes a built-in SQL-like query language for declarative data access:
+
+```sql
+-- Basic SELECT with pattern matching
+SELECT * FROM 'sensor/*' WHERE value > 30 ORDER BY value DESC LIMIT 10
+
+-- Aggregations
+SELECT COUNT(*), AVG(value), MIN(value), MAX(value) FROM 'sensor/*'
+
+-- Group by time bucket
+SELECT AVG(value) FROM 'sensor/temp' GROUP BY HOUR
+
+-- Query via CLI
+syna query mydata.db "SELECT * FROM 'sensor/*' WHERE value > 100"
+```
+
+Also supports MongoDB-like JSON queries (EMQ):
+
+```json
+{
+  "from": "sensor/*",
+  "filter": { "value": { "$gt": 30 } },
+  "sort": { "value": -1 },
+  "limit": 10
+}
+```
+
+### Advanced Features
+
+| Feature | Example |
+|---------|---------|
+| Temporal Joins | `A TEMPORAL JOIN B ASOF WITHIN 5m` |
+| Anomaly Detection | `WHERE ANOMALY(value, ZSCORE(3.0))` |
+| Pattern Matching | `WHERE MATCHES_PATTERN(value, 'SPIKE(threshold=10)')` |
+| Predictions | `SELECT PREDICT(value, LINEAR, horizon=24)` |
+| Correlation | `FIND_CORRELATED("sensor/temp", "sensor/*", min_correlation=0.8)` |
+| Streaming | `CREATE STREAM ... WINDOW TUMBLING(5 MINUTES)` |
+| Query Macros | `DEFINE MACRO recent_avg(pattern, duration DEFAULT '1h')` |
+| Data Lineage | `SELECT LINEAGE("sensor/temp/processed")` |
+| EXPLAIN | `EXPLAIN SELECT * FROM 'sensor/*'` |
 
 ## Data Types
 

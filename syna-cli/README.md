@@ -276,6 +276,59 @@ Compaction complete
 
 ---
 
+### `query` - Execute EQL Query
+
+Run SQL-like queries against the database using the Syna Query Language (EQL).
+
+```bash
+syna query <database> "<query>"
+```
+
+**Examples:**
+
+```bash
+# Select all sensor keys
+$ syna query mydb.db "SELECT * FROM 'sensor/*'"
+┌─────────────────────────────────────────────────────────────┐
+│ Query Results                                                │
+├─────────────────────────────────────────────────────────────┤
+│ sensor/temp                    │               23.5 (float) │
+│ sensor/humidity                │                 45 (float) │
+│ sensor/pressure                │            1013.25 (float) │
+├─────────────────────────────────────────────────────────────┤
+│ 3 rows returned, 3 scanned in 45μs (index used)             │
+└─────────────────────────────────────────────────────────────┘
+
+# Filter and sort
+$ syna query mydb.db "SELECT * FROM 'sensor/*' WHERE value > 30 ORDER BY value DESC"
+
+# Aggregations
+$ syna query mydb.db "SELECT COUNT(*), AVG(value), MIN(value), MAX(value) FROM 'sensor/*'"
+
+# Group by time bucket
+$ syna query mydb.db "SELECT AVG(value) FROM 'sensor/*' GROUP BY HOUR"
+
+# Limit results
+$ syna query mydb.db "SELECT * FROM 'sensor/*' LIMIT 5"
+
+# EXPLAIN shows query plan and optimizations
+$ syna query mydb.db "EXPLAIN SELECT * FROM 'sensor/*' WHERE value > 100 LIMIT 10"
+```
+
+**Supported EQL syntax:**
+- `SELECT` projections: `*`, `key`, `value`, `timestamp`
+- `FROM` with key patterns: `'exact_key'`, `'prefix/*'`, `'glob?pattern'`
+- `WHERE` with comparisons: `=`, `!=`, `>`, `>=`, `<`, `<=`, `IN`, `NOT IN`, `LIKE`
+- `WHERE` with boolean logic: `AND`, `OR`, `NOT`, parentheses
+- `WHERE` with time ranges: `timestamp BETWEEN <start> AND <end>`
+- `ORDER BY` field `ASC`/`DESC`
+- `LIMIT` and `OFFSET`
+- Aggregates: `COUNT(*)`, `SUM(value)`, `AVG(value)`, `MIN(value)`, `MAX(value)`, `FIRST(value)`, `LAST(value)`
+- `GROUP BY` key or time bucket (`MINUTE`, `HOUR`, `DAY`, `WEEK`, `MONTH`)
+- `EXPLAIN` wrapper for query plan inspection
+
+---
+
 ## Data Types
 
 SynaDB supports the following data types:
