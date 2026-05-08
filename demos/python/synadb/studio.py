@@ -659,32 +659,49 @@ def launch(db_path: str, port: int = 8501, debug: bool = False) -> None:
 
     @app.route('/api/run_integration', methods=['POST'])
     def api_run_integration():
-        import subprocess, os
+        import logging
+        import re
+        import subprocess
+        import os
+        logger = logging.getLogger(__name__)
+
         data = request.json
-        name = data.get('name')
-        
+        name = data.get('name', '')
+
+        # Validate: only allow simple identifiers (letters, digits, underscores)
+        # to prevent path traversal (e.g., "../etc/passwd")
+        if not name or not re.fullmatch(r'[a-zA-Z0-9_]+', name):
+            return jsonify({'output': 'Error: Invalid integration name.'}), 400
+
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        script_path = os.path.join(current_dir, 'integrations', name + '.py')
-        
-        if not os.path.exists(script_path):
-            return jsonify({'output': f'Error: File not found at {script_path}'}), 404
+        integrations_dir = os.path.join(current_dir, 'integrations')
+        script_path = os.path.join(integrations_dir, name + '.py')
+
+        # Defense in depth: ensure the resolved path is still inside integrations_dir
+        resolved = os.path.realpath(script_path)
+        if not resolved.startswith(os.path.realpath(integrations_dir) + os.sep):
+            return jsonify({'output': 'Error: Invalid integration name.'}), 400
+
+        if not os.path.exists(resolved):
+            return jsonify({'output': 'Error: Integration not found.'}), 404
 
         try:
             # Run the script and capture output
             # We use a timeout to prevent hanging
             result = subprocess.run(
-                ['python', script_path], 
-                capture_output=True, 
-                text=True, 
+                ['python', resolved],
+                capture_output=True,
+                text=True,
                 timeout=15,
-                cwd=current_dir # Run in module dir
+                cwd=current_dir  # Run in module dir
             )
             output = f"Exit Code: {result.returncode}\n\n[STDOUT]\n{result.stdout}\n\n[STDERR]\n{result.stderr}"
             return jsonify({'output': output})
         except subprocess.TimeoutExpired:
             return jsonify({'output': 'Error: Execution timed out after 15s.'})
-        except Exception as e:
-            return jsonify({'output': f'Error executing script: {str(e)}'})
+        except Exception:
+            logger.exception("Error executing integration script")
+            return jsonify({'output': 'Error: Failed to execute integration.'}), 500
 
     @app.route('/api/keys')
     def api_keys():
@@ -756,8 +773,10 @@ def launch(db_path: str, port: int = 8501, debug: bool = False) -> None:
             return jsonify({'points': points})
         except ImportError:
             return jsonify({'error': 'numpy required', 'points': []})
-        except Exception as e:
-            return jsonify({'error': str(e), 'points': []})
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("Error computing vector projection")
+            return jsonify({'error': 'Failed to compute projection', 'points': []})
 
     print(f"\\n  Syna Studio V2: http://localhost:{port}")
     app.run(host='0.0.0.0', port=port, debug=debug)

@@ -33,7 +33,9 @@
 //!
 //! Where k = number of stale entries.
 
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::path::Path;
 
 /// Scalable freshness index with deadline-based staleness queries
 #[derive(Debug)]
@@ -49,12 +51,24 @@ pub struct FreshnessIndexV2 {
     threshold: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct FreshnessEntry {
     stored_at: u64,
     decay_rate: f32,
     deadline: u64,
 }
+
+/// On-disk representation of a [`FreshnessIndexV2`].
+///
+/// Persisted with bincode. Version field allows future format migrations.
+#[derive(Debug, Serialize, Deserialize)]
+struct PersistedIndex {
+    version: u32,
+    threshold: f32,
+    entries: Vec<(String, FreshnessEntry)>,
+}
+
+const PERSIST_VERSION: u32 = 1;
 
 impl FreshnessIndexV2 {
     /// Create a new freshness index with default threshold (0.5)
@@ -245,6 +259,56 @@ impl FreshnessIndexV2 {
         } else {
             false
         }
+    }
+
+    /// Save the index to disk using bincode.
+    ///
+    /// Persists threshold and all entries (stored_at, decay_rate, deadline).
+    /// The in-memory BTreeMap is rebuilt from entries on [`load`](Self::load).
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()> {
+        let persisted = PersistedIndex {
+            version: PERSIST_VERSION,
+            threshold: self.threshold,
+            entries: self
+                .entries
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
+        };
+        let bytes = bincode::serialize(&persisted)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        std::fs::write(path, bytes)
+    }
+
+    /// Load an index from disk.
+    ///
+    /// Rebuilds the deadline BTreeMap from the persisted entries so that
+    /// staleness queries work immediately after load.
+    pub fn load<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
+        let bytes = std::fs::read(path)?;
+        let persisted: PersistedIndex = bincode::deserialize(&bytes)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+
+        if persisted.version != PERSIST_VERSION {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "unsupported FreshnessIndexV2 persist version: {} (expected {})",
+                    persisted.version, PERSIST_VERSION
+                ),
+            ));
+        }
+
+        let mut index = Self::with_threshold(persisted.threshold);
+        for (key, entry) in persisted.entries {
+            index
+                .deadline_index
+                .entry(entry.deadline)
+                .or_default()
+                .insert(key.clone());
+            index.entries.insert(key, entry);
+        }
+        Ok(index)
     }
 
     /// Compute deadline when entry becomes stale

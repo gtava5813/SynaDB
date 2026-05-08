@@ -202,7 +202,9 @@ def main():
     
     # Configuration
     DB_PATH = os.path.abspath("inference_demo.db")
-    MODEL_FILE = tempfile.mktemp(suffix=".pt")
+    # Create secure temp file (atomic, no race condition)
+    _model_fd, MODEL_FILE = tempfile.mkstemp(suffix=".pt")
+    os.close(_model_fd)
     NUM_TEST_SAMPLES = 100
     NUM_BENCHMARK_RUNS = 3  # Reduced for faster demo
     

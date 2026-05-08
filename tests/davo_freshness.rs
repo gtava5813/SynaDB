@@ -76,3 +76,47 @@ proptest! {
         prop_assert_eq!(index.len(), num_slow, "Only static keys should remain");
     }
 }
+
+// ── Property 25: Persistence Round-Trip ──────────────────────────────
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(50))]
+
+    /// **Property 25: FreshnessIndexV2 Persistence Round-Trip**
+    ///
+    /// Save → Load produces an index with identical len(), threshold,
+    /// and freshness values for all keys.
+    #[test]
+    fn prop_persistence_roundtrip(
+        entries in prop::collection::vec(
+            ("[a-z]{1,8}", 0.0001f32..10.0f32),
+            1..20
+        ),
+        threshold in 0.1f32..0.9f32,
+    ) {
+        let mut original = FreshnessIndexV2::with_threshold(threshold);
+        for (key, rate) in &entries {
+            original.insert(key, *rate);
+        }
+
+        let tmpdir = tempfile::tempdir().unwrap();
+        let file = tmpdir.path().join("freshness.bin");
+
+        original.save(&file).unwrap();
+        let loaded = FreshnessIndexV2::load(&file).unwrap();
+
+        prop_assert_eq!(loaded.len(), original.len());
+        prop_assert_eq!(loaded.threshold(), original.threshold());
+
+        // Every key in original should exist in loaded with same freshness
+        // (within float tolerance — a few micros of clock drift between calls)
+        for (key, _) in &entries {
+            let orig_fresh = original.get_freshness(key);
+            let loaded_fresh = loaded.get_freshness(key);
+            prop_assert_eq!(orig_fresh.is_some(), loaded_fresh.is_some());
+            if let (Some(o), Some(l)) = (orig_fresh, loaded_fresh) {
+                prop_assert!((o - l).abs() < 0.01, "freshness diverged: {} vs {}", o, l);
+            }
+        }
+    }
+}

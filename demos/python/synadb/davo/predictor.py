@@ -101,6 +101,12 @@ def _load_library():
     lib.SYNA_davo_predictor_close.argtypes = [c_char_p]
     lib.SYNA_davo_predictor_close.restype = c_int32
 
+    lib.SYNA_davo_predictor_save.argtypes = [c_char_p, c_char_p]
+    lib.SYNA_davo_predictor_save.restype = c_int32
+
+    lib.SYNA_davo_predictor_load.argtypes = [c_char_p, c_char_p]
+    lib.SYNA_davo_predictor_load.restype = c_int32
+
     return lib
 
 
@@ -195,6 +201,42 @@ class DecayPredictor:
         if not self._closed:
             self._lib.SYNA_davo_predictor_close(self._path)
             self._closed = True
+
+    def save(self, file_path: str) -> None:
+        """Save the predictor state to disk.
+
+        Args:
+            file_path: Path to write the persisted predictor to.
+        """
+        rc = self._lib.SYNA_davo_predictor_save(
+            self._path, file_path.encode("utf-8")
+        )
+        if rc != DAVO_SUCCESS:
+            raise DavoError(rc, f"Failed to save predictor to '{file_path}'")
+
+    @classmethod
+    def load(cls, path: str, file_path: str) -> "DecayPredictor":
+        """Load a persisted predictor from disk.
+
+        Args:
+            path: Unique identifier to register the loaded predictor under.
+            file_path: Path to read the persisted predictor from.
+
+        Returns:
+            A DecayPredictor bound to the loaded data.
+        """
+        lib = _get_lib()
+        rc = lib.SYNA_davo_predictor_load(
+            path.encode("utf-8"), file_path.encode("utf-8")
+        )
+        if rc != DAVO_SUCCESS:
+            raise DavoError(rc, f"Failed to load predictor from '{file_path}'")
+
+        instance = cls.__new__(cls)
+        instance._lib = lib
+        instance._path = path.encode("utf-8")
+        instance._closed = False
+        return instance
 
     def __enter__(self) -> "DecayPredictor":
         return self

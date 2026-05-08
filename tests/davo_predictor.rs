@@ -63,3 +63,33 @@ proptest! {
         );
     }
 }
+
+// ── Property 26: Predictor Persistence Round-Trip ────────────────────
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(50))]
+
+    /// **Property 26: DecayPredictor Persistence Round-Trip**
+    ///
+    /// Save → Load produces a predictor with identical prediction,
+    /// uncertainty, and observation count.
+    #[test]
+    fn prop_predictor_persistence(
+        observations in prop::collection::vec(0.0001f32..1.0f32, 1..100),
+    ) {
+        let mut original = DecayPredictor::new();
+        for obs in &observations {
+            original.observe(*obs);
+        }
+
+        let tmpdir = tempfile::tempdir().unwrap();
+        let file = tmpdir.path().join("predictor.bin");
+
+        original.save(&file).unwrap();
+        let loaded = DecayPredictor::load(&file).unwrap();
+
+        prop_assert!((loaded.predict() - original.predict()).abs() < 1e-6);
+        prop_assert!((loaded.uncertainty() - original.uncertainty()).abs() < 1e-6);
+        prop_assert_eq!(loaded.observations(), original.observations());
+    }
+}

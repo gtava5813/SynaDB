@@ -110,6 +110,12 @@ def _load_library():
     lib.SYNA_davo_freshness_index_close.argtypes = [c_char_p]
     lib.SYNA_davo_freshness_index_close.restype = c_int32
 
+    lib.SYNA_davo_freshness_index_save.argtypes = [c_char_p, c_char_p]
+    lib.SYNA_davo_freshness_index_save.restype = c_int32
+
+    lib.SYNA_davo_freshness_index_load.argtypes = [c_char_p, c_char_p]
+    lib.SYNA_davo_freshness_index_load.restype = c_int32
+
     lib.SYNA_davo_free_keys.argtypes = [POINTER(c_char_p), c_size_t]
     lib.SYNA_davo_free_keys.restype = None
 
@@ -233,6 +239,43 @@ class FreshnessIndex:
         if not self._closed:
             self._lib.SYNA_davo_freshness_index_close(self._path)
             self._closed = True
+
+    def save(self, file_path: str) -> None:
+        """Save the index to disk.
+
+        Args:
+            file_path: Path to write the persisted index to.
+        """
+        rc = self._lib.SYNA_davo_freshness_index_save(
+            self._path, file_path.encode("utf-8")
+        )
+        if rc != DAVO_SUCCESS:
+            raise DavoError(rc, f"Failed to save index to '{file_path}'")
+
+    @classmethod
+    def load(cls, path: str, file_path: str) -> "FreshnessIndex":
+        """Load a persisted index from disk.
+
+        Args:
+            path: Unique identifier to register the loaded index under.
+            file_path: Path to read the persisted index from.
+
+        Returns:
+            A FreshnessIndex bound to the loaded data.
+        """
+        lib = _get_lib()
+        rc = lib.SYNA_davo_freshness_index_load(
+            path.encode("utf-8"), file_path.encode("utf-8")
+        )
+        if rc != DAVO_SUCCESS:
+            raise DavoError(rc, f"Failed to load index from '{file_path}'")
+
+        # Construct without calling __init__ (index is already in registry)
+        instance = cls.__new__(cls)
+        instance._lib = lib
+        instance._path = path.encode("utf-8")
+        instance._closed = False
+        return instance
 
     def __enter__(self) -> "FreshnessIndex":
         return self

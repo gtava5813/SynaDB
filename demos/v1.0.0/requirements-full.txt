@@ -118,7 +118,7 @@ gymnasium>=0.29.0,<1.0.0
 hypothesis>=6.90.0,<7.0.0
 
 # Testing framework
-pytest>=7.4.0,<8.0.0
+pytest>=9.0.3
 
 # Notebook testing
 nbval>=0.10.0,<1.0.0

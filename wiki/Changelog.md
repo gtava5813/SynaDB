@@ -4,6 +4,72 @@ This document contains the complete release history for SynaDB.
 
 ---
 
+## v1.2.1 - Security Hardening + DAVO Persistence
+
+**Date:** May 7, 2026
+**PyPI:** [synadb 1.2.1](https://pypi.org/project/synadb/)
+**Crates.io:** [synadb 1.2.1](https://crates.io/crates/synadb)
+
+### Attribution
+
+SynaDB is owned and maintained by **Mindoval, Inc**. Updated Licensor, Cargo.toml authors, pyproject.toml, and release workflow accordingly.
+
+### Security Fixes
+
+**Dependabot (1 alert):**
+
+- Bumped pytest to `>=9.0.3` in 4 files (fixes tmpdir handling vulnerability)
+
+**CodeQL (13 alerts):**
+
+| Category | Count | Fix |
+|----------|-------|-----|
+| Workflow permissions | 1 | Added `permissions: contents: read` to `ci.yml` |
+| Path injection | 1 | Validated user input against `[a-zA-Z0-9_]+` regex + realpath containment check in `studio.py` |
+| Insecure temp file | 1 | Replaced `tempfile.mktemp` with `mkstemp` in `inference_demo.py` |
+| Stack trace exposure | 10 | Replaced `str(e)` in API responses with generic messages + proper logging (2 in `studio.py`, 8 in `flask_app.py`) |
+
+### New Feature: DAVO Persistence
+
+DAVO indexes and predictors can now persist to disk.
+
+**Rust API:**
+
+```rust
+// Save
+index.save("freshness.bin")?;
+predictor.save("predictor.bin")?;
+
+// Load
+let index = FreshnessIndexV2::load("freshness.bin")?;
+let predictor = DecayPredictor::load("predictor.bin")?;
+```
+
+**Python API:**
+
+```python
+from synadb.davo import FreshnessIndex, DecayPredictor
+
+# Save
+idx.save("freshness.bin")
+pred.save("predictor.bin")
+
+# Load
+idx = FreshnessIndex.load("my_index", "freshness.bin")
+pred = DecayPredictor.load("my_pred", "predictor.bin")
+```
+
+**FFI Functions (4 new):**
+
+- `SYNA_davo_freshness_index_save`, `SYNA_davo_freshness_index_load`
+- `SYNA_davo_predictor_save`, `SYNA_davo_predictor_load`
+
+**Format:** bincode with a version field for future migrations. The BTreeMap deadline index is rebuilt from persisted entries. The PRNG state is NOT persisted (a fresh RNG is seeded on predictor load).
+
+**Tests:** 2 new property tests (Properties 25, 26) for round-trip correctness.
+
+---
+
 ## v1.2.0 - DAVO: Decay-Aware Value Optimization
 
 **Date:** May 4, 2026

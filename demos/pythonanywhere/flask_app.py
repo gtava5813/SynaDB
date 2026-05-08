@@ -7,6 +7,7 @@ Benchmarks use RELATIVE comparisons instead of absolute targets.
 Deploy to: https://www.pythonanywhere.com/user/gtava5813/
 """
 
+import logging
 from flask import Flask, render_template, jsonify, request
 import time
 import os
@@ -137,8 +138,9 @@ def benchmark_mmap_vs_vector():
         }
         RESULTS['mmap_vs_vector'] = result
         return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e), 'skip': True})
+    except Exception:
+        logging.getLogger(__name__).exception('Benchmark failed')
+        return jsonify({'error': 'Benchmark failed', 'skip': True})
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -210,8 +212,9 @@ def benchmark_gwi_vs_hnsw():
         }
         RESULTS['gwi_vs_hnsw'] = result
         return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e), 'skip': True})
+    except Exception:
+        logging.getLogger(__name__).exception('Benchmark failed')
+        return jsonify({'error': 'Benchmark failed', 'skip': True})
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -269,8 +272,9 @@ def benchmark_cascade_search():
         }
         RESULTS['cascade_search'] = result
         return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e), 'skip': True})
+    except Exception:
+        logging.getLogger(__name__).exception('Benchmark failed')
+        return jsonify({'error': 'Benchmark failed', 'skip': True})
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -328,8 +332,9 @@ def benchmark_hnsw_vs_brute():
         }
         RESULTS['hnsw_vs_brute'] = result
         return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e), 'skip': True})
+    except Exception:
+        logging.getLogger(__name__).exception('Benchmark failed')
+        return jsonify({'error': 'Benchmark failed', 'skip': True})
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -374,8 +379,9 @@ def benchmark_schema():
         }
         RESULTS['schema_free'] = result
         return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e), 'skip': True})
+    except Exception:
+        logging.getLogger(__name__).exception('Benchmark failed')
+        return jsonify({'error': 'Benchmark failed', 'skip': True})
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -424,8 +430,9 @@ def benchmark_recovery():
         }
         RESULTS['recovery'] = result
         return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e), 'skip': True})
+    except Exception:
+        logging.getLogger(__name__).exception('Benchmark failed')
+        return jsonify({'error': 'Benchmark failed', 'skip': True})
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -476,8 +483,9 @@ def benchmark_tensor():
         }
         RESULTS['tensor'] = result
         return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e), 'skip': True})
+    except Exception:
+        logging.getLogger(__name__).exception('Benchmark failed')
+        return jsonify({'error': 'Benchmark failed', 'skip': True})
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -518,8 +526,9 @@ def benchmark_compression():
         }
         RESULTS['compression'] = result
         return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e), 'skip': True})
+    except Exception:
+        logging.getLogger(__name__).exception('Benchmark failed')
+        return jsonify({'error': 'Benchmark failed', 'skip': True})
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 

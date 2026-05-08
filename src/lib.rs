@@ -1,4 +1,4 @@
-// Copyright (c) 2025 SynaDB Contributors
+// Copyright (c) 2026 Mindoval, Inc
 // Licensed under the SynaDB License. See LICENSE file for details.
 
 //! # SynaDB

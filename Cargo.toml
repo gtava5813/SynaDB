@@ -1,8 +1,8 @@
 [package]
 name = "synadb"
-version = "1.2.0"
+version = "1.2.1"
 edition = "2021"
-authors = ["gtava5813"]
+authors = ["Mindoval, Inc <hello@synadb.ai>"]
 description = "An AI-native embedded database"
 license = "LicenseRef-SynaDB"
 repository = "https://github.com/gtava5813/SynaDB"

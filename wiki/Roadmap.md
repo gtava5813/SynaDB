@@ -18,7 +18,8 @@ Make SynaDB the **default database for AI/ML applications** - the SQLite of the 
 | v1.1.0 | Sparse Vector Store | Jan 2026 | ✅ Complete |
 | v1.1.1 | Security Patch | Feb 2026 | ✅ Complete |
 | v1.1.2 | Safety & Correctness Audit | Mar 2026 | ✅ Complete |
-| v1.2.0 | DAVO: Decay-Aware Value Optimization | May 2026 | ✅ Current |
+| v1.2.0 | DAVO: Decay-Aware Value Optimization | May 2026 | ✅ Complete |
+| v1.2.1 | Security + DAVO Persistence | May 2026 | ✅ Current |
 | v1.3.0 | Query Language | - | 📋 Planned |
 | v1.4.0 | Feature Store | - | 📋 Planned |
 | v1.5.0 | Distributed Mode | - | 📋 Planned |
@@ -165,7 +166,7 @@ See [Changelog](Changelog) for full details.
 
 ---
 
-## v1.2.0 - DAVO: Decay-Aware Value Optimization ✅ CURRENT
+## v1.2.0 - DAVO: Decay-Aware Value Optimization ✅
 
 **Released:** May 4, 2026
 

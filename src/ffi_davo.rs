@@ -318,6 +318,76 @@ pub extern "C" fn SYNA_davo_freshness_index_close(path: *const c_char) -> c_int 
     .unwrap_or(DAVO_ERR_INTERNAL)
 }
 
+/// Save a freshness index to disk.
+///
+/// # Arguments
+/// * `path` — Registry key for the index
+/// * `file_path` — Disk file to write to
+#[no_mangle]
+pub extern "C" fn SYNA_davo_freshness_index_save(
+    path: *const c_char,
+    file_path: *const c_char,
+) -> c_int {
+    std::panic::catch_unwind(|| {
+        let path = match unsafe { cstr_to_str(path) } {
+            Some(p) => p,
+            None => return DAVO_ERR_NULL_PTR,
+        };
+        let file_path = match unsafe { cstr_to_str(file_path) } {
+            Some(p) => p,
+            None => return DAVO_ERR_NULL_PTR,
+        };
+
+        let registry = FRESHNESS_REGISTRY.lock();
+        let index = match registry.get(path) {
+            Some(i) => i,
+            None => return DAVO_ERR_NOT_FOUND,
+        };
+
+        match index.save(file_path) {
+            Ok(_) => DAVO_SUCCESS,
+            Err(_) => DAVO_ERR_INTERNAL,
+        }
+    })
+    .unwrap_or(DAVO_ERR_INTERNAL)
+}
+
+/// Load a freshness index from disk and register it under `path`.
+///
+/// # Arguments
+/// * `path` — Registry key to store the loaded index
+/// * `file_path` — Disk file to read from
+#[no_mangle]
+pub extern "C" fn SYNA_davo_freshness_index_load(
+    path: *const c_char,
+    file_path: *const c_char,
+) -> c_int {
+    std::panic::catch_unwind(|| {
+        let path = match unsafe { cstr_to_str(path) } {
+            Some(p) => p,
+            None => return DAVO_ERR_NULL_PTR,
+        };
+        let file_path = match unsafe { cstr_to_str(file_path) } {
+            Some(p) => p,
+            None => return DAVO_ERR_NULL_PTR,
+        };
+
+        let mut registry = FRESHNESS_REGISTRY.lock();
+        if registry.contains_key(path) {
+            return DAVO_ERR_ALREADY_EXISTS;
+        }
+
+        match FreshnessIndexV2::load(file_path) {
+            Ok(index) => {
+                registry.insert(path.to_string(), index);
+                DAVO_SUCCESS
+            }
+            Err(_) => DAVO_ERR_NOT_FOUND,
+        }
+    })
+    .unwrap_or(DAVO_ERR_INTERNAL)
+}
+
 /// Free an array of C strings returned by [`SYNA_davo_freshness_index_query_stale`].
 ///
 /// # Safety
@@ -484,6 +554,62 @@ pub extern "C" fn SYNA_davo_predictor_close(path: *const c_char) -> c_int {
             DAVO_SUCCESS
         } else {
             DAVO_ERR_NOT_FOUND
+        }
+    })
+    .unwrap_or(DAVO_ERR_INTERNAL)
+}
+
+/// Save a decay predictor to disk.
+#[no_mangle]
+pub extern "C" fn SYNA_davo_predictor_save(path: *const c_char, file_path: *const c_char) -> c_int {
+    std::panic::catch_unwind(|| {
+        let path = match unsafe { cstr_to_str(path) } {
+            Some(p) => p,
+            None => return DAVO_ERR_NULL_PTR,
+        };
+        let file_path = match unsafe { cstr_to_str(file_path) } {
+            Some(p) => p,
+            None => return DAVO_ERR_NULL_PTR,
+        };
+
+        let registry = PREDICTOR_REGISTRY.lock();
+        let predictor = match registry.get(path) {
+            Some(p) => p,
+            None => return DAVO_ERR_NOT_FOUND,
+        };
+
+        match predictor.save(file_path) {
+            Ok(_) => DAVO_SUCCESS,
+            Err(_) => DAVO_ERR_INTERNAL,
+        }
+    })
+    .unwrap_or(DAVO_ERR_INTERNAL)
+}
+
+/// Load a decay predictor from disk and register it under `path`.
+#[no_mangle]
+pub extern "C" fn SYNA_davo_predictor_load(path: *const c_char, file_path: *const c_char) -> c_int {
+    std::panic::catch_unwind(|| {
+        let path = match unsafe { cstr_to_str(path) } {
+            Some(p) => p,
+            None => return DAVO_ERR_NULL_PTR,
+        };
+        let file_path = match unsafe { cstr_to_str(file_path) } {
+            Some(p) => p,
+            None => return DAVO_ERR_NULL_PTR,
+        };
+
+        let mut registry = PREDICTOR_REGISTRY.lock();
+        if registry.contains_key(path) {
+            return DAVO_ERR_ALREADY_EXISTS;
+        }
+
+        match DecayPredictor::load(file_path) {
+            Ok(predictor) => {
+                registry.insert(path.to_string(), predictor);
+                DAVO_SUCCESS
+            }
+            Err(_) => DAVO_ERR_NOT_FOUND,
         }
     })
     .unwrap_or(DAVO_ERR_INTERNAL)

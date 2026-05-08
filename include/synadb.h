@@ -1365,6 +1365,24 @@ int64_t SYNA_davo_freshness_index_len(const char* path);
 int32_t SYNA_davo_freshness_index_close(const char* path);
 
 /**
+ * Saves a freshness index to disk.
+ *
+ * @param path       Registry key for the index
+ * @param file_path  Disk file to write to
+ * @return           DAVO_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_davo_freshness_index_save(const char* path, const char* file_path);
+
+/**
+ * Loads a freshness index from disk and registers it under `path`.
+ *
+ * @param path       Registry key to store the loaded index
+ * @param file_path  Disk file to read from
+ * @return           DAVO_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_davo_freshness_index_load(const char* path, const char* file_path);
+
+/**
  * Frees an array of C strings returned by SYNA_davo_freshness_index_query_stale().
  *
  * @param keys   Pointer returned by query_stale in out_keys
@@ -1425,6 +1443,26 @@ int32_t SYNA_davo_predictor_uncertainty(const char* path, double* out_uncertaint
  * @return      DAVO_SUCCESS on success, DAVO_ERR_NOT_FOUND if not open
  */
 int32_t SYNA_davo_predictor_close(const char* path);
+
+/**
+ * Saves a decay predictor to disk.
+ *
+ * @param path       Registry key for the predictor
+ * @param file_path  Disk file to write to
+ * @return           DAVO_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_davo_predictor_save(const char* path, const char* file_path);
+
+/**
+ * Loads a decay predictor from disk and registers it under `path`.
+ *
+ * The PRNG state is NOT persisted — a fresh RNG is seeded on load.
+ *
+ * @param path       Registry key to store the loaded predictor
+ * @param file_path  Disk file to read from
+ * @return           DAVO_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_davo_predictor_load(const char* path, const char* file_path);
 
 #endif /* SYNA_DAVO */
 

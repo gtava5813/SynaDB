@@ -25,6 +25,24 @@
 
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
+use serde::{Deserialize, Serialize};
+use std::path::Path;
+
+/// On-disk representation of a [`DecayPredictor`].
+///
+/// The PRNG state is NOT persisted (new RNG seeded on load).
+#[derive(Debug, Serialize, Deserialize)]
+struct PersistedPredictor {
+    version: u32,
+    alpha_prior: f32,
+    beta_prior: f32,
+    alpha: f32,
+    beta: f32,
+    global_multiplier: f32,
+    observation_count: u64,
+}
+
+const PERSIST_VERSION: u32 = 1;
 
 /// Bayesian decay-rate predictor using a Gamma conjugate prior.
 ///
@@ -133,6 +151,55 @@ impl DecayPredictor {
     /// Number of observations incorporated so far.
     pub fn observations(&self) -> u64 {
         self.observation_count
+    }
+
+    /// Save the predictor state to disk using bincode.
+    ///
+    /// The PRNG state is NOT persisted — a fresh RNG is seeded on load.
+    /// This means Thompson Sampling is not deterministic across save/load,
+    /// which is the correct behaviour for a production predictor.
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()> {
+        let persisted = PersistedPredictor {
+            version: PERSIST_VERSION,
+            alpha_prior: self.alpha_prior,
+            beta_prior: self.beta_prior,
+            alpha: self.alpha,
+            beta: self.beta,
+            global_multiplier: self.global_multiplier,
+            observation_count: self.observation_count,
+        };
+        let bytes = bincode::serialize(&persisted)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        std::fs::write(path, bytes)
+    }
+
+    /// Load a predictor from disk.
+    ///
+    /// Seeds a fresh PRNG for Thompson Sampling.
+    pub fn load<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
+        let bytes = std::fs::read(path)?;
+        let persisted: PersistedPredictor = bincode::deserialize(&bytes)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+
+        if persisted.version != PERSIST_VERSION {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "unsupported DecayPredictor persist version: {} (expected {})",
+                    persisted.version, PERSIST_VERSION
+                ),
+            ));
+        }
+
+        Ok(Self {
+            alpha_prior: persisted.alpha_prior,
+            beta_prior: persisted.beta_prior,
+            alpha: persisted.alpha,
+            beta: persisted.beta,
+            global_multiplier: persisted.global_multiplier,
+            observation_count: persisted.observation_count,
+            rng: SmallRng::from_entropy(),
+        })
     }
 }
 

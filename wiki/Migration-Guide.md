@@ -4,9 +4,45 @@ This guide helps you upgrade SynaDB between major versions.
 
 ## Table of Contents
 
+- [Upgrading from v1.2.0 to v1.2.1](#upgrading-from-v120-to-v121)
 - [Upgrading from v1.1.2 to v1.2.0](#upgrading-from-v112-to-v120)
 - [Upgrading from v1.1.1 to v1.1.2](#upgrading-from-v111-to-v112)
 - [Upgrading from v1.1.0 to v1.1.1](#upgrading-from-v110-to-v111)
+
+---
+
+## Upgrading from v1.2.0 to v1.2.1
+
+### Overview
+
+v1.2.1 is a patch release with security fixes, attribution updates, and DAVO persistence as a new feature. No breaking changes.
+
+### New: DAVO Persistence
+
+`FreshnessIndexV2` and `DecayPredictor` now support `save()` / `load()`:
+
+```python
+from synadb.davo import FreshnessIndex
+idx.save("freshness.bin")
+idx2 = FreshnessIndex.load("my_index", "freshness.bin")
+```
+
+### Breaking Changes
+
+None.
+
+### Migration Steps
+
+Update your version:
+
+```bash
+pip install --upgrade synadb>=1.2.1
+```
+
+```toml
+[dependencies]
+synadb = "1.2.1"
+```
 
 ---
 

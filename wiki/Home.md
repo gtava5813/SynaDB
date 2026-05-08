@@ -23,6 +23,12 @@ SynaDB is an embedded, log-structured, columnar-mapped database engine written i
 
 ## Current Version
 
+**v1.2.1** - Security Hardening + DAVO Persistence (May 2026)
+
+- Attribution: project owned by Mindoval, Inc
+- Security: bumped pytest (CVE fix), added workflow permissions, fixed path injection + stack trace exposure
+- DAVO: persistence (`save()` / `load()`) for `FreshnessIndexV2` and `DecayPredictor`
+
 **v1.2.0** - DAVO: Decay-Aware Value Optimization (May 2026)
 
 - New optional feature (`--features davo`) adding decay-aware storage
