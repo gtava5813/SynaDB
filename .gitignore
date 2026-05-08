@@ -4,6 +4,9 @@
 **/*.rs.bk
 Cargo.lock
 
+# proptest failure regressions (transient, per-machine)
+**/*.proptest-regressions
+
 # Database files
 *.db
 databases/*
