@@ -212,7 +212,10 @@ Full SQL-like (EQL) and MongoDB-like (EMQ) query language with advanced analytic
 - **Data Lineage** — Track provenance and transformations
 - **FFI** — SYNA_query_eql, SYNA_query_emq, SYNA_query_free_result
 - **CLI** — `syna query mydb.db "SELECT * FROM 'sensor/*' WHERE value > 30"`
-- **320 tests** — 99 query-specific + 221 existing, zero clippy warnings
+- **Prepared Statements** — parameterized queries with `$param` substitution
+- **Vector Similarity** — `SIMILAR_TO` with cosine similarity over Atom::Vector rows
+- **DAVO Freshness Queries** — `WHERE FRESH` / `WHERE STALE` / `FRESHNESS > 0.7` with per-prefix decay rates
+- **339 tests** — 118 query-specific + 221 existing, zero clippy warnings
 
 ### v1.4.0 - Feature Store 📋
 

@@ -53,6 +53,9 @@
 //!   - [`query::temporal_join`] - Temporal joins (ASOF, interpolated, forward-fill)
 //!   - [`query::predict`] - Predictive queries (linear, exponential smoothing)
 //!   - [`query::correlation`] - Correlation analysis (Pearson, cross-correlation)
+//!   - [`query::prepared`] - Prepared statements with `$param` substitution
+//!   - [`query::vector_query`] - Vector similarity queries (SIMILAR_TO)
+//!   - [`query::freshness_query`] - DAVO freshness queries (FRESH/STALE/FRESHNESS)
 //!
 //! ### FFI
 //! - **[`ffi`]** - C-ABI interface for Python, Node.js, C++, or any FFI-capable language

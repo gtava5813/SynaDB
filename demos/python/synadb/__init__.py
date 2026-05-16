@@ -144,7 +144,7 @@ try:
 except Exception:
     _DAVO_AVAILABLE = False
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 
 # Lazy imports for integrations

@@ -4,10 +4,64 @@ This guide helps you upgrade SynaDB between major versions.
 
 ## Table of Contents
 
+- [Upgrading from v1.2.1 to v1.3.1](#upgrading-from-v121-to-v131)
 - [Upgrading from v1.2.0 to v1.2.1](#upgrading-from-v120-to-v121)
 - [Upgrading from v1.1.2 to v1.2.0](#upgrading-from-v112-to-v120)
 - [Upgrading from v1.1.1 to v1.1.2](#upgrading-from-v111-to-v112)
 - [Upgrading from v1.1.0 to v1.1.1](#upgrading-from-v110-to-v111)
+
+---
+
+## Upgrading from v1.2.1 to v1.3.1
+
+### Overview
+
+v1.3.1 adds the Syna Query Language — a full SQL-like (EQL) and MongoDB-like (EMQ) query interface. No breaking changes to existing APIs.
+
+### New: Query Language
+
+```rust
+use synadb::query::parser::parse_eql;
+use synadb::query::planner::QueryPlan;
+use synadb::query::optimizer::optimize;
+use synadb::query::executor::QueryExecutor;
+
+let ast = parse_eql("SELECT * FROM 'sensor/*' WHERE value > 30")?;
+let mut plan = QueryPlan::from_ast(&ast, db.keys().len() as u64)?;
+optimize(&mut plan);
+let mut executor = QueryExecutor::new(&mut db);
+let result = executor.execute(plan)?;
+```
+
+### New: CLI Query Command
+
+```bash
+syna query mydb.db "SELECT * FROM 'sensor/*' WHERE value > 30"
+```
+
+### Breaking Changes
+
+None. v1.3.1 is fully backward compatible with v1.2.1.
+
+### New Dependencies
+
+- `nom = "7"` — parser combinator library
+- `regex = "1"` — pattern matching for key filters
+
+### Migration Steps
+
+1. Update your dependencies:
+   ```bash
+   pip install --upgrade synadb>=1.3.1
+   ```
+   ```toml
+   [dependencies]
+   synadb = "1.3.1"
+   ```
+
+2. No code changes required — all existing APIs work identically.
+
+3. To use the query language, import from `synadb::query`.
 
 ---
 

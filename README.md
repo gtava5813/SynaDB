@@ -47,7 +47,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 
 ```toml
 [dependencies]
-synadb = "1.3.0"
+synadb = "1.3.1"
 ```
 
 ### Python
@@ -953,6 +953,9 @@ Also supports MongoDB-like JSON queries (EMQ):
 | Query Macros | `DEFINE MACRO recent_avg(pattern, duration DEFAULT '1h')` |
 | Data Lineage | `SELECT LINEAGE("sensor/temp/processed")` |
 | EXPLAIN | `EXPLAIN SELECT * FROM 'sensor/*'` |
+| Prepared Statements | `PREPARE: SELECT * FROM 'k' WHERE value > $threshold` |
+| Vector Similarity | `WHERE SIMILAR_TO([0.1, 0.2, ...], k=10)` |
+| Freshness Queries | `WHERE FRESH` / `WHERE STALE` / `WHERE FRESHNESS > 0.7` |
 
 ## Data Types
 

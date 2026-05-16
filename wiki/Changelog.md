@@ -4,6 +4,121 @@ This document contains the complete release history for SynaDB.
 
 ---
 
+## v1.3.1 - Query Language Completion Patch
+
+**Date:** May 8, 2026
+**PyPI:** [synadb 1.3.1](https://pypi.org/project/synadb/)
+**Crates.io:** [synadb 1.3.1](https://crates.io/crates/synadb)
+
+### Summary
+
+Completes the syna-query spec with the final 3 modules, full documentation, and all 31 tasks marked done.
+
+### New Modules (added after v1.3.0)
+
+- **Prepared Statements** (`src/query/prepared.rs`) — `prepare()` + `bind_params()` with `$param` substitution
+- **Vector Similarity Queries** (`src/query/vector_query.rs`) — `execute_similarity()` + `filter_by_similarity()` with cosine similarity over `Atom::Vector` rows
+- **DAVO Freshness Queries** (`src/query/freshness_query.rs`) — `annotate_freshness()`, `filter_by_freshness()`, `sort_by_freshness()`, `count_stale()` with per-prefix decay rates
+
+### Documentation
+
+- `wiki/Changelog.md` — full v1.3.0 entry added (was missing)
+- `wiki/Migration-Guide.md` — v1.2.1 → v1.3.1 section
+- `README.md` — Prepared/Vector/Freshness in Advanced Features table
+- `website/index.html` — Query Language feature card
+
+
+### Tests
+
+339 total (118 query-specific + 221 existing), 0 failed, zero clippy warnings.
+
+---
+
+## v1.3.0 - Syna Query Language (EQL/EMQ)
+
+**Date:** May 8, 2026
+**PyPI:** [synadb 1.3.0](https://pypi.org/project/synadb/)
+**Crates.io:** [synadb 1.3.0](https://crates.io/crates/synadb)
+
+### Highlights
+
+The biggest feature release in SynaDB history. Full SQL-like (EQL) and MongoDB-like (EMQ) query language with 21 submodules, 118 query-specific tests, and advanced analytics capabilities not found in any other embedded database.
+
+### Core Query Pipeline
+
+- **EQL Parser** — SQL-like syntax using `nom` combinators: SELECT, FROM, WHERE, ORDER BY, LIMIT/OFFSET, GROUP BY, EXPLAIN
+- **EMQ Parser** — MongoDB-like JSON documents: `$eq/$ne/$gt/$gte/$lt/$lte/$in/$nin/$regex/$and/$or/$not`, aggregate pipelines
+- **Query Planner** — Scan type selection (IndexExact O(1), IndexPrefix O(k), PatternScan, FullScan), cost estimation
+- **Query Optimizer** — Predicate pushdown, limit propagation, filter reordering
+- **Query Executor** — Full pipeline: scan → filter → aggregate → order → paginate, with execution metadata
+
+### Aggregation Engine
+
+- Functions: `COUNT(*)`, `SUM(value)`, `AVG(value)`, `MIN(value)`, `MAX(value)`, `FIRST(value)`, `LAST(value)`
+- GROUP BY: key pattern or time bucket (`MINUTE`, `HOUR`, `DAY`, `WEEK`, `MONTH`)
+- Non-numeric handling: configurable Skip or Error behavior
+
+### Time-Series Operations
+
+- `DIFF` — consecutive value differences
+- `RATE` — change per second
+- `MOVING_AVG` — sliding window average
+- `RESAMPLE` — linear interpolation to fixed interval
+
+### Advanced Analytics (Industry Firsts)
+
+| Feature | Description |
+|---------|-------------|
+| **Temporal Joins** | Exact, ASOF (with tolerance), Interpolated, ForwardFill |
+| **Anomaly Detection** | Z-score, IQR, Moving Average Deviation |
+| **Pattern Matching** | Spike, Dip, Rising, Falling, Plateau detection |
+| **Predictive Queries** | Linear regression, Exponential Smoothing, Moving Average with confidence intervals |
+| **Correlation Analysis** | Pearson, Cross-correlation with lag detection, Find Correlated |
+| **Streaming Windows** | Tumbling, Sliding, Session, Count-based |
+
+### Infrastructure
+
+- **Query Explanation** — `EXPLAIN` with plan tree, cost estimates, optimization list
+- **Query Macros** — `DEFINE MACRO name(params) AS ...` with defaults and expansion
+- **Data Lineage** — Track provenance: `LINEAGE()`, `DERIVED_FROM()`
+- **Prepared Statements** — `$param` substitution, `prepare()` + `bind_params()`
+- **Vector Similarity** — `SIMILAR_TO([...], k)` with cosine similarity over `Atom::Vector` rows
+- **DAVO Freshness Queries** — `WHERE FRESH` / `WHERE STALE` / `FRESHNESS > 0.7` with per-prefix decay rates
+- **FFI** — `SYNA_query_eql`, `SYNA_query_emq`, `SYNA_query_free_result`
+- **CLI** — `syna query mydb.db "SELECT * FROM 'sensor/*' WHERE value > 30"`
+
+### Dependencies Added
+
+- `nom = "7"` — parser combinator library
+- `regex = "1"` — pattern matching for glob/regex key filters
+
+### Test Count
+
+- 339 total (118 query-specific + 221 existing)
+- Zero clippy warnings
+- Property test: AST serialization round-trip (200 iterations)
+
+### CLI Usage
+
+```bash
+# Basic query
+syna query mydb.db "SELECT * FROM 'sensor/*'"
+
+# Filter and sort
+syna query mydb.db "SELECT * FROM 'sensor/*' WHERE value > 30 ORDER BY value DESC"
+
+# Aggregations
+syna query mydb.db "SELECT COUNT(*), AVG(value), MIN(value), MAX(value) FROM 'sensor/*'"
+
+# Group by time
+syna query mydb.db "SELECT AVG(value) FROM 'sensor/*' GROUP BY HOUR"
+
+# Explain
+syna query mydb.db "EXPLAIN SELECT * FROM 'sensor/*' WHERE value > 100 LIMIT 10"
+```
+
+---
+
 ## v1.2.1 - Security Hardening + DAVO Persistence
 
 **Date:** May 7, 2026

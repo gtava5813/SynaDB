@@ -26,6 +26,7 @@ pub mod error;
 pub mod executor;
 pub mod explain;
 pub mod ffi;
+pub mod freshness_query;
 pub mod lineage;
 pub mod macros;
 pub mod optimizer;
@@ -33,9 +34,11 @@ pub mod parser;
 pub mod pattern;
 pub mod planner;
 pub mod predict;
+pub mod prepared;
 pub mod streaming;
 pub mod temporal_join;
 pub mod timeseries;
+pub mod vector_query;
 
 // Future submodules (added as tasks land)
 // pub mod parser;
