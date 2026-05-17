@@ -4,11 +4,74 @@ This guide helps you upgrade SynaDB between major versions.
 
 ## Table of Contents
 
+- [Upgrading from v1.3.1 to v1.4.0](#upgrading-from-v131-to-v140)
 - [Upgrading from v1.2.1 to v1.3.1](#upgrading-from-v121-to-v131)
 - [Upgrading from v1.2.0 to v1.2.1](#upgrading-from-v120-to-v121)
 - [Upgrading from v1.1.2 to v1.2.0](#upgrading-from-v112-to-v120)
 - [Upgrading from v1.1.1 to v1.1.2](#upgrading-from-v111-to-v112)
 - [Upgrading from v1.1.0 to v1.1.1](#upgrading-from-v110-to-v111)
+
+---
+
+## Upgrading from v1.3.1 to v1.4.0
+
+### Overview
+
+v1.4.0 adds the Feature Store — a fully embedded feature management system for ML engineers. No breaking changes to existing APIs.
+
+### New: Feature Store
+
+```python
+from synadb import FeatureStore
+
+with FeatureStore("features.db") as fs:
+    # Ingest features
+    fs.ingest("users", "user_123", event_ts=1000000,
+              values={"purchase_count": 5, "avg_spend": 42.50})
+    
+    # Serve latest values (<1ms)
+    result = fs.serve("users", "user_123", ["purchase_count", "avg_spend"])
+    
+    # Point-in-time query (no data leakage)
+    value = fs.get_at_timestamp("users", "user_123", "purchase_count", 500000)
+    
+    # Version-based query
+    prev = fs.get_at_version("users", "user_123", "purchase_count", version=-2)
+```
+
+```rust
+use synadb::feature_store::{FeatureStore, FeatureStoreConfig};
+use synadb::feature_store::schema::FeatureValue;
+
+let config = FeatureStoreConfig::default();
+let mut store = FeatureStore::new("features.db", config)?;
+
+store.ingest("users", "user_123", 1000000, &[
+    ("purchase_count", FeatureValue::Int64(5)),
+    ("avg_spend", FeatureValue::Float64(42.50)),
+])?;
+
+let result = store.serve("users", "user_123", &["purchase_count", "avg_spend"])?;
+```
+
+### Breaking Changes
+
+None. v1.4.0 is fully backward compatible with v1.3.1.
+
+### Migration Steps
+
+1. Update your dependencies:
+   ```bash
+   pip install --upgrade synadb>=1.4.0
+   ```
+   ```toml
+   [dependencies]
+   synadb = "1.4.0"
+   ```
+
+2. No code changes required — all existing APIs work identically.
+
+3. To use the Feature Store, import `FeatureStore` from `synadb`.
 
 ---
 

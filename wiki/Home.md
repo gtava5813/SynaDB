@@ -23,12 +23,19 @@ SynaDB is an embedded, log-structured, columnar-mapped database engine written i
 
 ## Current Version
 
-**v1.3.0** - Syna Query Language (May 2026)
+**v1.4.0** - Feature Store (May 2026)
+
+- Embedded ML feature management (typed schemas, PIT queries, <1ms serving)
+- 12 new Rust modules, 8 FFI functions, Python wrapper
+- Point-in-time correctness by construction (no data leakage)
+- Online serving benchmarked at p99 = 6μs
+
+**v1.3.1** - Syna Query Language (May 2026)
 
 - SQL-like (EQL) and MongoDB-like (EMQ) query interfaces
 - Aggregations, temporal joins, anomaly detection, pattern matching, predictions, correlation
 - CLI: `syna query mydb.db "SELECT * FROM 'sensor/*' WHERE value > 30"`
-- 18 submodules, 320 tests, zero clippy warnings
+- 21 submodules, 339 tests, zero clippy warnings
 
 **v1.2.1** - Security Hardening + DAVO Persistence (May 2026)
 

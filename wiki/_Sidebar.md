@@ -12,6 +12,8 @@
 - [Tensor Engine](API-Reference#tensorengine-python)
 - [Model Registry](API-Reference#modelregistry-python)
 - [Experiment Tracking](API-Reference#experimenttracker-python)
+- [Query Language (EQL)](API-Reference#query-language)
+- [Feature Store](API-Reference#feature-store)
 
 **Reference**
 

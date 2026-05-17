@@ -251,6 +251,7 @@ pub mod error;
 pub mod experiment;
 #[cfg(feature = "faiss")]
 pub mod faiss_index;
+pub mod feature_store;
 pub mod ffi;
 #[cfg(feature = "davo")]
 pub mod ffi_davo;
@@ -317,3 +318,6 @@ pub use experiment::{ExperimentTracker, Run, RunStatus};
 
 // Re-export distance metrics
 pub use distance::DistanceMetric;
+
+// Re-export Feature Store types
+pub use feature_store::{FeatureStore, FeatureStoreConfig};

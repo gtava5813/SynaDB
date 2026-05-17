@@ -1466,6 +1466,111 @@ int32_t SYNA_davo_predictor_load(const char* path, const char* file_path);
 
 #endif /* SYNA_DAVO */
 
+/* ============================================================================
+ * Feature Store Functions
+ * ============================================================================ */
+
+/**
+ * Creates or opens a feature store at the given path.
+ *
+ * @param path  Null-terminated path to the feature store database file
+ * @return      SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_fs_new(const char* path);
+
+/**
+ * Closes a feature store and flushes all buffers.
+ *
+ * @param path  Null-terminated path to the feature store database file
+ * @return      SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_fs_close(const char* path);
+
+/**
+ * Ingests a float feature value.
+ *
+ * @param path        Null-terminated path to the feature store
+ * @param group       Null-terminated feature group name
+ * @param entity_key  Null-terminated entity identifier
+ * @param feature     Null-terminated feature name
+ * @param value       The float value to ingest
+ * @param event_ts    Event timestamp in microseconds
+ * @return            SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_fs_ingest_float(const char* path, const char* group,
+                             const char* entity_key, const char* feature,
+                             double value, uint64_t event_ts);
+
+/**
+ * Ingests an integer feature value.
+ *
+ * @param path        Null-terminated path to the feature store
+ * @param group       Null-terminated feature group name
+ * @param entity_key  Null-terminated entity identifier
+ * @param feature     Null-terminated feature name
+ * @param value       The integer value to ingest
+ * @param event_ts    Event timestamp in microseconds
+ * @return            SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_fs_ingest_int(const char* path, const char* group,
+                           const char* entity_key, const char* feature,
+                           int64_t value, uint64_t event_ts);
+
+/**
+ * Serves the latest float value for a feature.
+ *
+ * @param path        Null-terminated path to the feature store
+ * @param group       Null-terminated feature group name
+ * @param entity_key  Null-terminated entity identifier
+ * @param feature     Null-terminated feature name
+ * @param out         Pointer to store the retrieved value
+ * @return            SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_fs_serve_float(const char* path, const char* group,
+                            const char* entity_key, const char* feature,
+                            double* out);
+
+/**
+ * Gets a float value at a specific version (Nth-most-recent).
+ *
+ * @param path        Null-terminated path to the feature store
+ * @param group       Null-terminated feature group name
+ * @param entity_key  Null-terminated entity identifier
+ * @param feature     Null-terminated feature name
+ * @param version     Version offset (0 or -1 = latest, -N = Nth-most-recent)
+ * @param out         Pointer to store the retrieved value
+ * @return            SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_fs_get_at_version(const char* path, const char* group,
+                               const char* entity_key, const char* feature,
+                               int64_t version, double* out);
+
+/**
+ * Gets a float value at a specific timestamp (point-in-time query).
+ *
+ * Returns the latest value with event_ts <= timestamp.
+ * Guarantees no future data leakage.
+ *
+ * @param path        Null-terminated path to the feature store
+ * @param group       Null-terminated feature group name
+ * @param entity_key  Null-terminated entity identifier
+ * @param feature     Null-terminated feature name
+ * @param timestamp   Cutoff timestamp in microseconds
+ * @param out         Pointer to store the retrieved value
+ * @return            SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_fs_get_at_timestamp(const char* path, const char* group,
+                                 const char* entity_key, const char* feature,
+                                 uint64_t timestamp, double* out);
+
+/**
+ * Flushes the feature store write buffer to disk.
+ *
+ * @param path  Null-terminated path to the feature store
+ * @return      SYNA_SUCCESS on success, error code on failure
+ */
+int32_t SYNA_fs_flush(const char* path);
+
 #ifdef __cplusplus
 }
 #endif

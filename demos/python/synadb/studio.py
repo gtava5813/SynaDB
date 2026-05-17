@@ -218,6 +218,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <a class="nav-item" data-page="clusters"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg> 3D Clusters</a>
         <a class="nav-item" data-page="stats"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Statistics</a>
         <a class="nav-item" data-page="integrations"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg> Integrations</a>
+        <a class="nav-item" data-page="query"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Query (EQL)</a>
         <a class="nav-item" data-page="custom"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Custom Suite</a>
     </nav>
 </aside>
@@ -290,6 +291,21 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div class="charts-grid" id="integrations-list">
              <div class="loading"><div class="spinner"></div></div>
         </div>
+    </div>
+
+    <!-- Query (EQL) -->
+    <div id="page-query" class="page">
+        <header class="header"><h1>Query (EQL)</h1></header>
+        <div class="chart-box">
+            <h3>Execute SQL-like Queries</h3>
+            <p style="color:var(--text-dim);margin-bottom:16px;font-size:13px;">Write EQL queries against the current database. Examples: <code>SELECT * FROM 'sensor/*'</code>, <code>SELECT AVG(value) FROM 'sensor/*' GROUP BY HOUR</code></p>
+            <textarea id="query-input" style="width:100%;height:100px;padding:12px;background:rgba(0,0,0,0.3);border:1px solid var(--border-glass);color:var(--text-main);border-radius:8px;font-family:'JetBrains Mono';font-size:13px;resize:vertical;" placeholder="SELECT * FROM 'sensor/*' WHERE value > 30 ORDER BY value DESC LIMIT 100"></textarea>
+            <div style="margin-top:12px;display:flex;gap:12px;align-items:center;">
+                <button class="btn" onclick="app.runQuery()" style="background:var(--accent-primary);border-color:var(--accent-primary);color:white;font-weight:600;">Execute</button>
+                <span id="query-status" style="font-size:12px;color:var(--text-dim);"></span>
+            </div>
+        </div>
+        <div id="query-results" style="margin-top:24px;"></div>
     </div>
 
     <!-- Custom Suite -->
@@ -508,6 +524,44 @@ const app = {
             document.getElementById('modal-body').innerHTML = `<pre style="white-space:pre-wrap;font-family:'JetBrains Mono';font-size:12px;color:#cbd5e1;background:#0f172a;padding:12px;border-radius:6px;max-height:400px;overflow-y:auto;">${this.escapeHtml(d.output)}</pre>`;
         }).catch(e => {
             document.getElementById('modal-body').innerHTML = '<div style="color:#ef4444">Error: ' + e + '</div>';
+        });
+    },
+
+    runQuery: function() {
+        const query = document.getElementById('query-input').value.trim();
+        if(!query) return;
+        document.getElementById('query-status').textContent = 'Executing...';
+        document.getElementById('query-results').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+        
+        fetch('/api/query', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({query: query})
+        }).then(r=>r.json()).then(d => {
+            if(d.error) {
+                document.getElementById('query-status').textContent = 'Error';
+                document.getElementById('query-results').innerHTML = `<div class="chart-box"><pre style="color:#ef4444;font-family:'JetBrains Mono';font-size:12px;">${this.escapeHtml(d.error)}</pre></div>`;
+                return;
+            }
+            const meta = d.metadata || {};
+            document.getElementById('query-status').textContent = `${meta.rows_returned || 0} rows in ${meta.execution_time_us || 0}μs` + (meta.index_used ? ' (index)' : '');
+            
+            const rows = d.rows || [];
+            if(!rows.length) {
+                document.getElementById('query-results').innerHTML = '<div class="chart-box"><div class="empty">No results</div></div>';
+                return;
+            }
+            
+            let html = '<div class="table-box"><table><thead><tr><th>Key</th><th>Value</th><th>Timestamp</th></tr></thead><tbody>';
+            rows.forEach(r => {
+                const val = typeof r.value === 'object' ? JSON.stringify(r.value) : String(r.value);
+                html += `<tr><td class="key-cell">${r.key}</td><td class="value-cell">${val}</td><td style="opacity:0.5">${r.timestamp || 0}</td></tr>`;
+            });
+            html += '</tbody></table></div>';
+            document.getElementById('query-results').innerHTML = html;
+        }).catch(e => {
+            document.getElementById('query-status').textContent = 'Error';
+            document.getElementById('query-results').innerHTML = `<div class="chart-box"><pre style="color:#ef4444">Network error: ${e}</pre></div>`;
         });
     },
 
@@ -777,6 +831,27 @@ def launch(db_path: str, port: int = 8501, debug: bool = False) -> None:
             import logging
             logging.getLogger(__name__).exception("Error computing vector projection")
             return jsonify({'error': 'Failed to compute projection', 'points': []})
+
+    @app.route('/api/query', methods=['POST'])
+    def api_query():
+        """Execute an EQL query against the current database."""
+        import logging
+        logger = logging.getLogger(__name__)
+
+        data = request.json
+        query_str = data.get('query', '').strip()
+        if not query_str:
+            return jsonify({'error': 'Empty query'}), 400
+
+        try:
+            from synadb.query import query_eql
+            result = query_eql(CURRENT_DB_PATH, query_str)
+            return jsonify(result)
+        except ImportError:
+            return jsonify({'error': 'Query module not available. Rebuild with query support.'}), 500
+        except Exception:
+            logger.exception("Query execution failed")
+            return jsonify({'error': 'Query execution failed'}), 500
 
     print(f"\\n  Syna Studio V2: http://localhost:{port}")
     app.run(host='0.0.0.0', port=port, debug=debug)

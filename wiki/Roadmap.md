@@ -20,8 +20,9 @@ Make SynaDB the **default database for AI/ML applications** - the SQLite of the 
 | v1.1.2 | Safety & Correctness Audit | Mar 2026 | ✅ Complete |
 | v1.2.0 | DAVO: Decay-Aware Value Optimization | May 2026 | ✅ Complete |
 | v1.2.1 | Security + DAVO Persistence | May 2026 | ✅ Complete |
-| v1.3.0 | Query Language (EQL/EMQ) | May 2026 | ✅ Current |
-| v1.4.0 | Feature Store | - | 📋 Planned |
+| v1.3.0 | Query Language (EQL/EMQ) | May 2026 | ✅ Complete |
+| v1.3.1 | Query Language Completion | May 2026 | ✅ Complete |
+| v1.4.0 | Feature Store | May 2026 | ✅ Current |
 | v1.5.0 | Distributed Mode | - | 📋 Planned |
 
 ---
@@ -188,7 +189,7 @@ New optional feature (`--features davo`) adding decay-aware storage where every 
 
 ## Future
 
-### v1.3.0 - Syna Query Language ✅ CURRENT
+### v1.3.0 - Syna Query Language ✅
 
 **Released:** May 2026
 
@@ -217,12 +218,23 @@ Full SQL-like (EQL) and MongoDB-like (EMQ) query language with advanced analytic
 - **DAVO Freshness Queries** — `WHERE FRESH` / `WHERE STALE` / `FRESHNESS > 0.7` with per-prefix decay rates
 - **339 tests** — 118 query-specific + 221 existing, zero clippy warnings
 
-### v1.4.0 - Feature Store 📋
+### v1.4.0 - Feature Store 🚧
 
-- Feature schema definition
-- Point-in-time queries
-- Online serving (<1ms)
-- Training data generation
+Core implementation complete (12 Rust modules, FFI layer, Python wrapper). Remaining: Feature Views, Streaming, DAVO integration, EQL integration.
+
+- ✅ Typed feature schemas with validation constraints
+- ✅ Point-in-time queries (data leakage prevention by construction)
+- ✅ Online serving (<1ms p99, benchmarked at 6μs)
+- ✅ Training dataset generation with PIT joins
+- ✅ Version-based queries (get Nth-most-recent value)
+- ✅ Schema evolution (add/widen/deprecate columns)
+- ✅ Feature registry with metadata and lineage
+- ✅ Statistics & drift detection (Welford's, PSI)
+- ✅ FFI layer (SYNA_fs_* functions)
+- ✅ Python wrapper (ctypes)
+- 📋 Feature Views (EQL-based derived features)
+- 📋 Streaming features (tumbling/sliding windows)
+- 📋 DAVO freshness integration
 
 ### v1.5.0 - Distributed Mode 📋
 

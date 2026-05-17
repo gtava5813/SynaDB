@@ -36,6 +36,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 - **FAISS Integration** - Billion-scale vector search (optional feature)
 - **DAVO** - Decay-Aware Value Optimization with Bayesian learning (Experimental, optional feature)
 - **Syna Query (EQL)** - SQL-like query language with aggregations, temporal joins, anomaly detection, pattern matching, predictions, and correlation analysis
+- **Feature Store** - Typed schemas, point-in-time queries, <1ms online serving, training dataset generation
 - **C-ABI interface** - Use from Python, Node.js, C++, or any FFI-capable language
 - **Delta & LZ4 compression** - Minimize storage for time-series data
 - **Crash recovery** - Automatic index rebuild on open
@@ -47,7 +48,7 @@ An embedded, log-structured, columnar-mapped database engine written in Rust. Sy
 
 ```toml
 [dependencies]
-synadb = "1.3.1"
+synadb = "1.4.0"
 ```
 
 ### Python
@@ -1128,6 +1129,7 @@ SynaDB uses a **modular architecture** where each component is a specialized cla
 | `TensorEngine` | Batch tensor operations | ML data loading |
 | `ModelRegistry` | Model versioning with checksums | Model management |
 | `Experiment` | Experiment tracking | MLOps workflows |
+| `FeatureStore` | ML feature management | Typed schemas, PIT queries, <1ms serving |
 
 **Why modular?** This design follows the Unix philosophy of "do one thing well":
 

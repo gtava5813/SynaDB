@@ -283,11 +283,73 @@ fn parse_unary_condition(input: &str) -> IResult<&str, Condition> {
             parse_condition,
             tuple((multispace0, char(')'))),
         ),
+        // FRESHNESS <op> <value> (must come before FRESH/STALE to avoid prefix match)
+        parse_freshness_comparison,
+        // FRESH / STALE keywords
+        value(
+            Condition::Freshness(FreshnessCondition::Fresh),
+            tag_no_case("FRESH"),
+        ),
+        value(
+            Condition::Freshness(FreshnessCondition::Stale),
+            tag_no_case("STALE"),
+        ),
+        // ANOMALY(value, ZSCORE(3.0))
+        parse_anomaly_condition,
         // BETWEEN
         parse_between_condition,
         // Simple comparison: field op value
         parse_comparison_condition,
     ))(input)
+}
+
+fn parse_anomaly_condition(input: &str) -> IResult<&str, Condition> {
+    let (input, _) = tag_no_case("ANOMALY")(input)?;
+    let (input, _) = multispace0(input)?;
+    let (input, _) = char('(')(input)?;
+    let (input, _) = multispace0(input)?;
+    let (input, _) = tag_no_case("value")(input)?;
+    let (input, _) = multispace0(input)?;
+    let (input, _) = char(',')(input)?;
+    let (input, _) = multispace0(input)?;
+    // Parse method: ZSCORE(3.0) or IQR(1.5)
+    let (input, method) = alt((
+        map(
+            preceded(
+                tuple((tag_no_case("ZSCORE"), multispace0, char('('))),
+                nom::number::complete::double,
+            ),
+            AnomalyMethod::ZScore,
+        ),
+        map(
+            preceded(
+                tuple((tag_no_case("IQR"), multispace0, char('('))),
+                nom::number::complete::double,
+            ),
+            AnomalyMethod::Iqr,
+        ),
+    ))(input)?;
+    let (input, _) = char(')')(input)?; // close method parens
+    let (input, _) = multispace0(input)?;
+    let (input, _) = char(')')(input)?; // close ANOMALY parens
+
+    Ok((input, Condition::Anomaly(method)))
+}
+
+fn parse_freshness_comparison(input: &str) -> IResult<&str, Condition> {
+    let (input, _) = tag_no_case("FRESHNESS")(input)?;
+    let (input, _) = multispace0(input)?;
+    let (input, op) = parse_comparison_op(input)?;
+    let (input, _) = multispace0(input)?;
+    let (input, threshold) = nom::number::complete::double(input)?;
+
+    Ok((
+        input,
+        Condition::Freshness(FreshnessCondition::Compare {
+            op,
+            value: threshold,
+        }),
+    ))
 }
 
 fn parse_between_condition(input: &str) -> IResult<&str, Condition> {
@@ -601,6 +663,73 @@ mod tests {
                 assert_eq!(q.aggregations[2], AggregateFunction::Max);
             }
             _ => panic!("expected Aggregate"),
+        }
+    }
+
+    #[test]
+    fn parse_anomaly_zscore() {
+        let ast = parse_eql("SELECT * FROM 'k' WHERE ANOMALY(value, ZSCORE(3.0))").unwrap();
+        match ast {
+            QueryAst::Select(q) => match q.where_clause.unwrap().root {
+                Condition::Anomaly(AnomalyMethod::ZScore(t)) => {
+                    assert!((t - 3.0).abs() < 1e-10);
+                }
+                other => panic!("expected Anomaly ZScore, got {:?}", other),
+            },
+            _ => panic!("expected Select"),
+        }
+    }
+
+    #[test]
+    fn parse_anomaly_iqr() {
+        let ast = parse_eql("SELECT * FROM 'k' WHERE ANOMALY(value, IQR(1.5))").unwrap();
+        match ast {
+            QueryAst::Select(q) => match q.where_clause.unwrap().root {
+                Condition::Anomaly(AnomalyMethod::Iqr(m)) => {
+                    assert!((m - 1.5).abs() < 1e-10);
+                }
+                other => panic!("expected Anomaly IQR, got {:?}", other),
+            },
+            _ => panic!("expected Select"),
+        }
+    }
+
+    #[test]
+    fn parse_fresh_keyword() {
+        let ast = parse_eql("SELECT * FROM 'k' WHERE FRESH").unwrap();
+        match ast {
+            QueryAst::Select(q) => match q.where_clause.unwrap().root {
+                Condition::Freshness(FreshnessCondition::Fresh) => {}
+                other => panic!("expected Fresh, got {:?}", other),
+            },
+            _ => panic!("expected Select"),
+        }
+    }
+
+    #[test]
+    fn parse_stale_keyword() {
+        let ast = parse_eql("SELECT * FROM 'k' WHERE STALE").unwrap();
+        match ast {
+            QueryAst::Select(q) => match q.where_clause.unwrap().root {
+                Condition::Freshness(FreshnessCondition::Stale) => {}
+                other => panic!("expected Stale, got {:?}", other),
+            },
+            _ => panic!("expected Select"),
+        }
+    }
+
+    #[test]
+    fn parse_freshness_comparison() {
+        let ast = parse_eql("SELECT * FROM 'k' WHERE FRESHNESS > 0.7").unwrap();
+        match ast {
+            QueryAst::Select(q) => match q.where_clause.unwrap().root {
+                Condition::Freshness(FreshnessCondition::Compare { op, value }) => {
+                    assert_eq!(op, ComparisonOp::Gt);
+                    assert!((value - 0.7).abs() < 1e-10);
+                }
+                other => panic!("expected Freshness Compare, got {:?}", other),
+            },
+            _ => panic!("expected Select"),
         }
     }
 }

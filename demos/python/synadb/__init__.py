@@ -144,7 +144,14 @@ try:
 except Exception:
     _DAVO_AVAILABLE = False
 
-__version__ = "1.3.1"
+# Feature Store
+try:
+    from .feature_store import FeatureStore
+    _FEATURE_STORE_AVAILABLE = True
+except Exception:
+    _FEATURE_STORE_AVAILABLE = False
+
+__version__ = "1.4.0"
 
 
 # Lazy imports for integrations
@@ -405,5 +412,6 @@ __all__ = [
     "get_davo",
     "launch_studio",
     "FLASK_AVAILABLE",
+    "FeatureStore",
 ]
 

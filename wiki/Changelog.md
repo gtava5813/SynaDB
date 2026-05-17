@@ -4,6 +4,85 @@ This document contains the complete release history for SynaDB.
 
 ---
 
+## v1.4.0 - Feature Store
+
+**Date:** May 17, 2026
+**PyPI:** [synadb 1.4.0](https://pypi.org/project/synadb/)
+**Crates.io:** [synadb 1.4.0](https://crates.io/crates/synadb)
+
+### Highlights
+
+Fully embedded, zero-server feature management system for ML engineers. Define typed schemas, ingest features, serve them in <1ms, generate training datasets with point-in-time correctness, and track feature drift — all in a single `.db` file.
+
+### New: Feature Store (`src/feature_store/`, 12 modules)
+
+| Module | Purpose |
+|--------|---------|
+| `mod.rs` | FeatureStore struct, public API |
+| `schema.rs` | FeatureType, FeatureValue, ColumnDef, FeatureSchema, validation |
+| `config.rs` | FeatureStoreConfig |
+| `serialization.rs` | bincode helpers, versioned persistence |
+| `registry.rs` | FeatureRegistry, metadata, lineage, search |
+| `migration.rs` | Schema evolution (add/widen/deprecate) |
+| `ingestion.rs` | WriteAheadBuffer |
+| `online_cache.rs` | OnlineCache with LRU eviction |
+| `pit_index.rs` | Point-in-time temporal index (BTreeMap) |
+| `dataset.rs` | Training dataset generation |
+| `statistics.rs` | Welford's online stats, PSI drift |
+| `ffi.rs` | 8 C-ABI functions (SYNA_fs_*) |
+
+### Key Capabilities
+
+- **Typed Schemas** — 7 types (Float64, Int64, String, Bool, Vector, Timestamp, Categorical) with constraints (min/max, not_null, regex, allowed_values)
+- **Point-in-Time Queries** — Data leakage prevention by construction; O(log N) via BTreeMap
+- **Online Serving** — LRU cache, p99 = 6μs (167x under 1ms guarantee)
+- **Training Dataset Generation** — PIT joins over entity DataFrames with column statistics
+- **Version-Based Queries** — `get_at_version(key, -N)` for Nth-most-recent value
+- **Schema Evolution** — AddColumn, WidenType (Int64→Float64), DeprecateColumn, UpdateDefault
+- **Feature Registry** — Search by name/tag/type, lineage tracking
+- **Statistics** — Welford's online mean/variance, PSI drift detection
+- **Atomic Batch Ingestion** — Validate all, reject entire batch on any failure
+- **Prefix Schemas** — Register validation schemas for key prefixes
+
+### FFI Functions (8 new)
+
+- `SYNA_fs_new(path)` — Create/open feature store
+- `SYNA_fs_close(path)` — Close and flush
+- `SYNA_fs_ingest_float(path, group, entity, feature, value, ts)` — Ingest float
+- `SYNA_fs_ingest_int(path, group, entity, feature, value, ts)` — Ingest int
+- `SYNA_fs_serve_float(path, group, entity, feature, out)` — Serve latest
+- `SYNA_fs_get_at_version(path, group, entity, feature, version, out)` — Version query
+- `SYNA_fs_get_at_timestamp(path, group, entity, feature, ts, out)` — PIT query
+- `SYNA_fs_flush(path)` — Flush write buffer
+
+### Python API
+
+```python
+from synadb import FeatureStore
+
+with FeatureStore("features.db") as fs:
+    fs.ingest("users", "user_123", event_ts=1000000,
+              values={"purchase_count": 5, "avg_spend": 42.50})
+    
+    result = fs.serve("users", "user_123", ["purchase_count", "avg_spend"])
+    
+    # Point-in-time query
+    value = fs.get_at_timestamp("users", "user_123", "purchase_count", 500000)
+    
+    # Version-based query
+    prev = fs.get_at_version("users", "user_123", "purchase_count", version=-2)
+```
+
+### Tests
+
+432+ total (69 feature_store unit + 8 FFI + 11 property + 1 benchmark + 1 real-world + 344 existing), zero clippy warnings.
+
+### Breaking Changes
+
+None. v1.4.0 is fully backward compatible with v1.3.1.
+
+---
+
 ## v1.3.1 - Query Language Completion Patch
 
 **Date:** May 8, 2026
